@@ -1,4 +1,3 @@
-
 pub struct Memory {
     ram: [u8; 65536],
 }

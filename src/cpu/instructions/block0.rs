@@ -1,7 +1,7 @@
-use crate::cpu::CPU;
-use crate::cpu::registers::{Register16, Register16Mem, Register8, Condition};
-use crate::cpu::flags::Flags;
 use crate::cpu::fetch::*;
+use crate::cpu::flags::Flags;
+use crate::cpu::registers::{Condition, Register16, Register16Mem, Register8};
+use crate::cpu::CPU;
 use crate::memory::Memory;
 
 impl CPU {
@@ -250,12 +250,12 @@ impl CPU {
 
     pub fn jr_cond_imm8(&mut self, condition: Condition) {
         /* Jump to address relative to PC based on condition
-         * Conditions:
-         - NZ: Not zero
-         - Z: Zero
-         - NC: Not carry
-         - C: Carry
-         */
+        * Conditions:
+        - NZ: Not zero
+        - Z: Zero
+        - NC: Not carry
+        - C: Carry
+        */
         let imm8: i8 = self.fetch_byte() as i8;
 
         // Determine if we should jump based on the condition
