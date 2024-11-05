@@ -18,6 +18,5 @@ impl CPU {
         As soon as an interrupt becomes pending, the CPU resumes execution. This is like the above, except that the handler is not called.
         Some pending
         The CPU continues execution after the HALT, but the byte after it is read twice in a row (PC is not incremented, due to a hardware bug). */
-    
     }
 }
