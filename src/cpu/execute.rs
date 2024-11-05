@@ -199,12 +199,10 @@ impl CPU {
             0xB9 => self.cp_a_r8(Register8::C),
             0xBA => self.cp_a_r8(Register8::D),
             0xBB => self.cp_a_r8(Register8::E),
-            0xBC => self.cp_a_r8(Register8::H), 
+            0xBC => self.cp_a_r8(Register8::H),
             0xBD => self.cp_a_r8(Register8::L),
             0xBE => self.cp_a_r8(Register8::HLIndirect),
             0xBF => self.cp_a_r8(Register8::A),
-            
-
 
             _ => {
                 println!("opcode: {:?}", opcode)

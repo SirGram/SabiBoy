@@ -259,12 +259,7 @@ impl CPU {
         let imm8: i8 = self.fetch_byte() as i8;
 
         // Determine if we should jump based on the condition
-        let should_jump = match condition {
-            Condition::NZ => !self.f.contains(Flags::Z),
-            Condition::Z => self.f.contains(Flags::Z),
-            Condition::NC => !self.f.contains(Flags::C),
-            Condition::C => self.f.contains(Flags::C),
-        };
+        let should_jump = self.should_jump(condition);
 
         if should_jump {
             self.pc = self.pc.wrapping_add(imm8 as u16);
