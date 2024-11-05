@@ -1,6 +1,5 @@
 use crate::cpu::CPU;
 
-
 #[derive(Debug, Clone, Copy)]
 pub enum Register16 {
     BC,
@@ -111,5 +110,4 @@ impl CPU {
             Register16::SP => self.sp = value,
         }
     }
-
 }

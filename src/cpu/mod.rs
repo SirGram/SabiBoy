@@ -1,12 +1,11 @@
-
-pub mod flags;
-pub mod registers;
-pub mod fetch;
 pub mod execute;
+pub mod fetch;
+pub mod flags;
 pub mod instructions;
+pub mod registers;
 
 use flags::Flags;
-use registers::{Register16, Register8, Register16Mem, Condition};
+use registers::{Condition, Register16, Register16Mem, Register8};
 
 pub use execute::*;
 pub use fetch::*;
@@ -25,7 +24,7 @@ pub struct CPU {
     f: Flags,
     sp: u16,
     pc: u16,
-    
+
     // Memory
     memory: Memory,
 }
