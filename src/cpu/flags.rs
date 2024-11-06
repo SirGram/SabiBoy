@@ -10,6 +10,14 @@ bitflags! {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum Condition {
+    NZ,
+    Z,
+    NC,
+    C,
+}
+
 impl CPU {
     pub fn set_zn_flags(&mut self, result: u8, set_n: bool) {
         if result == 0 {

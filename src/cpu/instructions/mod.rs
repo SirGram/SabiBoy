@@ -3,7 +3,8 @@ pub mod block1;
 pub mod block2;
 pub mod block3;
 
-use crate::cpu::{Condition, Flags, CPU};
+use crate::cpu::flags::Condition;
+use crate::cpu::{Flags, CPU};
 
 impl CPU {
     pub fn should_jump(&mut self, condition: Condition) -> bool {

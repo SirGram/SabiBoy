@@ -5,12 +5,9 @@ pub mod instructions;
 pub mod registers;
 
 use flags::Flags;
-use registers::{Condition, Register16, Register16Mem, Register8};
-
-pub use execute::*;
-pub use fetch::*;
 
 use crate::memory::Memory;
+pub use execute::*;
 
 pub struct CPU {
     // Registers
@@ -46,7 +43,6 @@ impl CPU {
         }
     }
 
-    // Separate instruction implementations into trait modules
     pub fn run(&mut self) {
         loop {
             let opcode = self.fetch_byte();

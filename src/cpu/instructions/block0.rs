@@ -1,6 +1,6 @@
 use crate::cpu::fetch::*;
-use crate::cpu::flags::Flags;
-use crate::cpu::registers::{Condition, Register16, Register16Mem, Register8};
+use crate::cpu::flags::{Condition, Flags};
+use crate::cpu::registers::{Register16, Register16Mem, Register8};
 use crate::cpu::CPU;
 use crate::memory::Memory;
 
@@ -10,36 +10,20 @@ impl CPU {
     pub fn ld_r16_imm16(&mut self, register: Register16) {
         // Load 16 bit immediate value into register16
         let imm16 = self.fetch_word();
-        match register {
-            Register16::BC => {
-                self.b = (imm16 >> 8) as u8;
-                self.c = (imm16 & 0xFF) as u8;
-            }
-            Register16::DE => {
-                self.d = (imm16 >> 8) as u8;
-                self.e = (imm16 & 0xFF) as u8;
-            }
-            Register16::HL => {
-                self.h = (imm16 >> 8) as u8;
-                self.l = (imm16 & 0xFF) as u8;
-            }
-            Register16::SP => {
-                self.sp = imm16;
-            }
-        }
+        self.set_r16(&register, imm16);
     }
 
     pub fn ld_r16mem_a(&mut self, register: Register16Mem) {
         // Load A register into memory location pointed to by register16
         // HL register is incremented or decremented after storing
-        let address = self.get_r16mem(register);
+        let address = self.get_r16mem(&register);
         self.memory.write_byte(address, self.a);
     }
 
     pub fn ld_a_r16mem(&mut self, register: Register16Mem) {
         // A register value is loaded from memory location pointed to by register16
         // HL register is incremented or decremented after storing
-        let address = self.get_r16mem(register);
+        let address = self.get_r16mem(&register);
         self.a = self.memory.read_byte(address);
     }
 

@@ -1,3 +1,4 @@
+use crate::cpu::flags::Flags;
 use crate::cpu::CPU;
 
 #[derive(Debug, Clone, Copy)]
@@ -29,11 +30,11 @@ pub enum Register16Mem {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum Condition {
-    NZ,
-    Z,
-    NC,
-    C,
+pub enum Register16Stk {
+    BC,
+    DE,
+    HL,
+    AF,
 }
 
 impl CPU {
@@ -67,7 +68,7 @@ impl CPU {
             Register8::A => self.a = value,
         }
     }
-    pub fn get_r16mem(&mut self, register: Register16Mem) -> u16 {
+    pub fn get_r16mem(&mut self, register: &Register16Mem) -> u16 {
         // Get address from register16 memory
         match register {
             Register16Mem::BC => ((self.b as u16) << 8) | (self.c as u16),
@@ -108,6 +109,34 @@ impl CPU {
                 self.l = (value & 0xFF) as u8;
             }
             Register16::SP => self.sp = value,
+        }
+    }
+    pub fn get_r16stk(&self, register: &Register16Stk) -> u16 {
+        match register {
+            Register16Stk::BC => self.b as u16 | (self.c as u16) << 8,
+            Register16Stk::DE => self.d as u16 | (self.e as u16) << 8,
+            Register16Stk::HL => self.h as u16 | (self.l as u16) << 8,
+            Register16Stk::AF => self.a as u16 | (self.f.bits() as u16) << 8,
+        }
+    }
+    pub fn set_r16stk(&mut self, register: &Register16Stk, value: u16) {
+        match register {
+            Register16Stk::BC => {
+                self.b = (value >> 8) as u8;
+                self.c = (value & 0xFF) as u8;
+            }
+            Register16Stk::DE => {
+                self.d = (value >> 8) as u8;
+                self.e = (value & 0xFF) as u8;
+            }
+            Register16Stk::HL => {
+                self.h = (value >> 8) as u8;
+                self.l = (value & 0xFF) as u8;
+            }
+            Register16Stk::AF => {
+                self.a = (value >> 8) as u8;
+                self.f = Flags::from_bits_truncate(value as u8);
+            }
         }
     }
 }
