@@ -123,8 +123,8 @@ impl CPU {
         }
     }
     pub fn reti(&mut self) {
-        // TODO: Implement reti instruction
-        // enable interrupts
+        // enable interrupts and return
+        self.ei();
         self.ret();
     }
     pub fn jp_cond_imm16(&mut self, condition: Condition) {
@@ -149,9 +149,9 @@ impl CPU {
         // Push next instruction onto stack and jump to address
         let ret_address = self.pc;
         let [low_byte, high_byte] = ret_address.to_le_bytes();
-        self.sp.wrapping_sub(1);
+        self.sp = self.sp.wrapping_sub(1);
         self.bus.borrow_mut().write_byte(self.sp, high_byte);
-        self.sp.wrapping_sub(1);
+        self.sp = self.sp.wrapping_sub(1);
         self.bus.borrow_mut().write_byte(self.sp, low_byte);
 
         let address = self.fetch_word();
@@ -266,10 +266,11 @@ impl CPU {
         self.sp = value;
     }
     pub fn di(&mut self) {
-        // TODO:Disable IME flag
+        // Disable IME flag
+        self.ime = false;
     }
     pub fn ei(&mut self) {
-        // TODO:Enable Interrupts by setting the IME flag.
         // The flag is only set after the instruction following EI
+        self.ime_scheduled = true;
     }
 }

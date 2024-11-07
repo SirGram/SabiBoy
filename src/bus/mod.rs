@@ -1,3 +1,4 @@
+pub mod io_address;
 pub struct Bus {
     rom_bank_0: [u8; 0x4000],
     rom_bank_n: [u8; 0x4000],
@@ -12,6 +13,8 @@ pub struct Bus {
 }
 
 impl Bus {
+
+
     pub fn new() -> Self {
         Self {
             rom_bank_0: [0; 0x4000],

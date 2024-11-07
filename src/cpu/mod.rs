@@ -2,6 +2,7 @@ pub mod execute;
 pub mod fetch;
 pub mod flags;
 pub mod instructions;
+pub mod interrupts;
 pub mod registers;
 
 use std::{
@@ -29,6 +30,7 @@ pub struct CPU {
 
     // Flags
     ime: bool,
+    ime_scheduled: bool,
     halt: bool,
     cb_prefix: bool,
 
@@ -57,6 +59,7 @@ impl CPU {
             bus,
             cycles: 0,
             cb_prefix: false,
+            ime_scheduled: false,
         }
     }
 
@@ -67,6 +70,14 @@ impl CPU {
             self.execute(opcode, self.cb_prefix);
             self.cycles += self.clock_cycles(opcode, self.cb_prefix);
             self.cb_prefix = opcode == 0xCB;
+            self.ime_instruction();
+            self.handle_interrupts();
+        }
+    }
+    fn ime_instruction(&mut self) {
+        if self.ime_scheduled {
+            self.ime = true;
+            self.ime_scheduled = false;
         }
     }
 }
