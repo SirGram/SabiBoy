@@ -1,6 +1,9 @@
+mod bus;
 mod cpu;
-mod memory;
+mod gameboy;
 
 fn main() {
-    println!("Hello, world!");
+    let mut gameboy = gameboy::GameBoy::new();
+    gameboy.load_rom(&include_bytes!("../test/01-special.gb")[..]);
+    gameboy.run();
 }

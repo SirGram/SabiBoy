@@ -1,4 +1,4 @@
-pub struct Memory {
+pub struct Bus {
     rom_bank_0: [u8; 0x4000],
     rom_bank_n: [u8; 0x4000],
     vram: [u8; 0x2000],
@@ -11,7 +11,7 @@ pub struct Memory {
     ie_register: u8,
 }
 
-impl Memory {
+impl Bus {
     pub fn new() -> Self {
         Self {
             rom_bank_0: [0; 0x4000],
@@ -24,6 +24,16 @@ impl Memory {
             io_registers: [0; 0x80],
             hram: [0; 0x7F],
             ie_register: 0,
+        }
+    }
+
+    pub fn load_rom(&mut self, rom: &[u8]) {
+        for (i, &byte) in rom.iter().enumerate() {
+            if i < 0x4000 {
+                self.rom_bank_0[i] = byte;
+            } else if i < 0x8000 {
+                self.rom_bank_n[i - 0x4000] = byte;
+            }
         }
     }
 

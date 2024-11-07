@@ -48,7 +48,7 @@ impl CPU {
             Register8::L => self.l,
             Register8::HLIndirect => {
                 let hl = self.get_r16(&Register16::HL);
-                self.memory.read_byte(hl)
+                self.bus.borrow().read_byte(hl)
             }
             Register8::A => self.a,
         }
@@ -63,13 +63,13 @@ impl CPU {
             Register8::L => self.l = value,
             Register8::HLIndirect => {
                 let hl = self.get_r16(&Register16::HL);
-                self.memory.write_byte(hl, value);
+                self.bus.borrow_mut().write_byte(hl, value);
             }
             Register8::A => self.a = value,
         }
     }
     pub fn get_r16mem(&mut self, register: &Register16Mem) -> u16 {
-        // Get address from register16 memory
+        // Get address from register16 bus
         match register {
             Register16Mem::BC => ((self.b as u16) << 8) | (self.c as u16),
             Register16Mem::DE => ((self.d as u16) << 8) | (self.e as u16),

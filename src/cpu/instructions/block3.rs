@@ -112,7 +112,7 @@ impl CPU {
         // pop pc from stack
         /* ld (pc), [sp] ;
         inc sp */
-        let word = self.memory.read_word(self.sp);
+        let word = self.bus.borrow().read_word(self.sp);
         self.pc = word;
         self.sp = self.sp.wrapping_add(2);
     }
@@ -150,9 +150,9 @@ impl CPU {
         let ret_address = self.pc;
         let [low_byte, high_byte] = ret_address.to_le_bytes();
         self.sp.wrapping_sub(1);
-        self.memory.write_byte(self.sp, high_byte);
+        self.bus.borrow_mut().write_byte(self.sp, high_byte);
         self.sp.wrapping_sub(1);
-        self.memory.write_byte(self.sp, low_byte);
+        self.bus.borrow_mut().write_byte(self.sp, low_byte);
 
         let address = self.fetch_word();
         self.pc = address;
@@ -168,17 +168,17 @@ impl CPU {
         let ret_address = self.pc;
         let [low_byte, high_byte] = ret_address.to_le_bytes();
         self.sp.wrapping_sub(1);
-        self.memory.write_byte(self.sp, high_byte);
+        self.bus.borrow_mut().write_byte(self.sp, high_byte);
         self.sp.wrapping_sub(1);
-        self.memory.write_byte(self.sp, low_byte);
+        self.bus.borrow_mut().write_byte(self.sp, low_byte);
 
         self.pc = tgt3 as u16;
     }
     pub fn pop_r16stk(&mut self, register: Register16Stk) {
         // Pop value from stack into register16stk
-        let low_value = self.memory.read_byte(self.sp);
+        let low_value = self.bus.borrow().read_byte(self.sp);
         self.sp = self.sp.wrapping_add(1);
-        let high_value = self.memory.read_byte(self.sp);
+        let high_value = self.bus.borrow().read_byte(self.sp);
         self.sp = self.sp.wrapping_add(1);
         let value = u16::from_le_bytes([low_value, high_value]);
         self.set_r16stk(&register, value);
@@ -189,47 +189,48 @@ impl CPU {
         let value = self.get_r16stk(&register);
         let [low_value, high_value] = value.to_le_bytes();
         self.sp = self.sp.wrapping_sub(1);
-        self.memory.write_byte(self.sp, high_value);
+        self.bus.borrow_mut().write_byte(self.sp, high_value);
         self.sp = self.sp.wrapping_sub(1);
-        self.memory.write_byte(self.sp, low_value);
+        self.bus.borrow_mut().write_byte(self.sp, low_value);
     }
     // TODO: $CB instructions
     pub fn ldh_c_a(&mut self) {
         // Store value in register A into the byte at address $FF00+C
         let value = self.get_r8(&Register8::A);
         let address = 0xFF00 + self.get_r8(&Register8::C) as u16;
-        self.memory.write_byte(address, value);
+        self.bus.borrow_mut().write_byte(address, value);
     }
     pub fn ldh_imm8_a(&mut self) {
         // Load value in register A into byte at address  $FF00 and $FFFF
         let value = self.get_r8(&Register8::A);
         let imm8 = self.fetch_byte();
         let address = imm8 as u16 | 0xFF00;
-        self.memory.write_byte(address, value);
+        self.bus.borrow_mut().write_byte(address, value);
     }
     pub fn ld_imm16_a(&mut self) {
         // Load value in register A in [imm16]
         let value = self.get_r8(&Register8::A);
         let imm16 = self.fetch_word();
-        self.memory.write_byte(imm16, value);
+        self.bus.borrow_mut().write_byte(imm16, value);
     }
     pub fn ldh_a_c(&mut self) {
         // Load value in register A from the byte at address $FF00+c
         let value = self
-            .memory
+            .bus
+            .borrow()
             .read_byte(0xFF00 + self.get_r8(&Register8::C) as u16);
         self.set_r8(&Register8::A, value);
     }
     pub fn ldh_a_imm8(&mut self) {
         // Load value in register A from the byte at address $FF00+imm8
         let imm8 = self.fetch_byte();
-        let value = self.memory.read_byte(0xFF00 + imm8 as u16);
+        let value = self.bus.borrow().read_byte(0xFF00 + imm8 as u16);
         self.set_r8(&Register8::A, value);
     }
     pub fn ld_a_imm16(&mut self) {
         // Load value in register A from [imm16]
         let imm16 = self.fetch_word();
-        let value = self.memory.read_byte(imm16);
+        let value = self.bus.borrow().read_byte(imm16);
         self.set_r8(&Register8::A, value);
     }
 
@@ -265,10 +266,10 @@ impl CPU {
         self.sp = value;
     }
     pub fn di(&mut self) {
-        // Disable IME flag
+        // TODO:Disable IME flag
     }
     pub fn ei(&mut self) {
-        // Enable Interrupts by setting the IME flag.
+        // TODO:Enable Interrupts by setting the IME flag.
         // The flag is only set after the instruction following EI
     }
 }
