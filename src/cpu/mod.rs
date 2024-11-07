@@ -30,6 +30,10 @@ pub struct CPU {
     // Flags
     ime: bool,
     halt: bool,
+    cb_prefix: bool,
+
+    // cycles
+    cycles: u64,
 
     // Shared bus
     bus: Rc<RefCell<Bus>>,
@@ -51,13 +55,18 @@ impl CPU {
             ime: false,
             halt: false,
             bus,
+            cycles: 0,
+            cb_prefix: false,
         }
     }
 
     pub fn tick(&mut self) {
         if !self.halt {
+            // CB opcode is executed as NOP and is saved for the next tick
             let opcode = self.fetch_byte();
-            self.execute(opcode);
+            self.execute(opcode, self.cb_prefix);
+            self.cycles += self.clock_cycles(opcode, self.cb_prefix);
+            self.cb_prefix = opcode == 0xCB;
         }
     }
 }
