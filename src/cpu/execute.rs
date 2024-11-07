@@ -249,6 +249,7 @@ impl CPU {
                 // $D3 invalid
                 0xD4 => self.call_cond_imm16(Condition::NC),
                 0xD5 => self.push_r16stk(Register16Stk::DE),
+                0xD6 => self.sub_a_imm8(),
                 0xD7 => self.rst_tgt3(RstVec::RST10),
                 0xD8 => self.ret_cc(Condition::C),
                 0xD9 => self.reti(),

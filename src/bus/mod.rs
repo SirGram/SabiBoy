@@ -40,16 +40,16 @@ impl Bus {
     pub fn read_byte(&self, address: u16) -> u8 {
         match address {
             0x0000..=0x3FFF => self.rom_bank_0[address as usize],
-            0x4000..=0x7FFF => self.rom_bank_n[address as usize],
-            0x8000..=0x9FFF => self.vram[address as usize],
-            0xA000..=0xBFFF => self.external_ram[address as usize],
-            0xC000..=0xCFFF => self.ram_bank_0[address as usize],
-            0xD000..=0xDFFF => self.ram_bank_n[address as usize],
+            0x4000..=0x7FFF => self.rom_bank_n[(address - 0x4000) as usize],
+            0x8000..=0x9FFF => self.vram[(address - 0x8000) as usize],
+            0xA000..=0xBFFF => self.external_ram[(address - 0xA000) as usize],
+            0xC000..=0xCFFF => self.ram_bank_0[(address - 0xC000) as usize],
+            0xD000..=0xDFFF => self.ram_bank_n[(address - 0xD000) as usize],
             0xE000..=0xFDFF => self.read_byte(address - 0x2000), // Echo RAM: Map E000-FDFF to C000-DDFF
-            0xFE00..=0xFE9F => self.oam[address as usize],
+            0xFE00..=0xFE9F => self.oam[(address - 0xFE00) as usize],
             0xFEA0..=0xFEFF => 0xFF, // not usable TODO: implement https://gbdev.io/pandocs/Memory_Map.html#fea0feff-range
-            0xFF00..=0xFF7F => self.io_registers[address as usize],
-            0xFF80..=0xFFFE => self.hram[address as usize],
+            0xFF00..=0xFF7F => self.io_registers[(address - 0xFF00) as usize],
+            0xFF80..=0xFFFE => self.hram[(address - 0xFF80) as usize],
             0xFFFF => self.ie_register,
             _ => 0xFF,
         }
@@ -58,16 +58,16 @@ impl Bus {
     pub fn write_byte(&mut self, address: u16, value: u8) {
         match address {
             0x0000..=0x3FFF => self.rom_bank_0[address as usize] = value,
-            0x4000..=0x7FFF => self.rom_bank_n[address as usize] = value,
-            0x8000..=0x9FFF => self.vram[address as usize] = value,
-            0xA000..=0xBFFF => self.external_ram[address as usize] = value,
-            0xC000..=0xCFFF => self.ram_bank_0[address as usize] = value,
-            0xD000..=0xDFFF => self.ram_bank_n[address as usize] = value,
+            0x4000..=0x7FFF => self.rom_bank_n[(address - 0x4000) as usize] = value,
+            0x8000..=0x9FFF => self.vram[(address - 0x8000) as usize] = value,
+            0xA000..=0xBFFF => self.external_ram[(address - 0xA000) as usize] = value,
+            0xC000..=0xCFFF => self.ram_bank_0[(address - 0xC000) as usize] = value,
+            0xD000..=0xDFFF => self.ram_bank_n[(address - 0xD000) as usize] = value,
             0xE000..=0xFDFF => self.write_byte(address - 0x2000, value), // Echo RAM: Map E000-FDFF to C000-DDFF
-            0xFE00..=0xFE9F => self.oam[address as usize] = value,
+            0xFE00..=0xFE9F => self.oam[(address - 0xFE00) as usize] = value,
             0xFEA0..=0xFEFF => {} // Unusable
-            0xFF00..=0xFF7F => self.io_registers[address as usize] = value,
-            0xFF80..=0xFFFE => self.hram[address as usize] = value,
+            0xFF00..=0xFF7F => self.io_registers[(address - 0xFF00) as usize] = value,
+            0xFF80..=0xFFFE => self.hram[(address - 0xFF80) as usize] = value,
             0xFFFF => self.ie_register = value,
             _ => {}
         }
