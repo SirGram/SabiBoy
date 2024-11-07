@@ -2,7 +2,6 @@ use crate::cpu::fetch::*;
 use crate::cpu::flags::{Condition, Flags};
 use crate::cpu::registers::{Register16, Register16Mem, Register8};
 use crate::cpu::CPU;
-use crate::memory::Memory;
 
 impl CPU {
     pub fn nop(&mut self) {}
@@ -14,23 +13,26 @@ impl CPU {
     }
 
     pub fn ld_r16mem_a(&mut self, register: Register16Mem) {
-        // Load A register into memory location pointed to by register16
+        // Load A register into bus location pointed to by register16
         // HL register is incremented or decremented after storing
         let address = self.get_r16mem(&register);
-        self.memory.write_byte(address, self.a);
+        self.bus
+            .borrow_mut()
+            .write_byte(address, self.get_r8(&Register8::A));
     }
 
     pub fn ld_a_r16mem(&mut self, register: Register16Mem) {
-        // A register value is loaded from memory location pointed to by register16
+        // A register value is loaded from bus location pointed to by register16
         // HL register is incremented or decremented after storing
         let address = self.get_r16mem(&register);
-        self.a = self.memory.read_byte(address);
+        let value = self.bus.borrow().read_byte(address);
+        self.set_r8(&Register8::A, value);
     }
 
     pub fn ld_imm16_sp(&mut self) {
         // Load SP register into [imm16]
         let imm16 = self.fetch_word();
-        self.memory.write_word(imm16, self.sp);
+        self.bus.borrow_mut().write_word(imm16, self.sp);
     }
 
     pub fn inc_r16(&mut self, register: Register16) {

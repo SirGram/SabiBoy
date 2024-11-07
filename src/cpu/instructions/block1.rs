@@ -1,10 +1,8 @@
-
-
 use std::result;
 
+use crate::cpu::flags::Flags;
 use crate::cpu::registers::{Register16, Register16Mem, Register8};
 use crate::cpu::CPU;
-use crate::cpu::flags::{ Flags};
 
 impl CPU {
     pub fn ld_r8_r8(&mut self, register1: Register8, register2: Register8) {
@@ -35,7 +33,6 @@ impl CPU {
         self.set_zn_flags(result, false);
         self.f.set(Flags::C, carry);
         self.f.set(Flags::H, false);
-        
     }
     pub fn rrc_r8(&mut self, register: Register8) {
         // rotate right with carry
@@ -82,7 +79,6 @@ impl CPU {
         self.set_zn_flags(result, false);
         self.f.remove(Flags::H);
         self.set_r8(&register, result);
-
     }
     pub fn sla_r8(&mut self, register: Register8) {
         // shift left 1 bit. carry = bit7, bit0 = 0
@@ -95,7 +91,6 @@ impl CPU {
         self.set_zn_flags(result, false);
         self.f.remove(Flags::H);
         self.set_r8(&register, result);
-
     }
     pub fn sra_r8(&mut self, register: Register8) {
         // shift right 1 bit. carry = bit0, bit7 = unchanged
@@ -106,33 +101,33 @@ impl CPU {
         if bit7 {
             result |= 0x80;
         }
-        
+
         self.f.set(Flags::C, bit0);
         self.set_zn_flags(result, false);
         self.f.remove(Flags::H);
         self.set_r8(&register, result);
     }
     pub fn swap_r8(&mut self, register: Register8) {
-        // swap nibbles 
+        // swap nibbles
         let original_value = self.get_r8(&register);
         let result = (original_value & 0xF0) >> 4 | (original_value & 0x0F) << 4;
         self.set_r8(&register, result);
     }
     pub fn srl_r8(&mut self, register: Register8) {
-           // shift right 1 bit. carry = bit0, bit7 = 0
-           let original_value = self.get_r8(&register);
-           let bit0 = original_value & 0x01 != 0;
-           let result = original_value >> 1;
-           self.f.set(Flags::C, bit0);
-           self.set_zn_flags(result, false);
-           self.f.remove(Flags::H);
-           self.set_r8(&register, result);
+        // shift right 1 bit. carry = bit0, bit7 = 0
+        let original_value = self.get_r8(&register);
+        let bit0 = original_value & 0x01 != 0;
+        let result = original_value >> 1;
+        self.f.set(Flags::C, bit0);
+        self.set_zn_flags(result, false);
+        self.f.remove(Flags::H);
+        self.set_r8(&register, result);
     }
     pub fn bit_b3_r8(&mut self, register: Register8, selected_bit: u8) {
         // Z=0 if bit selected is set, otherwise Z=1
         let value = self.get_r8(&register);
         let bit_zero = value & (1 << selected_bit) == 0;
-        self.f.set(Flags::Z, bit_zero );
+        self.f.set(Flags::Z, bit_zero);
         self.f.remove(Flags::N);
         self.f.remove(Flags::H);
     }
@@ -141,7 +136,6 @@ impl CPU {
         let value = self.get_r8(&register);
         let result = value & !(1 << selected_bit);
         self.set_r8(&register, result);
-
     }
     pub fn set_b3_r8(&mut self, register: Register8, selected_bit: u8) {
         // set bit selected
@@ -150,4 +144,3 @@ impl CPU {
         self.set_r8(&register, result);
     }
 }
-
