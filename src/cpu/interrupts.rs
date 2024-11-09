@@ -1,7 +1,10 @@
-use crate::{bus::{Bus, io_address::IoRegister}, cpu::CPU};
+use crate::{bus::io_address::IoRegister, cpu::CPU};
 
 impl CPU {
     pub fn handle_interrupts(&mut self) {
+        if !self.ime {
+            return;
+        }
         let ie_register = self.bus.borrow().read_byte(IoRegister::Ie.address());
         let if_register = self.bus.borrow().read_byte(IoRegister::If.address());
         // Interrupts enabled and requested
@@ -32,6 +35,9 @@ impl CPU {
                 self.service_interrupt(0x60, 4);
             }
         }
+        if self.halt {
+            self.halt = false;
+        }
     }
 
     fn service_interrupt(&mut self, address: u16, bit: u8) {
@@ -39,12 +45,17 @@ impl CPU {
         self.ime = false;
         let ie_register = self.bus.borrow().read_byte(IoRegister::Ie.address());
         let value = ie_register & !(1 << bit);
-        self.bus.borrow_mut().write_byte(IoRegister::If.address(), value);
+        self.bus
+            .borrow_mut()
+            .write_byte(IoRegister::If.address(), value);
 
         self.push_stack(self.pc);
         self.pc = address;
+
+        // 20 t-cycles
+        self.cycles += 20;
     }
-    
+
     fn push_stack(&mut self, value: u16) {
         self.sp = self.sp.wrapping_sub(2);
         self.bus.borrow_mut().write_word(self.sp, value);

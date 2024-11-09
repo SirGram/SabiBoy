@@ -1,20 +1,19 @@
 pub enum IoRegister {
-
     // Joypad and Serial
     Joyp = 0xFF00,
     Sb = 0xFF01,
     Sc = 0xFF02,
-    
+
     // Timer and Divider
     Div = 0xFF04,
     Tima = 0xFF05,
     Tma = 0xFF06,
     Tac = 0xFF07,
-    
+
     // Interrupt Flags
     If = 0xFF0F,
     Ie = 0xFFFF,
-    
+
     // Sound Registers
     Nr10 = 0xFF10,
     Nr11 = 0xFF11,
@@ -74,8 +73,8 @@ pub enum IoRegister {
     Pcm12 = 0xFF76,
     Pcm34 = 0xFF77,
 }
-impl IoRegister{
-    pub fn address(self)-> u16{
+impl IoRegister {
+    pub fn address(self) -> u16 {
         self as u16
     }
 }

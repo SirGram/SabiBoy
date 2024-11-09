@@ -74,7 +74,7 @@ impl CPU {
                 0x2F => self.cpl(),
 
                 0x30 => self.jr_cond_imm8(Condition::NC),
-                0x31 => self.ld_r16_imm16(Register16::BC),
+                0x31 => self.ld_r16_imm16(Register16::SP),
                 0x32 => self.ld_r16mem_a(Register16Mem::HLd),
                 0x33 => self.inc_r16(Register16::SP),
                 0x34 => self.inc_r8(Register8::HLIndirect),

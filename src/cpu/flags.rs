@@ -10,6 +10,11 @@ bitflags! {
     }
 }
 
+impl From<u8> for Flags {
+    fn from(value: u8) -> Self {
+        Flags::from_bits_truncate(value)
+    }
+}
 #[derive(Debug, Clone, Copy)]
 pub enum Condition {
     NZ,

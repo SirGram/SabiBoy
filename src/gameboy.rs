@@ -2,8 +2,8 @@ use crate::{bus::Bus, cpu::CPU};
 use std::{cell::RefCell, rc::Rc};
 
 pub struct GameBoy {
-    cpu: CPU,
-    bus: Rc<RefCell<Bus>>,
+    pub cpu: CPU,
+    pub bus: Rc<RefCell<Bus>>,
 }
 
 impl GameBoy {

@@ -167,9 +167,9 @@ impl CPU {
         // Similar to call, but address has 8 options
         let ret_address = self.pc;
         let [low_byte, high_byte] = ret_address.to_le_bytes();
-        self.sp.wrapping_sub(1);
+        self.sp = self.sp.wrapping_sub(1);
         self.bus.borrow_mut().write_byte(self.sp, high_byte);
-        self.sp.wrapping_sub(1);
+        self.sp = self.sp.wrapping_sub(1);
         self.bus.borrow_mut().write_byte(self.sp, low_byte);
 
         self.pc = tgt3 as u16;
@@ -189,9 +189,9 @@ impl CPU {
         let value = self.get_r16stk(&register);
         let [low_value, high_value] = value.to_le_bytes();
         self.sp = self.sp.wrapping_sub(1);
-        self.bus.borrow_mut().write_byte(self.sp, high_value);
-        self.sp = self.sp.wrapping_sub(1);
         self.bus.borrow_mut().write_byte(self.sp, low_value);
+        self.sp = self.sp.wrapping_sub(1);
+        self.bus.borrow_mut().write_byte(self.sp, high_value);
     }
     // TODO: $CB instructions
     pub fn ldh_c_a(&mut self) {
@@ -240,7 +240,7 @@ impl CPU {
         let imm8 = self.fetch_byte() as i8;
         let original_sp = self.sp;
         self.sp = self.sp.wrapping_add(imm8 as u16);
-        self.set_zn_flags(self.sp as u8, false);
+        self.set_zn_flags(1 as u8, false);
 
         let half_carry = (original_sp & 0xF) + (imm8 as u16 & 0xF) > 0xF;
         let carry = (original_sp & 0xFF) + (imm8 as u16 & 0xFF) > 0xFF;
@@ -258,7 +258,7 @@ impl CPU {
         let carry = (original_sp & 0xFF) + (imm8 as u16 & 0xFF) > 0xFF;
         self.f.set(Flags::C, carry);
         self.f.set(Flags::H, half_carry);
-        self.set_zn_flags(0, false);
+        self.set_zn_flags(1, false);
     }
     pub fn ld_sp_hl(&mut self) {
         // Load value in SP from HL

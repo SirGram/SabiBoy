@@ -1,3 +1,5 @@
+use std::result;
+
 use crate::cpu::fetch::*;
 use crate::cpu::flags::{Condition, Flags};
 use crate::cpu::registers::{Register16, Register16Mem, Register8};
@@ -16,9 +18,8 @@ impl CPU {
         // Load A register into bus location pointed to by register16
         // HL register is incremented or decremented after storing
         let address = self.get_r16mem(&register);
-        self.bus
-            .borrow_mut()
-            .write_byte(address, self.get_r8(&Register8::A));
+        let value = self.get_r8(&Register8::A);
+        self.bus.borrow_mut().write_byte(address, value);
     }
 
     pub fn ld_a_r16mem(&mut self, register: Register16Mem) {
@@ -54,14 +55,14 @@ impl CPU {
         let value = self.get_r16(&register);
         self.set_r16(&Register16::HL, hl.wrapping_add(value));
         self.f.remove(Flags::N);
-        let overflow_bit11 = hl & 0xFFF + value & 0xFFF > 0xFFF;
-        let overflow_bit15 = (hl & 0xFFF) as u32 + (value & 0xFFF) as u32 > 0xFFFF;
-        if overflow_bit11 {
+        let overflow_bit11 = (hl & 0xFFF) + (value & 0xFFF) > 0xFFF;
+        let overflow_bit15 = hl as u32 + value as u32 > 0xFFFF;
+        if overflow_bit15 {
             self.f.insert(Flags::C);
         } else {
             self.f.remove(Flags::C);
         }
-        if overflow_bit15 {
+        if overflow_bit11 {
             self.f.insert(Flags::H);
         } else {
             self.f.remove(Flags::H);
@@ -82,6 +83,8 @@ impl CPU {
         let overflow_bit3 = value & 0xF == 0;
         if overflow_bit3 {
             self.f.insert(Flags::H);
+        } else {
+            self.f.remove(Flags::H);
         }
     }
 
@@ -99,6 +102,8 @@ impl CPU {
         let overflow_bit4 = value & 0xF == 0xF;
         if overflow_bit4 {
             self.f.insert(Flags::H);
+        } else {
+            self.f.remove(Flags::H);
         }
     }
 
@@ -177,30 +182,29 @@ impl CPU {
         // e.g. 0x4A => 0x50
         // half carry lower nibble. carry upper nibble
         let mut offset: u8 = 0;
-        let h_flag = self.f.contains(Flags::H);
-        let c_flag = self.f.contains(Flags::C);
-        if h_flag && !c_flag {
-            offset = 0x06;
-        } else if !h_flag && c_flag {
-            offset = 0x60;
-        } else if h_flag && c_flag {
-            offset = 0x66;
-        }
-
-        let result = self.a.wrapping_add(offset);
-        self.a = result;
-        if result == 0 {
-            self.f.insert(Flags::Z);
+        let original_a = self.get_r8(&Register8::A);
+        let mut result = original_a;
+        let mut carry = self.f.contains(Flags::C);
+        if self.f.contains(Flags::N) {
+            if self.f.contains(Flags::C) {
+                result = result.wrapping_sub(0x60);
+            }
+            if self.f.contains(Flags::H) {
+                result = result.wrapping_sub(0x06);
+            }
         } else {
-            self.f.remove(Flags::Z);
+            if self.f.contains(Flags::C) || result > 0x99 {
+                result = result.wrapping_add(0x60);
+                carry = true;
+            }
+            if self.f.contains(Flags::H) || (result & 0x0F) > 0x09 {
+                result = result.wrapping_add(0x06);
+            }
         }
-        self.f.remove(Flags::H);
-        // carry flag
-        if result < offset {
-            self.f.insert(Flags::C);
-        } else {
-            self.f.remove(Flags::C);
-        }
+        self.set_r8(&Register8::A, result);
+        self.f.set(Flags::Z, result == 0);
+        self.f.set(Flags::H, false);
+        self.f.set(Flags::C, carry);
     }
 
     pub fn cpl(&mut self) {
@@ -219,7 +223,7 @@ impl CPU {
 
     pub fn ccf(&mut self) {
         // Complement carry flag
-        self.f.insert(Flags::H);
+        self.f.remove(Flags::H);
         self.f.remove(Flags::N);
         if self.f.contains(Flags::C) {
             self.f.remove(Flags::C);
