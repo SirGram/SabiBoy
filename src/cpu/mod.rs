@@ -40,6 +40,7 @@ pub struct CPU {
 
     // Shared bus
     bus: Rc<RefCell<Bus>>,
+
 }
 
 impl CPU {

@@ -3,7 +3,13 @@ use crate::cpu::registers::Register8;
 use crate::cpu::CPU;
 
 impl CPU {
-    fn arithmetic_op_r8(&mut self, register: Register8, is_subtract: bool, use_carry: bool, update_register:bool) {
+    fn arithmetic_op_r8(
+        &mut self,
+        register: Register8,
+        is_subtract: bool,
+        use_carry: bool,
+        update_register: bool,
+    ) {
         let value = self.get_r8(&register);
         let original_a = self.get_r8(&Register8::A);
         let carry = if use_carry {
@@ -30,7 +36,7 @@ impl CPU {
 
         self.set_zn_flags(result, is_subtract);
 
-          if update_register {
+        if update_register {
             self.set_r8(&Register8::A, result);
         }
     }

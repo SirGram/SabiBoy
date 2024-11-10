@@ -2,6 +2,7 @@ mod bus;
 mod cpu;
 mod gameboy;
 mod test;
+mod timer;
 
 fn main() {
     let mut gameboy = gameboy::GameBoy::new();
