@@ -6,7 +6,7 @@ pub struct Bus {
     external_ram: [u8; 0x2000],
     ram_bank_0: [u8; 0x1000],
     ram_bank_n: [u8; 0x1000],
-    oam: [u8; 0x10A], // object attribute memory
+    oam: [u8; 0xA0], // object attribute memory
     io_registers: [u8; 0x80],
     hram: [u8; 0x7F],
     ie_register: u8,
@@ -23,7 +23,7 @@ impl Bus {
             external_ram: [0; 0x2000],
             ram_bank_0: [0; 0x1000],
             ram_bank_n: [0; 0x1000],
-            oam: [0; 0x10A],
+            oam: [0; 0xA0],
             io_registers: [0; 0x80],
             hram: [0; 0x7F],
             ie_register: 0,
