@@ -27,8 +27,7 @@ fn main() {
     gb.cpu.pc = 0x0100;
 
     gb.bus.borrow_mut().write_byte(0xFF44, 0x90);
-   
-    gb.load_rom(include_bytes!("../test/blargg/02-interrupts.gb"));
-    gb.run(); 
 
+    gb.load_rom(include_bytes!("../test/panda.gb"));
+    gb.run();
 }

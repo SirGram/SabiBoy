@@ -91,7 +91,7 @@ impl CPU {
         let result = original_value << 1;
         if bit7 {
             self.f.insert(Flags::C);
-        }else{
+        } else {
             self.f.remove(Flags::C);
         }
         self.set_zn_flags(result, false);

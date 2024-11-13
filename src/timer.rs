@@ -3,8 +3,8 @@ use std::{cell::RefCell, rc::Rc};
 
 pub struct Timer {
     bus: Rc<RefCell<Bus>>,
-    div_counter: u64,
-    tima_counter: u64,
+    div_counter: usize,
+    tima_counter: usize,
 }
 
 impl Timer {
@@ -52,8 +52,8 @@ impl Timer {
         bus.write_byte(IoRegister::If.address(), if_reg | 0b0000_0100);
     }
 
-    fn increment_div(&mut self, cycles: u64) {
-        self.div_counter += cycles;
+    fn increment_div(&mut self) {
+        self.div_counter += 1;
         if self.div_counter >= 256 {
             self.div_counter = 0;
             let new_div = self.div().wrapping_add(1);
@@ -61,7 +61,7 @@ impl Timer {
         }
     }
 
-    fn get_tima_frequency(&self) -> u64 {
+    fn get_tima_frequency(&self) -> usize {
         match self.tac() & 0x03 {
             0 => 1024,
             1 => 16,
@@ -71,14 +71,14 @@ impl Timer {
         }
     }
 
-    fn increment_tima(&mut self, cycles: u64) {
+    fn increment_tima(&mut self) {
         // Check if timer is enabled (TAC bit 2)
         if self.tac() & 0b0000_0100 == 0 {
             return;
         }
 
         let frequency = self.get_tima_frequency();
-        self.tima_counter += cycles;
+        self.tima_counter += 1;
 
         // Increment TIMA depending on Hz selected
         if self.tima_counter >= frequency {
@@ -95,8 +95,8 @@ impl Timer {
         }
     }
 
-    pub fn tick(&mut self, cycles: u64) {
-        self.increment_div(cycles);
-        self.increment_tima(cycles);
+    pub fn tick(&mut self) {
+        self.increment_div();
+        self.increment_tima();
     }
 }

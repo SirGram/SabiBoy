@@ -35,7 +35,7 @@ pub struct CPU {
     halt_bug: bool,
 
     // cycles
-    pub cycles: u64,
+    pub cycles: usize,
 
     // Shared bus
     bus: Rc<RefCell<Bus>>,
@@ -73,11 +73,10 @@ impl CPU {
             if opcode == 0xCB {
                 opcode = self.fetch_byte();
                 self.execute_cb(opcode);
-                self.cycles += self.get_clock_cycles(opcode, true); 
             } else {
                 self.execute(opcode);
-                self.cycles += self.get_clock_cycles(opcode, false); 
             }
+            self.cycles = self.get_clock_cycles(opcode, opcode == 0xCB);
         }
         self.handle_interrupts();
     }

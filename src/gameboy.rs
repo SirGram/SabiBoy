@@ -5,8 +5,7 @@ pub struct GameBoy {
     pub cpu: CPU,
     pub bus: Rc<RefCell<Bus>>,
     pub timer: Timer,
-    /*
-    pub ppu: PPU, */
+    pub ppu: PPU,
 }
 
 impl GameBoy {
@@ -14,25 +13,26 @@ impl GameBoy {
         // CPU with reference to shared bus
         let bus = Rc::new(RefCell::new(Bus::new()));
         let timer = Timer::new(Rc::clone(&bus));
-        let cpu = CPU::new(Rc::clone(&bus)); /*
-                                             let ppu = PPU::new(Rc::clone(&bus)); */
+        let cpu = CPU::new(Rc::clone(&bus));
+        let ppu = PPU::new(Rc::clone(&bus));
 
         Self {
             cpu,
             timer,
-            bus, /*
-                 ppu, */
+            bus,
+            ppu,
         }
     }
 
-    pub fn reset(&mut self) {
-    }
+    pub fn reset(&mut self) {}
 
     pub fn tick(&mut self) {
+        println!("Cycles: {}", self.cpu.cycles);
         self.cpu.tick();
-        self.timer.tick(self.cpu.cycles);
-        /*
-        self.ppu.tick(self.cpu.cycles); */
+        for i in 0..self.cpu.cycles {
+            self.timer.tick();            
+            self.ppu.tick();
+        }
     }
 
     pub fn run(&mut self) {

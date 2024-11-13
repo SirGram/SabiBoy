@@ -3,7 +3,7 @@ mod pixelfifo;
 
 use crate::bus::{io_address::IoRegister, Bus};
 use helper::should_add_sprite;
-use minifb::{Key, Window, WindowOptions};
+use minifb::{Key, Scale, Window, WindowOptions};
 use pixelfifo::PixelFifo;
 use std::{
     cell::{Ref, RefCell},
@@ -14,10 +14,9 @@ use std::{
 
 const SCREEN_WIDTH: usize = 160;
 const SCREEN_HEIGHT: usize = 144;
-const CYCLES_PER_SCANLINE: u32 = 456;
+const CYCLES_PER_SCANLINE: usize = 456;
 const X_POSITION_COUNTER_MAX: u32 = 160;
-const SPRITE_HEGHT_TALL: u8 = 16;
-const SPRITE_HEIGHT_NORMAL: u8 = 8;
+const SCANLINE_Y_COUNTER_MAX: usize = 154;
 
 enum Mode {
     HBLANK = 0,
@@ -31,7 +30,7 @@ pub struct PPU {
     bus: Rc<RefCell<Bus>>,
 
     mode: Mode,
-    mode_cycles: u64,
+    mode_cycles: usize,
 
     sprite_buffer: Vec<Sprite>,
 
@@ -79,7 +78,9 @@ impl PPU {
                 "SabiBoy",
                 SCREEN_WIDTH,
                 SCREEN_HEIGHT,
-                WindowOptions::default(),
+                WindowOptions{
+                    scale: Scale::X2,
+                    ..WindowOptions::default()},
             )
             .unwrap(),
             buffer: vec![0; SCREEN_WIDTH * SCREEN_HEIGHT],
@@ -91,14 +92,16 @@ impl PPU {
             pixel_fifo: PixelFifo::new(),
         }
     }
-    pub fn tick(&mut self, cycles: u64) {
-        // Check if LCD is enabled
+    pub fn tick(&mut self) {
+        /* // Check if LCD is enabled
         let lcdc_enabled = self.get_io_register(IoRegister::Lcdc) & 0b1000_0000 != 0;
         if !lcdc_enabled {
             return;
-        }
+        } */
         // scanline
-        self.mode_cycles += cycles;
+        self.mode_cycles += 1;
+        println!("Cycles PPU: {}", self.mode_cycles);
+        println!("PPU x_pos: {}", self.fetcher.x_pos_counter);
         match self.mode {
             Mode::OAM_SCAN => self.handle_oam(),
             Mode::DRAWING => self.handle_drawing(),
@@ -128,7 +131,6 @@ impl PPU {
         80 T-cycles  / 40 sprites (1 sprite is 4 bytes) = 1 sprite per 2 cycles
         */
         if self.mode_cycles >= 80 {
-            self.mode_cycles = 0;
             self.mode = Mode::DRAWING;
             return;
         }
@@ -147,7 +149,17 @@ impl PPU {
             }
         }
     }
-    fn handle_hblank(&mut self) {}
+    fn handle_hblank(&mut self) {
+        // pads till 456 cycles
+        if self.mode_cycles >= CYCLES_PER_SCANLINE {
+            self.mode = Mode::OAM_SCAN;
+            self.mode_cycles = 0;
+            // Scanline 144 enters VBLANK
+            if self.get_io_register(IoRegister::Ly) == 144 {
+                self.mode = Mode::VBLANK;
+            }
+        }
+    }
     fn handle_vblank(&mut self) {}
 
     fn fetch_tile_number(&mut self) {
@@ -225,6 +237,11 @@ impl PPU {
     }
 
     fn handle_drawing(&mut self) {
+        // 160 pixels per line
+        if self.fetcher.x_pos_counter >= 160 {
+            self.fetcher.x_pos_counter = 0;
+            self.mode = Mode::HBLANK;
+        }
         // Pixel fetcher
         // Each step is 2 t-cycles. Push to FIFO doesnt enable until 12 t-cycles
         if self.mode_cycles % 2 == 0 {
@@ -284,13 +301,41 @@ impl PPU {
                   * 3 : Drawing
         */
         let mut stat = self.get_io_register(IoRegister::Stat);
+
         let mode = match self.mode {
             Mode::HBLANK => 0b00,
             Mode::VBLANK => 0b01,
             Mode::OAM_SCAN => 0b10,
             Mode::DRAWING => 0b11,
         };
+        stat &= 0b11111100; 
+        stat |= mode;
 
-        self.set_io_register(IoRegister::Stat, stat);
+        // Update coincidence flag
+        let ly = self.get_io_register(IoRegister::Ly);
+        let lyc = self.get_io_register(IoRegister::Lyc);
+        let coincidence_flag = if ly == lyc { 1 } else { 0 };
+        stat &= 0b11111011; 
+        stat |= coincidence_flag << 2; 
+
+        // Update interrupt enable bits
+        let interrupt_enable = self.get_io_register(IoRegister::Stat) & 0b11110000;
+
+        // Set interrupt flag based on enabled interrupts and current mode
+        let mut interrupt_flag = 0;
+        if (interrupt_enable & 0b10000) != 0 && mode == 0b00 {
+            interrupt_flag |= 0b10;
+        }
+        if (interrupt_enable & 0b01000) != 0 && mode == 0b01 {
+            interrupt_flag |= 0b10;
+        }
+        if (interrupt_enable & 0b00100) != 0 && mode == 0b10 {
+            interrupt_flag |= 0b10;
+        }
+        if (interrupt_enable & 0b00010) != 0 && coincidence_flag == 1 {
+            interrupt_flag |= 0b10;
+        }
+
+        self.set_io_register(IoRegister::Stat, stat | interrupt_enable | interrupt_flag);
     }
 }
