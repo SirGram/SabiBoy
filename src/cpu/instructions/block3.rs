@@ -147,7 +147,7 @@ impl CPU {
     }
     pub fn call_imm16(&mut self) {
         // Push next instruction onto stack and jump to address
-        let ret_address = self.pc;
+        let ret_address = self.pc.wrapping_add(2);
         let [low_byte, high_byte] = ret_address.to_le_bytes();
         self.sp = self.sp.wrapping_sub(1);
         self.bus.borrow_mut().write_byte(self.sp, high_byte);
@@ -161,6 +161,8 @@ impl CPU {
         let should_jump = self.should_jump(condition);
         if should_jump {
             self.call_imm16();
+        } else {
+            self.fetch_word();
         }
     }
     pub fn rst_tgt3(&mut self, tgt3: RstVec) {

@@ -24,9 +24,6 @@ impl CPU {
             (true, false) => original_a.wrapping_sub(value),  // SUB
             (true, true) => original_a.wrapping_sub(value).wrapping_sub(carry), // SBC
         };
-        println!("result: {:04X}", result);
-        println!("original_a: {:04X}", original_a);
-        println!("value: {:04X}", value);
 
         if is_subtract {
             self.set_sub_flags(original_a, value, carry);

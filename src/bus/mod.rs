@@ -60,6 +60,10 @@ impl Bus {
     }
 
     pub fn write_byte(&mut self, address: u16, value: u8) {
+        // Handle serial output
+        if address == 0xFF01 {
+            print!("{}", value as char);
+        }
         match address {
             0x0000..=0x3FFF => self.rom_bank_0[address as usize] = value,
             0x4000..=0x7FFF => self.rom_bank_n[(address - 0x4000) as usize] = value,

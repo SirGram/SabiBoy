@@ -1,7 +1,7 @@
 use crate::cpu::{flags::Condition, CPU};
 
 impl CPU {
-    pub fn clock_cycles(&self, opcode: u8, is_cb__prefix: bool) -> u64 {
+    pub fn get_clock_cycles(&self, opcode: u8, is_cb__prefix: bool) -> u64 {
         if is_cb__prefix {
             match opcode {
                 0x00 => 4,  // RLC B

@@ -91,6 +91,8 @@ impl CPU {
         let result = original_value << 1;
         if bit7 {
             self.f.insert(Flags::C);
+        }else{
+            self.f.remove(Flags::C);
         }
         self.set_zn_flags(result, false);
         self.f.remove(Flags::H);
@@ -116,6 +118,9 @@ impl CPU {
         let original_value = self.get_r8(&register);
         let result = (original_value & 0xF0) >> 4 | (original_value & 0x0F) << 4;
         self.set_r8(&register, result);
+        self.set_zn_flags(result, false);
+        self.f.remove(Flags::H);
+        self.f.remove(Flags::C);
     }
     pub fn srl_r8(&mut self, register: Register8) {
         // shift right 1 bit. carry = bit0, bit7 = 0
@@ -133,7 +138,7 @@ impl CPU {
         let bit_zero = value & (1 << selected_bit) == 0;
         self.f.set(Flags::Z, bit_zero);
         self.f.remove(Flags::N);
-        self.f.remove(Flags::H);
+        self.f.insert(Flags::H);
     }
     pub fn res_b3_r8(&mut self, register: Register8, selected_bit: u8) {
         // reset bit selected

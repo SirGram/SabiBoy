@@ -33,7 +33,6 @@ pub struct CPU {
     ime_scheduled: bool,
     halt: bool,
     halt_bug: bool,
-    cb_prefix: bool,
 
     // cycles
     pub cycles: u64,
@@ -60,26 +59,27 @@ impl CPU {
             halt_bug: false,
             bus,
             cycles: 0,
-            cb_prefix: false,
             ime_scheduled: false,
         }
     }
 
     pub fn tick(&mut self) {
-        // pprinit in hex value
-        println!("cpu.pc: {:04X}", self.pc);
         if !self.halt {
             // CB opcode is executed as NOP and is saved for the next tick
             self.ime_instruction();
-            let opcode = self.fetch_byte();
+            let mut opcode = self.fetch_byte();
+
             self.check_halt_bug();
-            self.execute(opcode, self.cb_prefix);
-            self.cycles += self.clock_cycles(opcode, self.cb_prefix);
-            self.cb_prefix = opcode == 0xCB;
+            if opcode == 0xCB {
+                opcode = self.fetch_byte();
+                self.execute_cb(opcode);
+                self.cycles += self.get_clock_cycles(opcode, true); 
+            } else {
+                self.execute(opcode);
+                self.cycles += self.get_clock_cycles(opcode, false); 
+            }
         }
         self.handle_interrupts();
-
-        println!("cpu.pc: {:04X}", self.pc);
     }
 
     fn ime_instruction(&mut self) {

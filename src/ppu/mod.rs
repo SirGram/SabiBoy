@@ -1,13 +1,16 @@
+mod helper;
+mod pixelfifo;
+
 use crate::bus::{io_address::IoRegister, Bus};
 use helper::should_add_sprite;
 use minifb::{Key, Window, WindowOptions};
+use pixelfifo::PixelFifo;
 use std::{
     cell::{Ref, RefCell},
+    f32::consts::E,
     rc::Rc,
     vec,
 };
-
-mod helper;
 
 const SCREEN_WIDTH: usize = 160;
 const SCREEN_HEIGHT: usize = 144;
@@ -28,9 +31,36 @@ pub struct PPU {
     bus: Rc<RefCell<Bus>>,
 
     mode: Mode,
-    mode_cycles: u32,
+    mode_cycles: u64,
 
     sprite_buffer: Vec<Sprite>,
+
+    fetcher: Fetcher,
+    pixel_fifo: PixelFifo,
+}
+
+pub struct Fetcher {
+    step: u8,
+    tile_number: u8,
+    tile_data_low: u8,
+    tile_data_high: u8,
+    is_window_fetch: bool,
+
+    x_pos_counter: u16,
+    window_line_counter: u16,
+}
+impl Fetcher {
+    pub fn new() -> Self {
+        Self {
+            step: 0,
+            tile_number: 0,
+            tile_data_low: 0,
+            tile_data_high: 0,
+            is_window_fetch: false,
+            x_pos_counter: 0,
+            window_line_counter: 0,
+        }
+    }
 }
 
 struct Sprite {
@@ -57,25 +87,27 @@ impl PPU {
             mode: Mode::OAM_SCAN,
             mode_cycles: 0,
             sprite_buffer: Vec::new(),
+            fetcher: Fetcher::new(),
+            pixel_fifo: PixelFifo::new(),
         }
     }
-    pub fn tick(&mut self) {
+    pub fn tick(&mut self, cycles: u64) {
         // Check if LCD is enabled
         let lcdc_enabled = self.get_io_register(IoRegister::Lcdc) & 0b1000_0000 != 0;
         if !lcdc_enabled {
             return;
         }
         // scanline
-        self.mode_cycles += 1;
+        self.mode_cycles += cycles;
         match self.mode {
             Mode::OAM_SCAN => self.handle_oam(),
-            Mode::DRAWING => self.handle_vram(),
+            Mode::DRAWING => self.handle_drawing(),
             Mode::HBLANK => self.handle_hblank(),
             Mode::VBLANK => self.handle_vblank(),
         }
 
         self.update_stat();
-        
+
         if self.window.is_open() && !self.window.is_key_down(Key::Escape) {
             self.window
                 .update_with_buffer(&self.buffer, SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -92,14 +124,13 @@ impl PPU {
     }
 
     fn handle_oam(&mut self) {
-        /* Add sprites  to buffer
+        /* Add sprites to buffer
         80 T-cycles  / 40 sprites (1 sprite is 4 bytes) = 1 sprite per 2 cycles
         */
         if self.mode_cycles >= 80 {
-            self.mode = Mode::DRAWING;
             self.mode_cycles = 0;
+            self.mode = Mode::DRAWING;
             return;
-
         }
         if self.mode_cycles == 0 {
             self.sprite_buffer.clear();
@@ -119,7 +150,113 @@ impl PPU {
     fn handle_hblank(&mut self) {}
     fn handle_vblank(&mut self) {}
 
-    fn handle_vram(&mut self) {}
+    fn fetch_tile_number(&mut self) {
+        /*
+        1) Fetch Tile No.: During the first step the fetcher fetches and stores the tile number of the tile which should be used.
+        Which Tilemap is used depends on whether the PPU is currently rendering Background or Window pixels and on the bits 3 and 5 of the LCDC register.
+        Additionally, the address which the tile number is read from is offset by the fetcher-internal X-Position-Counter, which is incremented each time the last step is completed.
+        The value of SCX / 8 is also added if the Fetcher is not fetching Window pixels. In order to make the wrap-around with SCX work, this offset is ANDed with 0x1f.
+        An offset of 32 * (((LY + SCY) & 0xFF) / 8) is also added if background pixels are being fetched, otherwise, if window pixels are being fetched, this offset is determined by 32 * (WINDOW_LINE_COUNTER / 8). The Window Line Counter is a fetcher-internal variable which is incremented each time a scanline had any window pixels on it and reset when entering VBlank mode.
+
+        Note: The sum of both the X-POS+SCX and LY+SCY offsets is ANDed with 0x3ff in order to ensure that the address stays within the Tilemap memory regions.
+        */
+        let lcdc = self.get_io_register(IoRegister::Lcdc);
+        let is_window = lcdc & 0x20 != 0;
+        self.fetcher.is_window_fetch = is_window;
+        let base_address: u16 = if is_window {
+            // Bit 6  Window Tile Map Select
+            if lcdc & 0x40 != 0 {
+                0x9C00
+            } else {
+                0x9800
+            }
+        } else {
+            // Bit 3 BG Tile Map Select
+            if lcdc & 0x08 != 0 {
+                0x8000
+            } else {
+                0x8800
+            }
+        };
+        let x_offset = if is_window {
+            self.fetcher.x_pos_counter
+        } else {
+            self.fetcher.x_pos_counter + (self.get_io_register(IoRegister::Scx) / 8 & 0x1F) as u16
+        };
+
+        let y_offset = if is_window {
+            32 * (self.fetcher.window_line_counter / 8)
+        } else {
+            32 * ((self.get_io_register(IoRegister::Ly) + self.get_io_register(IoRegister::Scy))
+                / 8) as u16
+        };
+        let address = (base_address + x_offset + y_offset) & 0x3FF;
+
+        self.fetcher.tile_number = self.bus.borrow().read_byte(address)
+    }
+    fn fetch_tile_data(&mut self, tile_number: u8) -> u8 {
+        let offset = if !self.fetcher.is_window_fetch {
+            2 * ((self.get_io_register(IoRegister::Ly) + self.get_io_register(IoRegister::Scy)) % 8)
+                as u16
+        } else {
+            2 * (self.fetcher.window_line_counter % 8) as u16
+        };
+        // LCDC Bit4 selects Tile Data method 8000 or 9000
+        let lcdc = self.get_io_register(IoRegister::Lcdc);
+        let use_8000_method = (lcdc & 0x10) != 0;
+
+        let base_address = if use_8000_method { 0x8000 } else { 0x9000 };
+        let tile_data_address = if use_8000_method {
+            // Unsigned tile number, 8000 method
+            base_address + (tile_number as u16 * 16)
+        } else {
+            // Signed tile number, 8800 method
+            let signed_tile_number = tile_number as i8; // Interpret as signed 8-bit integer
+            (base_address as i32 + (signed_tile_number as i32 * 16)) as u16
+        };
+
+        // Return the specific byte within the tile data based on the offset
+        self.bus.borrow().read_byte(tile_data_address + offset)
+    }
+    fn push_to_fifo(&mut self) {
+        self.pixel_fifo
+            .push_bg_pixels([self.fetcher.tile_data_high, self.fetcher.tile_data_low]);
+        self.fetcher.x_pos_counter += 1;
+    }
+
+    fn handle_drawing(&mut self) {
+        // Pixel fetcher
+        // Each step is 2 t-cycles. Push to FIFO doesnt enable until 12 t-cycles
+        if self.mode_cycles % 2 == 0 {
+            match self.fetcher.step {
+                0 => self.fetch_tile_number(),
+                1 => {
+                    self.fetcher.tile_data_low = self.fetch_tile_data(self.fetcher.tile_number);
+                }
+                2 => {
+                    self.fetcher.tile_data_high =
+                        self.fetch_tile_data(self.fetcher.tile_number + 1);
+                }
+                3 => self.push_to_fifo(),
+                _ => (),
+            }
+        }
+
+        // Push pixel to LCD
+        if let Some(color) = self.pixel_fifo.pop_pixel() {
+            // Convert color number to actual RGB color and write to buffer
+            let actual_color = match color {
+                0 => 0xFFFFFF, // White
+                1 => 0xAAAAAA, // Light gray
+                2 => 0x555555, // Dark gray
+                3 => 0x000000, // Black
+                _ => 0xFFFFFF, // Shouldn't happen
+            };
+            let ly = self.get_io_register(IoRegister::Ly);
+            self.buffer[ly as usize * SCREEN_WIDTH + self.fetcher.x_pos_counter as usize] =
+                actual_color;
+        }
+    }
     fn get_io_register(&self, register: IoRegister) -> u8 {
         self.bus.borrow().read_byte(register.address())
     }

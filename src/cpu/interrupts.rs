@@ -43,8 +43,8 @@ impl CPU {
     fn service_interrupt(&mut self, address: u16, bit: u8) {
         // Disable the IME flag and IF register bit. Then perform call instruction
         self.ime = false;
-        let ie_register = self.bus.borrow().read_byte(IoRegister::Ie.address());
-        let value = ie_register & !(1 << bit);
+        let if_register = self.bus.borrow().read_byte(IoRegister::If.address());
+        let value = if_register & !(1 << bit);
         self.bus
             .borrow_mut()
             .write_byte(IoRegister::If.address(), value);
