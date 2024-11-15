@@ -64,9 +64,6 @@ impl Bus {
         if address == 0xFF01 {
             println!("{}", value as char);
         }
-        if address < 0x9FFF && address > 0x8000 {
-            println!("Writing to VRAM: {:02X}", value);
-        }
         match address {
             0x0000..=0x3FFF => self.rom_bank_0[address as usize] = value,
             0x4000..=0x7FFF => self.rom_bank_n[(address - 0x4000) as usize] = value,

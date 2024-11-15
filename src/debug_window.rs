@@ -6,10 +6,11 @@ use std::rc::Rc;
 use crate::bus;
 use crate::bus::io_address::IoRegister;
 use crate::cpu::CPU;
-// GREEN COLORS
-const COLORS: [u32; 4] = [0xA8D08D, 0x6A8E3C, 0x3A5D1D, 0x1F3C06];    
+use crate::ppu::COLORS;
+
 const WINDOW_WIDTH: usize = 800;
 const WINDOW_HEIGHT: usize = 600;
+
 pub struct DebugWindow {
     window: Window,
     cpu_registers: [u8; 8],
@@ -23,6 +24,10 @@ pub struct DebugWindow {
     io_registers: Vec<(String, u8)>,
     tile_data: [u8; 0x1800],
     bg_tilemap: [u8; 0x800],
+    window_tilemap: [u8; 0x800],
+    lcdc: u8,     // Added to store LCDC register
+    window_y: u8, // Added to store window Y position
+    window_x: u8, // Added to store window X position
 }
 
 impl DebugWindow {
@@ -51,7 +56,17 @@ impl DebugWindow {
             io_registers: Vec::new(),
             tile_data: [0; 0x1800],
             bg_tilemap: [0; 0x800],
+            window_tilemap: [0; 0x800],
+            lcdc: 0,
+            window_y: 0,
+            window_x: 0,
         }
+    }
+    pub fn render(&mut self) {
+        let debug_buffer = self.debug_buffer();
+        self.window
+            .update_with_buffer(&debug_buffer, WINDOW_WIDTH, WINDOW_HEIGHT)
+            .unwrap();
     }
 
     pub fn update(&mut self, cpu: &CPU, bus: &Rc<RefCell<bus::Bus>>) {
@@ -71,6 +86,9 @@ impl DebugWindow {
         self.op = bus.borrow().read_byte(cpu.pc);
         self.ime = cpu.ime;
         self.halt = cpu.halt;
+        self.lcdc = bus.borrow().read_byte(IoRegister::Lcdc.address());
+        self.window_y = bus.borrow().read_byte(IoRegister::Wy.address());
+        self.window_x = bus.borrow().read_byte(IoRegister::Wx.address());
 
         // IO registers update (grouped)
         self.io_registers = vec![
@@ -160,12 +178,21 @@ impl DebugWindow {
             }
         }
 
-        // Read background tilemap (0x9800-0x9BFF for BG Map 0)
-        let lcdc = bus.borrow().read_byte(IoRegister::Lcdc.address());
-        let tilemap_base = if (lcdc & 0x08) != 0 { 0x9C00 } else { 0x9800 };
+        // Read background and window tilemaps with correct base addresses
+        let background_tilemap_base = if (self.lcdc & 0x08) != 0 {
+            0x9C00
+        } else {
+            0x9800
+        };
+        let window_tilemap_base = if (self.lcdc & 0x40) != 0 {
+            0x9C00
+        } else {
+            0x9800
+        }; // Fixed bit mask for window tilemap
 
         for i in 0..0x800 {
-            self.bg_tilemap[i] = bus.borrow().read_byte(tilemap_base + i as u16);
+            self.bg_tilemap[i] = bus.borrow().read_byte(background_tilemap_base + i as u16);
+            self.window_tilemap[i] = bus.borrow().read_byte(window_tilemap_base + i as u16);
         }
     }
     fn render_tile_data(&self, buffer: &mut Vec<u32>, start_x: usize, start_y: usize) {
@@ -211,27 +238,59 @@ impl DebugWindow {
         }
     }
 
-    pub fn render(&mut self) {
-        let debug_buffer = self.debug_buffer();
-        self.window
-            .update_with_buffer(&debug_buffer, WINDOW_WIDTH, WINDOW_HEIGHT)
-            .unwrap();
-    }
+    fn render_tilemap(&self, buffer: &mut Vec<u32>, start_x: usize, start_y: usize, window: bool) {
+        let tile_size = 8;
+        let map_width = 32;
+        let map_height = 32;
 
-    fn render_background_tilemap(&self, buffer: &mut Vec<u32>, start_x: usize, start_y: usize) {
-        for map_y in 0..32 {
-            for map_x in 0..32 {
-                let tile_index = self.bg_tilemap[map_y * 32 + map_x] as usize;
+        // Draw external border (one-pixel-thick square around the tilemap)
+        let border_color = 0x6f6f6f;
+        for y in start_y..start_y + map_height * tile_size {
+            for x in start_x..start_x + map_width * tile_size {
+                // Draw a border around the tilemap area
+                if y == start_y
+                    || y == start_y + map_height * tile_size - 1
+                    || x == start_x
+                    || x == start_x + map_width * tile_size - 1
+                {
+                    let buffer_index = y * WINDOW_WIDTH + x;
+                    if buffer_index < buffer.len() {
+                        buffer[buffer_index] = border_color;
+                    }
+                }
+            }
+        }
+
+        if (self.lcdc & 0x01) == 0 {
+            // Check background & window enable bit
+            return;
+        }
+
+        let tilemap = if window {
+            // Only render window if it's enabled
+            if (self.lcdc & 0x20) == 0 {
+                // Check window enable bit
+                return;
+            }
+            &self.window_tilemap
+        } else {
+            
+            &self.bg_tilemap
+        };
+        // Render the tilemap itself
+        for map_y in 0..map_height {
+            for map_x in 0..map_width {
+                let tile_index = tilemap[map_y * map_width + map_x] as usize;
                 let tile_offset = tile_index * 16;
 
-                for y in 0..8 {
-                    let screen_y = start_y + (map_y * 8) + (y);
+                for y in 0..tile_size {
+                    let screen_y = start_y + (map_y * tile_size) + y;
 
                     let low_byte = self.tile_data[tile_offset + (y * 2)];
                     let high_byte = self.tile_data[tile_offset + (y * 2) + 1];
 
-                    for x in 0..8 {
-                        let screen_x = start_x + (map_x * 8) + x;
+                    for x in 0..tile_size {
+                        let screen_x = start_x + (map_x * tile_size) + x;
 
                         let color_bit = 7 - x;
                         let color_index =
@@ -239,22 +298,50 @@ impl DebugWindow {
 
                         let buffer_index = screen_y * WINDOW_WIDTH + screen_x;
                         if buffer_index < buffer.len() {
-                            buffer[buffer_index] = COLORS[color_index as usize];
+                            let mut color = COLORS[color_index as usize];
+                            if window {
+                                // Apply a tint for window tiles if necessary
+                                color = color.saturating_add(0x000040);
+                            }
+                            buffer[buffer_index] = color;
                         }
                     }
                 }
             }
         }
     }
+
     fn render_viewport(&self, buffer: &mut Vec<u32>, start_x: usize, start_y: usize) {
-        // viewport  is 160x144 pixels
-        let color = 0xFF0000; //red color
+        // Draw the visible area rectangle (160x144)
+        let viewport_color = 0xFF0000; // Red color for viewport border
+        let window_color = 0x0000FF; // Blue color for window position
+
+        // Draw viewport rectangle
         for y in 0..144 {
             for x in 0..160 {
-                let buffer_index = (y + start_y) * WINDOW_WIDTH + x + start_x;
+                let buffer_index = (start_y + y) * WINDOW_WIDTH + (start_x + x);
                 if buffer_index < buffer.len() {
                     if x == 0 || x == 159 || y == 0 || y == 143 {
-                        buffer[buffer_index] = color;
+                        buffer[buffer_index] = viewport_color;
+                    }
+                }
+            }
+        }
+
+        // Draw window position indicator if window is enabled
+        if (self.lcdc & 0x20) != 0 {
+            let wx = self.window_x.saturating_sub(7) as usize;
+            let wy = self.window_y as usize;
+
+            // Draw window position markers
+            for i in 0..8 {
+                let x_index = start_x + wx + i;
+                let y_index = start_y + wy;
+
+                if x_index < WINDOW_WIDTH && y_index < WINDOW_HEIGHT {
+                    let buffer_index = y_index * WINDOW_WIDTH + x_index;
+                    if buffer_index < buffer.len() {
+                        buffer[buffer_index] = window_color;
                     }
                 }
             }
@@ -308,12 +395,13 @@ impl DebugWindow {
         }
 
         // Render tilesets
-        title_font_renderer.draw_text(&mut buffer, 400, 5, "Background Tilemap");
-        self.render_background_tilemap(&mut buffer, 400, 20);
-        self.render_viewport(&mut buffer, 400, 20);
-
         title_font_renderer.draw_text(&mut buffer, 300, 5, "VRAM");
         self.render_tile_data(&mut buffer, 300, 20);
+        title_font_renderer.draw_text(&mut buffer, 400, 5, "Background Tilemap");
+        self.render_tilemap(&mut buffer, 400, 20, false);
+        self.render_viewport(&mut buffer, 400, 20);
+        title_font_renderer.draw_text(&mut buffer, 400, 300, "Window Tilemap");
+        self.render_tilemap(&mut buffer, 400, 320, true);
 
         buffer
     }
