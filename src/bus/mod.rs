@@ -62,7 +62,10 @@ impl Bus {
     pub fn write_byte(&mut self, address: u16, value: u8) {
         // Handle serial output
         if address == 0xFF01 {
-            print!("{}", value as char);
+            println!("{}", value as char);
+        }
+        if address < 0x9FFF && address > 0x8000 {
+            println!("Writing to VRAM: {:02X}", value);
         }
         match address {
             0x0000..=0x3FFF => self.rom_bank_0[address as usize] = value,

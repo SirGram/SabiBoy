@@ -31,7 +31,7 @@ pub struct CPU {
     // Flags
     pub ime: bool,
     ime_scheduled: bool,
-    halt: bool,
+    pub halt: bool,
     halt_bug: bool,
 
     // cycles

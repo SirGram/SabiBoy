@@ -7,17 +7,22 @@ use minifb::{Key, Scale, Window, WindowOptions};
 use pixelfifo::PixelFifo;
 use std::{
     cell::{Ref, RefCell},
+    char::MAX,
     f32::consts::E,
+    io::Write,
     rc::Rc,
     vec,
 };
 
-const SCREEN_WIDTH: usize = 160;
-const SCREEN_HEIGHT: usize = 144;
+const SCREEN_WIDTH: u8 = 160;
+const SCREEN_HEIGHT: u8 = 144;
 const CYCLES_PER_SCANLINE: usize = 456;
-const X_POSITION_COUNTER_MAX: u32 = 160;
-const SCANLINE_Y_COUNTER_MAX: usize = 154;
+const X_POSITION_COUNTER_MAX: u16 = 160;
+const SCANLINE_Y_COUNTER_MAX: u8 = 153;
+const VBLANK_START_SCANLINE: u8 = 143;
+const FRAME_DURATION: usize = 70224;
 
+#[derive(Debug)]
 enum Mode {
     HBLANK = 0,
     VBLANK = 1,
@@ -31,11 +36,14 @@ pub struct PPU {
 
     mode: Mode,
     mode_cycles: usize,
+    frame_cycles: usize,
 
     sprite_buffer: Vec<Sprite>,
 
     fetcher: Fetcher,
     pixel_fifo: PixelFifo,
+
+    debug_string: String,
 }
 
 pub struct Fetcher {
@@ -73,35 +81,69 @@ impl PPU {
     /* https://hacktix.github.io/GBEDG/ppu/
      */
     pub fn new(bus: Rc<RefCell<Bus>>) -> Self {
+        let window = Window::new(
+            "SabiBoy",
+            SCREEN_WIDTH as usize,
+            SCREEN_HEIGHT as usize,
+            WindowOptions {
+                scale: Scale::X2,
+                ..WindowOptions::default()
+            },
+        )
+        .unwrap();
+
         Self {
-            window: Window::new(
-                "SabiBoy",
-                SCREEN_WIDTH,
-                SCREEN_HEIGHT,
-                WindowOptions{
-                    scale: Scale::X2,
-                    ..WindowOptions::default()},
-            )
-            .unwrap(),
-            buffer: vec![0; SCREEN_WIDTH * SCREEN_HEIGHT],
+            window,
+            buffer: vec![0; SCREEN_WIDTH as usize * SCREEN_HEIGHT as usize],
             bus: bus,
             mode: Mode::OAM_SCAN,
             mode_cycles: 0,
             sprite_buffer: Vec::new(),
             fetcher: Fetcher::new(),
             pixel_fifo: PixelFifo::new(),
+
+            debug_string: String::with_capacity(100),
+            frame_cycles: 0,
         }
     }
+    pub fn reset(&mut self) {
+        self.mode = Mode::OAM_SCAN;
+        self.mode_cycles = 0;
+        self.sprite_buffer.clear();
+        self.pixel_fifo.reset();
+        self.set_io_register(IoRegister::Ly, 0);
+    }
+    pub fn update_debug_string(&mut self) {
+        // Update debug string
+        self.debug_string.clear();
+        self.debug_string.push_str(&format!(
+            "\rMode: {:?} | Cycles: {} | X_pos: {} | LY: {} | Fetcher Step: {} | Sprites: {}{}",
+            self.mode,
+            self.mode_cycles,
+            self.fetcher.x_pos_counter,
+            self.get_io_register(IoRegister::Ly),
+            self.fetcher.step,
+            self.sprite_buffer.len(),
+            " ".repeat(20) // Padding to ensure old text is overwritten
+        ));
+
+        // Print the debug string
+        print!("{}", self.debug_string);
+        std::io::stdout().flush().unwrap();
+    }
+
     pub fn tick(&mut self) {
-        /* // Check if LCD is enabled
-        let lcdc_enabled = self.get_io_register(IoRegister::Lcdc) & 0b1000_0000 != 0;
-        if !lcdc_enabled {
+        self.frame_cycles += 1;
+        // Check if LCD is enabled
+        let lcdc = self.get_io_register(IoRegister::Lcdc);
+        if (lcdc & 0x80) == 0 {
             return;
-        } */
+        }
+
         // scanline
         self.mode_cycles += 1;
-        println!("Cycles PPU: {}", self.mode_cycles);
-        println!("PPU x_pos: {}", self.fetcher.x_pos_counter);
+        self.update_debug_string();
+
         match self.mode {
             Mode::OAM_SCAN => self.handle_oam(),
             Mode::DRAWING => self.handle_drawing(),
@@ -109,12 +151,42 @@ impl PPU {
             Mode::VBLANK => self.handle_vblank(),
         }
 
+        if self.mode_cycles >= CYCLES_PER_SCANLINE {
+            self.mode_cycles = 0;
+            let ly = self.get_io_register(IoRegister::Ly);
+
+            // Increment LY and handle mode transitions
+            if ly < 143 {
+                self.set_io_register(IoRegister::Ly, ly + 1);
+                self.mode = Mode::OAM_SCAN;
+            } else if ly == VBLANK_START_SCANLINE {
+                self.set_io_register(IoRegister::Ly, ly + 1);
+                self.mode = Mode::VBLANK;
+            } else if ly >= SCANLINE_Y_COUNTER_MAX {
+                self.set_io_register(IoRegister::Ly, 0);
+                self.mode = Mode::OAM_SCAN; /*
+                                            self.window_line_counter = 0;
+                                            self.window_triggered_this_frame = false; */
+            } else {
+                self.set_io_register(IoRegister::Ly, ly + 1);
+            }
+
+            // Reset fetcher state for new line
+            self.fetcher.x_pos_counter = 0;
+            self.fetcher.is_window_fetch = false;
+            self.fetcher.step = 0; /*
+                                   self.pixel_fifo.clear(); */
+        }
+
         self.update_stat();
 
-        if self.window.is_open() && !self.window.is_key_down(Key::Escape) {
-            self.window
-                .update_with_buffer(&self.buffer, SCREEN_WIDTH, SCREEN_HEIGHT)
-                .unwrap();
+        if self.frame_cycles >= 100 {
+            self.frame_cycles = 0;
+            if self.window.is_open() && !self.window.is_key_down(Key::Escape) {
+                self.window
+                    .update_with_buffer(&self.buffer, SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize)
+                    .unwrap();
+            }
         }
     }
     fn read_sprite(&self, address: u16) -> Sprite {
@@ -132,6 +204,7 @@ impl PPU {
         */
         if self.mode_cycles >= 80 {
             self.mode = Mode::DRAWING;
+            self.fetcher.x_pos_counter = 0;
             return;
         }
         if self.mode_cycles == 0 {
@@ -151,16 +224,11 @@ impl PPU {
     }
     fn handle_hblank(&mut self) {
         // pads till 456 cycles
-        if self.mode_cycles >= CYCLES_PER_SCANLINE {
-            self.mode = Mode::OAM_SCAN;
-            self.mode_cycles = 0;
-            // Scanline 144 enters VBLANK
-            if self.get_io_register(IoRegister::Ly) == 144 {
-                self.mode = Mode::VBLANK;
-            }
-        }
     }
-    fn handle_vblank(&mut self) {}
+
+    fn handle_vblank(&mut self) {
+        // pads 10 vertical scanlines
+    }
 
     fn fetch_tile_number(&mut self) {
         /*
@@ -185,27 +253,29 @@ impl PPU {
         } else {
             // Bit 3 BG Tile Map Select
             if lcdc & 0x08 != 0 {
-                0x8000
+                0x9C00
             } else {
-                0x8800
+                0x9800
             }
         };
         let x_offset = if is_window {
             self.fetcher.x_pos_counter
         } else {
-            self.fetcher.x_pos_counter + (self.get_io_register(IoRegister::Scx) / 8 & 0x1F) as u16
+            (self.fetcher.x_pos_counter + (self.get_io_register(IoRegister::Scx) as u16 / 8)) & 0x1F
         };
 
         let y_offset = if is_window {
             32 * (self.fetcher.window_line_counter / 8)
         } else {
-            32 * ((self.get_io_register(IoRegister::Ly) + self.get_io_register(IoRegister::Scy))
+            32 * (((self.get_io_register(IoRegister::Ly) + self.get_io_register(IoRegister::Scy))
+                & 0xFF)
                 / 8) as u16
         };
         let address = (base_address + x_offset + y_offset) & 0x3FF;
 
         self.fetcher.tile_number = self.bus.borrow().read_byte(address)
     }
+
     fn fetch_tile_data(&mut self, tile_number: u8) -> u8 {
         let offset = if !self.fetcher.is_window_fetch {
             2 * ((self.get_io_register(IoRegister::Ly) + self.get_io_register(IoRegister::Scy)) % 8)
@@ -213,7 +283,7 @@ impl PPU {
         } else {
             2 * (self.fetcher.window_line_counter % 8) as u16
         };
-        // LCDC Bit4 selects Tile Data method 8000 or 9000
+        // LCDC Bit4 selects Tile Data method 8000 or 8800
         let lcdc = self.get_io_register(IoRegister::Lcdc);
         let use_8000_method = (lcdc & 0x10) != 0;
 
@@ -223,7 +293,7 @@ impl PPU {
             base_address + (tile_number as u16 * 16)
         } else {
             // Signed tile number, 8800 method
-            let signed_tile_number = tile_number as i8; // Interpret as signed 8-bit integer
+            let signed_tile_number = tile_number as i8;
             (base_address as i32 + (signed_tile_number as i32 * 16)) as u16
         };
 
@@ -231,32 +301,49 @@ impl PPU {
         self.bus.borrow().read_byte(tile_data_address + offset)
     }
     fn push_to_fifo(&mut self) {
-        self.pixel_fifo
-            .push_bg_pixels([self.fetcher.tile_data_high, self.fetcher.tile_data_low]);
-        self.fetcher.x_pos_counter += 1;
+        if self
+            .pixel_fifo
+            .push_bg_pixels([self.fetcher.tile_data_high, self.fetcher.tile_data_low])
+        {
+            self.fetcher.step = 0;
+        }
+    }
+    fn fetcher_step(&mut self) {
+        match self.fetcher.step {
+            0 => {
+                self.fetch_tile_number();
+                self.fetcher.step += 1;
+            }
+            1 => {
+                self.fetcher.tile_data_low = self.fetch_tile_data(self.fetcher.tile_number);
+                self.fetcher.step += 1;
+            }
+            2 => {
+                self.fetcher.tile_data_high = self.fetch_tile_data(self.fetcher.tile_number);
+                // Delay of 12 T-cycles before the background FIFO is first filled with pixel data.
+                if self.mode_cycles < 12 {
+                    self.fetcher.step = 0;
+                } else {
+                    self.fetcher.step += 1;
+                }
+            }
+            3 => {
+                self.push_to_fifo();
+            }
+            _ => self.fetcher.step = 0,
+        }
     }
 
     fn handle_drawing(&mut self) {
         // 160 pixels per line
-        if self.fetcher.x_pos_counter >= 160 {
-            self.fetcher.x_pos_counter = 0;
+        if self.fetcher.x_pos_counter >= X_POSITION_COUNTER_MAX {
             self.mode = Mode::HBLANK;
+            return;
         }
         // Pixel fetcher
-        // Each step is 2 t-cycles. Push to FIFO doesnt enable until 12 t-cycles
+        // Each step is 2 t-cycles.
         if self.mode_cycles % 2 == 0 {
-            match self.fetcher.step {
-                0 => self.fetch_tile_number(),
-                1 => {
-                    self.fetcher.tile_data_low = self.fetch_tile_data(self.fetcher.tile_number);
-                }
-                2 => {
-                    self.fetcher.tile_data_high =
-                        self.fetch_tile_data(self.fetcher.tile_number + 1);
-                }
-                3 => self.push_to_fifo(),
-                _ => (),
-            }
+            self.fetcher_step();
         }
 
         // Push pixel to LCD
@@ -270,8 +357,13 @@ impl PPU {
                 _ => 0xFFFFFF, // Shouldn't happen
             };
             let ly = self.get_io_register(IoRegister::Ly);
-            self.buffer[ly as usize * SCREEN_WIDTH + self.fetcher.x_pos_counter as usize] =
-                actual_color;
+            let x_pos = self.fetcher.x_pos_counter as usize;
+
+            if x_pos < SCREEN_WIDTH as usize && (ly as usize) < SCREEN_HEIGHT as usize {
+                self.buffer[ly as usize * SCREEN_WIDTH as usize + x_pos] = actual_color;
+            }
+
+            self.fetcher.x_pos_counter += 1;
         }
     }
     fn get_io_register(&self, register: IoRegister) -> u8 {
@@ -308,15 +400,15 @@ impl PPU {
             Mode::OAM_SCAN => 0b10,
             Mode::DRAWING => 0b11,
         };
-        stat &= 0b11111100; 
+        stat &= 0b11111100;
         stat |= mode;
 
         // Update coincidence flag
         let ly = self.get_io_register(IoRegister::Ly);
         let lyc = self.get_io_register(IoRegister::Lyc);
         let coincidence_flag = if ly == lyc { 1 } else { 0 };
-        stat &= 0b11111011; 
-        stat |= coincidence_flag << 2; 
+        stat &= 0b11111011;
+        stat |= coincidence_flag << 2;
 
         // Update interrupt enable bits
         let interrupt_enable = self.get_io_register(IoRegister::Stat) & 0b11110000;

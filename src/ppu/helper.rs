@@ -23,3 +23,12 @@ pub fn should_add_sprite(sprite: &Sprite, ly: u8, buffer_count: usize) -> bool {
         && ly + 16 < sprite.y_pos + sprite_size
         && buffer_count < MAX_SPRITES_IN_BUFFER
 }
+
+pub fn should_fetch_sprite(pixel_x_position: u8, buffer: &[Sprite]) -> bool {
+    for sprite in buffer {
+        if sprite.x_pos <= pixel_x_position + 8 {
+            return true;
+        }
+    }
+    false
+}

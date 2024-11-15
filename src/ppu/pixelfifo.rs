@@ -18,8 +18,8 @@ impl Pixel {
 }
 
 pub struct PixelFifo {
-    bg_fifo: VecDeque<Pixel>,
-    sprite_fifo: VecDeque<Pixel>,
+    pub bg_fifo: VecDeque<Pixel>,
+    pub sprite_fifo: VecDeque<Pixel>,
 }
 
 impl PixelFifo {
@@ -33,10 +33,10 @@ impl PixelFifo {
         self.bg_fifo.clear();
         self.sprite_fifo.clear();
     }
-    pub fn push_bg_pixels(&mut self, tile_data: [u8; 2]) {
+    pub fn push_bg_pixels(&mut self, tile_data: [u8; 2]) -> bool {
         // Push only if it's empty
         if !self.bg_fifo.is_empty() {
-            return;
+            return false;
         }
 
         // Decode 2bpp tile data into 8 pixels
@@ -46,6 +46,7 @@ impl PixelFifo {
             let color = high_bit << 1 | low_bit;
             self.bg_fifo.push_back(Pixel::new(color));
         }
+        true
     }
     pub fn push_sprite_pixels(&mut self) {}
     pub fn pop_pixel(&mut self) -> Option<u8> {
