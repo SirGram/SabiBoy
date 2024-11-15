@@ -3,14 +3,39 @@ use minifb_fonts::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::bus;
 use crate::bus::io_address::IoRegister;
+use crate::cartridge::cartridge_header;
 use crate::cpu::CPU;
-use crate::ppu::COLORS;
+use crate::ppu::{PPUMode, COLORS};
+use crate::{bus, ppu};
 
 const WINDOW_WIDTH: usize = 800;
 const WINDOW_HEIGHT: usize = 600;
 
+struct CartridgeHeaderState {
+    title: String, 
+    kind: String,
+    rom_size: String,
+    ram_size: String,
+    destination: String,
+    sgb_flag: String,
+    rom_version: String,
+    licensee_code: String,
+}
+impl CartridgeHeaderState {
+    pub fn new() -> Self {
+        Self {
+            title: String::new(),
+            kind: String::new(),
+            rom_size: String::new(),
+            ram_size: String::new(),
+            destination: String::new(),
+            sgb_flag: String::new(),
+            rom_version: String::new(),
+            licensee_code: String::new(),
+        }
+    }
+}
 pub struct DebugWindow {
     window: Window,
     cpu_registers: [u8; 8],
@@ -21,13 +46,19 @@ pub struct DebugWindow {
     op: u8,
     ime: bool,
     halt: bool,
+    last_cycle: usize,
     io_registers: Vec<(String, u8)>,
     tile_data: [u8; 0x1800],
     bg_tilemap: [u8; 0x800],
     window_tilemap: [u8; 0x800],
-    lcdc: u8,     // Added to store LCDC register
-    window_y: u8, // Added to store window Y position
-    window_x: u8, // Added to store window X position
+    cartridge_header: [u8; 0x50],
+    cartridge_header_read: bool,
+    lcdc: u8,
+    window_y: u8,
+    window_x: u8,
+    mode_cycles: usize,
+    mode: PPUMode,
+    cartridgeState: CartridgeHeaderState,
 }
 
 impl DebugWindow {
@@ -60,6 +91,12 @@ impl DebugWindow {
             lcdc: 0,
             window_y: 0,
             window_x: 0,
+            mode_cycles: 0,
+            mode: PPUMode::OAM_SCAN,
+            last_cycle: 0,
+            cartridge_header: [0; 0x50],
+            cartridge_header_read: false,
+            cartridgeState: CartridgeHeaderState::new(),
         }
     }
     pub fn render(&mut self) {
@@ -69,7 +106,7 @@ impl DebugWindow {
             .unwrap();
     }
 
-    pub fn update(&mut self, cpu: &CPU, bus: &Rc<RefCell<bus::Bus>>) {
+    pub fn update(&mut self, cpu: &CPU, bus: &Rc<RefCell<bus::Bus>>, ppu: &ppu::PPU) {
         // CPU registers
         self.cpu_registers = [
             cpu.a,
@@ -89,6 +126,10 @@ impl DebugWindow {
         self.lcdc = bus.borrow().read_byte(IoRegister::Lcdc.address());
         self.window_y = bus.borrow().read_byte(IoRegister::Wy.address());
         self.window_x = bus.borrow().read_byte(IoRegister::Wx.address());
+        self.last_cycle = cpu.cycles;
+
+        self.mode_cycles = ppu.mode_cycles;
+        self.mode = ppu.mode;
 
         // IO registers update (grouped)
         self.io_registers = vec![
@@ -194,6 +235,22 @@ impl DebugWindow {
             self.bg_tilemap[i] = bus.borrow().read_byte(background_tilemap_base + i as u16);
             self.window_tilemap[i] = bus.borrow().read_byte(window_tilemap_base + i as u16);
         }
+
+        // Read cartridge header
+        if !self.cartridge_header_read {
+            self.cartridge_header = bus.borrow().read_cartridge_header();
+            let title = cartridge_header::get_title(&self.cartridge_header);
+            self.cartridgeState.title = title;
+            self.cartridgeState.kind = cartridge_header::get_cartridge_type(&self.cartridge_header);
+            self.cartridgeState.rom_size = cartridge_header::get_rom_size(&self.cartridge_header);
+            self.cartridgeState.ram_size = cartridge_header::get_ram_size(&self.cartridge_header);
+            self.cartridgeState.destination = cartridge_header::get_destination_code(&self.cartridge_header);
+            self.cartridgeState.sgb_flag = cartridge_header::get_sgb_flag(&self.cartridge_header);
+            self.cartridgeState.rom_version = cartridge_header::get_mask_rom_version(&self.cartridge_header);
+            self.cartridgeState.licensee_code = cartridge_header::get_licensee_code(&self.cartridge_header);
+           
+            self.cartridge_header_read = true;
+        }
     }
     fn render_tile_data(&self, buffer: &mut Vec<u32>, start_x: usize, start_y: usize) {
         // Constants for tile layout
@@ -274,7 +331,6 @@ impl DebugWindow {
             }
             &self.window_tilemap
         } else {
-            
             &self.bg_tilemap
         };
         // Render the tilemap itself
@@ -315,11 +371,20 @@ impl DebugWindow {
         // Draw the visible area rectangle (160x144)
         let viewport_color = 0xFF0000; // Red color for viewport border
         let window_color = 0x0000FF; // Blue color for window position
+        let scx = self.io_registers.iter()
+        .find(|(name, _)| name == "SCX")
+        .map(|(_, value)| *value as usize)
+        .unwrap_or(0);
+        
+    let scy = self.io_registers.iter()
+        .find(|(name, _)| name == "SCY")
+        .map(|(_, value)| *value as usize)
+        .unwrap_or(0);
 
         // Draw viewport rectangle
         for y in 0..144 {
             for x in 0..160 {
-                let buffer_index = (start_y + y) * WINDOW_WIDTH + (start_x + x);
+                let buffer_index = (start_y + y + scy) * WINDOW_WIDTH + (start_x + x + scx);
                 if buffer_index < buffer.len() {
                     if x == 0 || x == 159 || y == 0 || y == 143 {
                         buffer[buffer_index] = viewport_color;
@@ -366,23 +431,38 @@ impl DebugWindow {
         // CPU Registers (left column)
         title_font_renderer.draw_text(&mut buffer, 10, 10, "CPU Registers");
         let reg_labels = ["A", "F", "B", "C", "D", "E", "H", "L"];
-        for (i, reg) in reg_labels.iter().enumerate() {
-            text_font_renderer.draw_text(&mut buffer, 10, 30 + i * 15, reg);
+        for i in 0..reg_labels.len() / 2 {
+            // Calculate the y position for the first register in the pair
+            let y_offset = 30 + i * 15; // Increased spacing for the two registers
+
+            // Draw first register in the pair
+            text_font_renderer.draw_text(&mut buffer, 10, y_offset, reg_labels[i * 2]);
             value_font_renderer.draw_text(
                 &mut buffer,
                 30,
-                30 + i * 15,
-                &format!("{:02X}", self.cpu_registers[i]),
+                y_offset,
+                &format!("{:02X}", self.cpu_registers[i * 2]),
+            );
+
+            // Draw second register in the pair
+            text_font_renderer.draw_text(&mut buffer, 70, y_offset, reg_labels[i * 2 + 1]);
+            value_font_renderer.draw_text(
+                &mut buffer,
+                90,
+                y_offset,
+                &format!("{:02X}", self.cpu_registers[i * 2 + 1]),
             );
         }
 
         // Special registers
         text_font_renderer.draw_text(&mut buffer, 10, 160, "SP");
-        value_font_renderer.draw_text(&mut buffer, 40, 160, &format!("{:04X}", self.sp));
+        value_font_renderer.draw_text(&mut buffer, 60, 160, &format!("{:04X}", self.sp));
         text_font_renderer.draw_text(&mut buffer, 10, 175, "PC");
-        value_font_renderer.draw_text(&mut buffer, 40, 175, &format!("{:04X}", self.pc));
+        value_font_renderer.draw_text(&mut buffer, 60, 175, &format!("{:04X}", self.pc));
         text_font_renderer.draw_text(&mut buffer, 10, 190, "OP");
-        value_font_renderer.draw_text(&mut buffer, 40, 190, &format!("{:02X}", self.op));
+        value_font_renderer.draw_text(&mut buffer, 60, 190, &format!("{:02X}", self.op));
+        text_font_renderer.draw_text(&mut buffer, 10, 205, "CYCLES");
+        value_font_renderer.draw_text(&mut buffer, 60, 205, &format!("{:02X}", self.last_cycle));
 
         // IO Registers (left column, below CPU registers)
         let mut y_offset = 220;
@@ -402,6 +482,31 @@ impl DebugWindow {
         self.render_viewport(&mut buffer, 400, 20);
         title_font_renderer.draw_text(&mut buffer, 400, 300, "Window Tilemap");
         self.render_tilemap(&mut buffer, 400, 320, true);
+
+        // Render PPU Mode
+        title_font_renderer.draw_text(&mut buffer, 300, 320, "PPU Mode");
+        value_font_renderer.draw_text(&mut buffer, 300, 335, &format!("{:?}", self.mode));
+        title_font_renderer.draw_text(&mut buffer, 300, 350, "Mode Cycles");
+        value_font_renderer.draw_text(&mut buffer, 300, 365, &format!("{:02X}", self.mode_cycles));
+
+        // Cartridge Header Information
+        title_font_renderer.draw_text(&mut buffer, 150, 10, "CARTRIDGE HEADER");
+        title_font_renderer.draw_text(&mut buffer, 150, 25, "Title");
+        value_font_renderer.draw_text(&mut buffer, 190, 25, &self.cartridgeState.title);
+        title_font_renderer.draw_text(&mut buffer, 150, 40, "Type");
+        value_font_renderer.draw_text(&mut buffer, 190, 40, &self.cartridgeState.kind);
+        title_font_renderer.draw_text(&mut buffer, 150, 55, "ROM ");
+        value_font_renderer.draw_text(&mut buffer, 190, 55, &self.cartridgeState.rom_size);
+        title_font_renderer.draw_text(&mut buffer, 150, 70, "RAM ");
+        value_font_renderer.draw_text(&mut buffer, 190, 70, &self.cartridgeState.ram_size);
+        title_font_renderer.draw_text(&mut buffer, 150, 85, "Destin");
+        value_font_renderer.draw_text(&mut buffer, 190, 85, &self.cartridgeState.destination);
+        title_font_renderer.draw_text(&mut buffer, 150, 100, "SGB");
+        value_font_renderer.draw_text(&mut buffer, 190, 100, &self.cartridgeState.sgb_flag);
+        title_font_renderer.draw_text(&mut buffer, 150, 115, "Version");
+        value_font_renderer.draw_text(&mut buffer, 190, 115, &self.cartridgeState.rom_version);
+        title_font_renderer.draw_text(&mut buffer, 150, 130, "Licensee");
+        value_font_renderer.draw_text(&mut buffer, 190, 130, &self.cartridgeState.licensee_code);
 
         buffer
     }

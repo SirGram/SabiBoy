@@ -1,7 +1,7 @@
 mod helper;
 mod pixelfifo;
 
-use crate::bus::{io_address::IoRegister, Bus};
+use crate::{bus::{io_address::IoRegister, Bus}, joyp::Joypad};
 use helper::should_add_sprite;
 use minifb::{Key, Scale, Window, WindowOptions};
 use pixelfifo::PixelFifo;
@@ -21,8 +21,8 @@ const SCANLINE_Y_COUNTER_MAX: u8 = 153;
 const VBLANK_START_SCANLINE: u8 = 143;
 const FRAME_DURATION: usize = 70224;
 
-#[derive(Debug)]
-enum Mode {
+#[derive(Debug, Copy, Clone)]
+pub enum PPUMode {
     HBLANK = 0,
     VBLANK = 1,
     OAM_SCAN = 2,
@@ -33,8 +33,8 @@ pub struct PPU {
     buffer: Vec<u32>,
     bus: Rc<RefCell<Bus>>,
 
-    mode: Mode,
-    mode_cycles: usize,
+    pub mode: PPUMode,
+    pub mode_cycles: usize,
     frame_cycles: usize,
 
     sprite_buffer: Vec<Sprite>,
@@ -94,7 +94,7 @@ impl PPU {
             window,
             buffer: vec![0; SCREEN_WIDTH as usize * SCREEN_HEIGHT as usize],
             bus: bus,
-            mode: Mode::OAM_SCAN,
+            mode: PPUMode::OAM_SCAN,
             mode_cycles: 0,
             sprite_buffer: Vec::new(),
             fetcher: Fetcher::new(),
@@ -104,13 +104,12 @@ impl PPU {
         }
     }
     pub fn reset(&mut self) {
-        self.mode = Mode::OAM_SCAN;
+        self.mode = PPUMode::OAM_SCAN;
         self.mode_cycles = 0;
         self.sprite_buffer.clear();
         self.pixel_fifo.reset();
         self.set_io_register(IoRegister::Ly, 0);
     }
-
 
     pub fn tick(&mut self) {
         self.frame_cycles += 1;
@@ -124,28 +123,28 @@ impl PPU {
         self.mode_cycles += 1;
 
         match self.mode {
-            Mode::OAM_SCAN => self.handle_oam(),
-            Mode::DRAWING => self.handle_drawing(),
-            Mode::HBLANK => self.handle_hblank(),
-            Mode::VBLANK => self.handle_vblank(),
+            PPUMode::OAM_SCAN => self.handle_oam(),
+            PPUMode::DRAWING => self.handle_drawing(),
+            PPUMode::HBLANK => self.handle_hblank(),
+            PPUMode::VBLANK => self.handle_vblank(),
         }
 
         if self.mode_cycles >= CYCLES_PER_SCANLINE {
             self.mode_cycles = 0;
             let ly = self.get_io_register(IoRegister::Ly);
 
-            // Increment LY and handle mode transitions
+            // Increment LY and handle PPUMode transitions
             if ly < 143 {
                 self.set_io_register(IoRegister::Ly, ly + 1);
-                self.mode = Mode::OAM_SCAN;
+                self.mode = PPUMode::OAM_SCAN;
             } else if ly == VBLANK_START_SCANLINE {
                 self.set_io_register(IoRegister::Ly, ly + 1);
-                self.mode = Mode::VBLANK;
+                self.mode = PPUMode::VBLANK;
             } else if ly >= SCANLINE_Y_COUNTER_MAX {
                 self.set_io_register(IoRegister::Ly, 0);
-                self.mode = Mode::OAM_SCAN; /*
-                                            self.window_line_counter = 0;
-                                            self.window_triggered_this_frame = false; */
+                self.mode = PPUMode::OAM_SCAN; /*
+                                               self.window_line_counter = 0;
+                                               self.window_triggered_this_frame = false; */
             } else {
                 self.set_io_register(IoRegister::Ly, ly + 1);
             }
@@ -165,6 +164,7 @@ impl PPU {
                 self.window
                     .update_with_buffer(&self.buffer, SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize)
                     .unwrap();
+               /*  self.joypad.update(&mut self.window); */
             }
         }
     }
@@ -182,7 +182,7 @@ impl PPU {
         80 T-cycles  / 40 sprites (1 sprite is 4 bytes) = 1 sprite per 2 cycles
         */
         if self.mode_cycles >= 80 {
-            self.mode = Mode::DRAWING;
+            self.mode = PPUMode::DRAWING;
             self.fetcher.x_pos_counter = 0;
             return;
         }
@@ -216,12 +216,12 @@ impl PPU {
         let ly = self.get_io_register(IoRegister::Ly);
         let wx = self.get_io_register(IoRegister::Wx);
         let wy = self.get_io_register(IoRegister::Wy);
-/* 
+        /*
         // Check if window is enabled and should be drawn
         let window_enabled = (lcdc & 0x20) != 0;
         let window_visible = window_enabled && wx <= 166 && wy <= ly;
-        
-        self.fetcher.is_window_fetch = window_visible && 
+
+        self.fetcher.is_window_fetch = window_visible &&
             (self.fetcher.x_pos_counter + 7) >= (wx as u16 - 7); */
 
         // Calculate the actual pixel position
@@ -238,9 +238,17 @@ impl PPU {
 
         // Select the correct tile map base address
         let tile_map_base = if self.fetcher.is_window_fetch {
-            if (lcdc & 0x40) != 0 { 0x9C00 } else { 0x9800 }
+            if (lcdc & 0x40) != 0 {
+                0x9C00
+            } else {
+                0x9800
+            }
         } else {
-            if (lcdc & 0x08) != 0 { 0x9C00 } else { 0x9800 }
+            if (lcdc & 0x08) != 0 {
+                0x9C00
+            } else {
+                0x9800
+            }
         };
 
         // Calculate final address in tile map
@@ -274,18 +282,17 @@ impl PPU {
         // Return the specific byte within the tile data based on the offset
         if is_high_byte {
             self.bus.borrow().read_byte(base_address + offset + 1)
-        }else{
-
+        } else {
             self.bus.borrow().read_byte(base_address + offset)
         }
     }
     fn push_to_fifo(&mut self) {
+        // this step repeats every cycle until it succeeds
         if self
             .pixel_fifo
-            .push_bg_pixels([ self.fetcher.tile_data_low,self.fetcher.tile_data_high])
+            .push_bg_pixels([self.fetcher.tile_data_low, self.fetcher.tile_data_high])
         {
             self.fetcher.step = 0;
-            
         }
     }
     fn fetcher_step(&mut self) {
@@ -299,7 +306,7 @@ impl PPU {
                 self.fetcher.step += 1;
             }
             2 => {
-                self.fetcher.tile_data_high = self.fetch_tile_data(self.fetcher.tile_number, true );
+                self.fetcher.tile_data_high = self.fetch_tile_data(self.fetcher.tile_number, true);
                 // Delay of 12 T-cycles before the background FIFO is first filled with pixel data
                 if self.mode_cycles < 12 {
                     self.fetcher.step = 0;
@@ -317,7 +324,7 @@ impl PPU {
     fn handle_drawing(&mut self) {
         // Exit if we've drawn all pixels for this line
         if self.fetcher.x_pos_counter >= X_POSITION_COUNTER_MAX {
-            self.mode = Mode::HBLANK;
+            self.mode = PPUMode::HBLANK;
             return;
         }
 
@@ -331,7 +338,7 @@ impl PPU {
             let bgp = self.get_io_register(IoRegister::Bgp);
             // Apply BGP palette transformation
             let palette_color = (bgp >> (color * 2)) & 0x3;
-            
+
             let ly = self.get_io_register(IoRegister::Ly);
             let x_pos = self.fetcher.x_pos_counter as usize;
 
@@ -355,16 +362,16 @@ impl PPU {
         Bit 7   Unused (Always 1)
         Bit 6   LYC=LY STAT Interrupt Enable
                  Setting this bit to 1 enables the "LYC=LY condition" to trigger a STAT interrupt.
-        Bit 5   Mode 2 STAT Interrupt Enable
-                 Setting this bit to 1 enables the "mode 2 condition" to trigger a STAT interrupt.
-        Bit 4   Mode 1 STAT Interrupt Enable
-                 Setting this bit to 1 enables the "mode 1 condition" to trigger a STAT interrupt.
-        Bit 3   Mode 0 STAT Interrupt Enable
-                 Setting this bit to 1 enables the "mode 0 condition" to trigger a STAT interrupt.
+        Bit 5   PPUMode 2 STAT Interrupt Enable
+                 Setting this bit to 1 enables the "PPUMode 2 condition" to trigger a STAT interrupt.
+        Bit 4   PPUMode 1 STAT Interrupt Enable
+                 Setting this bit to 1 enables the "PPUMode 1 condition" to trigger a STAT interrupt.
+        Bit 3   PPUMode 0 STAT Interrupt Enable
+                 Setting this bit to 1 enables the "PPUMode 0 condition" to trigger a STAT interrupt.
         Bit 2   Coincidence Flag
                  This bit is set by the PPU if the value of the LY register is equal to that of the LYC register.
-        Bit 1-0 PPU Mode
-                 These two bits are set by the PPU depending on which mode it is in.
+        Bit 1-0 PPU PPUMode
+                 These two bits are set by the PPU depending on which PPUMode it is in.
                   * 0 : H-Blank
                   * 1 : V-Blank
                   * 2 : OAM Scan
@@ -372,14 +379,14 @@ impl PPU {
         */
         let mut stat = self.get_io_register(IoRegister::Stat);
 
-        let mode = match self.mode {
-            Mode::HBLANK => 0b00,
-            Mode::VBLANK => 0b01,
-            Mode::OAM_SCAN => 0b10,
-            Mode::DRAWING => 0b11,
+        let PPUMode = match self.mode {
+            PPUMode::HBLANK => 0b00,
+            PPUMode::VBLANK => 0b01,
+            PPUMode::OAM_SCAN => 0b10,
+            PPUMode::DRAWING => 0b11,
         };
         stat &= 0b11111100;
-        stat |= mode;
+        stat |= PPUMode;
 
         // Update coincidence flag
         let ly = self.get_io_register(IoRegister::Ly);
@@ -391,15 +398,15 @@ impl PPU {
         // Update interrupt enable bits
         let interrupt_enable = self.get_io_register(IoRegister::Stat) & 0b11110000;
 
-        // Set interrupt flag based on enabled interrupts and current mode
+        // Set interrupt flag based on enabled interrupts and current PPUMode
         let mut interrupt_flag = 0;
-        if (interrupt_enable & 0b10000) != 0 && mode == 0b00 {
+        if (interrupt_enable & 0b10000) != 0 && PPUMode == 0b00 {
             interrupt_flag |= 0b10;
         }
-        if (interrupt_enable & 0b01000) != 0 && mode == 0b01 {
+        if (interrupt_enable & 0b01000) != 0 && PPUMode == 0b01 {
             interrupt_flag |= 0b10;
         }
-        if (interrupt_enable & 0b00100) != 0 && mode == 0b10 {
+        if (interrupt_enable & 0b00100) != 0 && PPUMode == 0b10 {
             interrupt_flag |= 0b10;
         }
         if (interrupt_enable & 0b00010) != 0 && coincidence_flag == 1 {

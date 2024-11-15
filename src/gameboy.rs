@@ -49,9 +49,9 @@ impl GameBoy {
         self.cpu.h = 0x01;
         self.cpu.l = 0x4D;
         self.cpu.sp = 0xFFFE;
-        self.cpu.pc = 0x0100; 
+        self.cpu.pc = 0x0100;
         self.cpu.ime = false;
-        
+
         let mut bus = self.bus.borrow_mut();
 
         // Hardware Registers
@@ -122,7 +122,7 @@ impl GameBoy {
             if let Some(ref mut debug_window) = self.debug_window {
                 debug_update_counter += 1;
                 if debug_update_counter >= 100 {
-                    debug_window.update(&self.cpu, &self.bus);
+                    debug_window.update(&self.cpu, &self.bus, &self.ppu);
                     debug_window.render();
                     debug_update_counter = 0;
                 }

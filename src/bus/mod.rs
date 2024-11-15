@@ -92,4 +92,11 @@ impl Bus {
         self.write_byte(address, low);
         self.write_byte(address.wrapping_add(1), high);
     }
+    pub fn read_cartridge_header(&self) -> [u8; 0x50] {
+        let mut header = [0; 0x50];
+        for i in 0..0x50 {
+            header[i] = self.read_byte(0x0100 + i as u16);
+        }
+        header
+    }
 }
