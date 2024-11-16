@@ -13,7 +13,7 @@ const WINDOW_WIDTH: usize = 800;
 const WINDOW_HEIGHT: usize = 600;
 
 struct CartridgeHeaderState {
-    title: String, 
+    title: String,
     kind: String,
     rom_size: String,
     ram_size: String,
@@ -50,6 +50,7 @@ pub struct DebugWindow {
     io_registers: Vec<(String, u8)>,
     tile_data: [u8; 0x1800],
     bg_tilemap: [u8; 0x800],
+    oam_data: [u8; 0xA0],
     window_tilemap: [u8; 0x800],
     cartridge_header: [u8; 0x50],
     cartridge_header_read: bool,
@@ -58,6 +59,7 @@ pub struct DebugWindow {
     window_x: u8,
     mode_cycles: usize,
     mode: PPUMode,
+    frame_cycles: usize,
     cartridgeState: CartridgeHeaderState,
 }
 
@@ -97,6 +99,8 @@ impl DebugWindow {
             cartridge_header: [0; 0x50],
             cartridge_header_read: false,
             cartridgeState: CartridgeHeaderState::new(),
+            frame_cycles: 0,
+            oam_data: [0; 0xA0],
         }
     }
     pub fn render(&mut self) {
@@ -130,6 +134,7 @@ impl DebugWindow {
 
         self.mode_cycles = ppu.mode_cycles;
         self.mode = ppu.mode;
+        self.frame_cycles = ppu.frame_cycles;
 
         // IO registers update (grouped)
         self.io_registers = vec![
@@ -229,11 +234,14 @@ impl DebugWindow {
             0x9C00
         } else {
             0x9800
-        }; // Fixed bit mask for window tilemap
+        };
 
         for i in 0..0x800 {
             self.bg_tilemap[i] = bus.borrow().read_byte(background_tilemap_base + i as u16);
             self.window_tilemap[i] = bus.borrow().read_byte(window_tilemap_base + i as u16);
+        }
+        for i in 0..0xA0 {
+            self.oam_data[i] = bus.borrow().read_byte(0xFE00 + i as u16);
         }
 
         // Read cartridge header
@@ -244,11 +252,14 @@ impl DebugWindow {
             self.cartridgeState.kind = cartridge_header::get_cartridge_type(&self.cartridge_header);
             self.cartridgeState.rom_size = cartridge_header::get_rom_size(&self.cartridge_header);
             self.cartridgeState.ram_size = cartridge_header::get_ram_size(&self.cartridge_header);
-            self.cartridgeState.destination = cartridge_header::get_destination_code(&self.cartridge_header);
+            self.cartridgeState.destination =
+                cartridge_header::get_destination_code(&self.cartridge_header);
             self.cartridgeState.sgb_flag = cartridge_header::get_sgb_flag(&self.cartridge_header);
-            self.cartridgeState.rom_version = cartridge_header::get_mask_rom_version(&self.cartridge_header);
-            self.cartridgeState.licensee_code = cartridge_header::get_licensee_code(&self.cartridge_header);
-           
+            self.cartridgeState.rom_version =
+                cartridge_header::get_mask_rom_version(&self.cartridge_header);
+            self.cartridgeState.licensee_code =
+                cartridge_header::get_licensee_code(&self.cartridge_header);
+
             self.cartridge_header_read = true;
         }
     }
@@ -257,15 +268,25 @@ impl DebugWindow {
         let tiles_per_row = 12; // Increased from 12 for better layout
         let total_tiles = 384;
         let tile_size = 8;
+        let signed_addressing = (self.lcdc & 0x10) == 0;
 
         for tile_index in 0..total_tiles {
+            let actual_tile_index = if signed_addressing {
+                // Convert to signed addressing (-128 to 127)
+                let signed_index = (tile_index as i16) - 128;
+                (signed_index & 0xFF) as usize
+            } else {
+                // Regular addressing (0 to 255)
+                tile_index
+            };
+
             let tile_x = tile_index % tiles_per_row;
             let tile_y = tile_index / tiles_per_row;
 
             let screen_x = start_x + (tile_x * tile_size);
             let screen_y = start_y + (tile_y * tile_size);
 
-            let tile_offset = tile_index * 16;
+            let tile_offset = actual_tile_index * 16;
 
             for row in 0..tile_size {
                 let y = screen_y + row;
@@ -371,15 +392,19 @@ impl DebugWindow {
         // Draw the visible area rectangle (160x144)
         let viewport_color = 0xFF0000; // Red color for viewport border
         let window_color = 0x0000FF; // Blue color for window position
-        let scx = self.io_registers.iter()
-        .find(|(name, _)| name == "SCX")
-        .map(|(_, value)| *value as usize)
-        .unwrap_or(0);
-        
-    let scy = self.io_registers.iter()
-        .find(|(name, _)| name == "SCY")
-        .map(|(_, value)| *value as usize)
-        .unwrap_or(0);
+        let scx = self
+            .io_registers
+            .iter()
+            .find(|(name, _)| name == "SCX")
+            .map(|(_, value)| *value as usize)
+            .unwrap_or(0);
+
+        let scy = self
+            .io_registers
+            .iter()
+            .find(|(name, _)| name == "SCY")
+            .map(|(_, value)| *value as usize)
+            .unwrap_or(0);
 
         // Draw viewport rectangle
         for y in 0..144 {
@@ -412,6 +437,75 @@ impl DebugWindow {
             }
         }
     }
+
+    fn render_oam(&self, buffer: &mut Vec<u32>, start_x: usize, start_y: usize) {
+        const TILE_SIZE: usize = 8; // Size of one sprite (8x8)
+        const MAX_SPRITES: usize = 40; // Maximum number of sprites
+        const SPRITE_SIZE: usize = 4; // Each sprite entry in OAM is 4 bytes
+        const ROW_SIZE: usize = 4; // Number of sprites per row in the grid
+        const BORDER_COLOR: u32 = 0x6f6f6f; // Color for the outer border
+
+        // Calculate the total grid dimensions
+        let cols = ROW_SIZE;
+        let rows = MAX_SPRITES / ROW_SIZE;
+        let grid_width = cols * TILE_SIZE;
+        let grid_height = rows * TILE_SIZE;
+
+        // Draw the outer border
+        for y in (start_y - 1)..=(start_y + grid_height) {
+            for x in (start_x - 1)..=(start_x + grid_width) {
+                if y == start_y - 1
+                    || y == start_y + grid_height
+                    || x == start_x - 1
+                    || x == start_x + grid_width
+                {
+                    let buffer_index = y * WINDOW_WIDTH + x;
+                    if buffer_index < buffer.len() {
+                        buffer[buffer_index] = BORDER_COLOR;
+                    }
+                }
+            }
+        }
+
+        // Render each OAM entry's tile
+        for sprite_index in 0..MAX_SPRITES {
+            let row = sprite_index / ROW_SIZE;
+            let col = sprite_index % ROW_SIZE;
+            let oam_offset = sprite_index * SPRITE_SIZE;
+
+            // Get tile number from OAM (byte 2 of the sprite's 4 bytes)
+            let tile_index = self.oam_data[oam_offset + 2] as usize;
+
+            // Calculate where to draw this tile in our grid
+            let sprite_start_x = start_x + col * TILE_SIZE;
+            let sprite_start_y = start_y + row * TILE_SIZE;
+
+            // Draw the actual tile
+            for y in 0..TILE_SIZE {
+                // Each tile row is 2 bytes (16 bytes total per tile)
+                let tile_offset = tile_index * 16;
+                let low_byte = self.tile_data[tile_offset + (y * 2)];
+                let high_byte = self.tile_data[tile_offset + (y * 2) + 1];
+
+                for x in 0..TILE_SIZE {
+                    let color_bit = 7 - x;
+                    let color_index =
+                        (((high_byte >> color_bit) & 1) << 1) | ((low_byte >> color_bit) & 1);
+
+                    let screen_x = sprite_start_x + x;
+                    let screen_y = sprite_start_y + y;
+
+                    if screen_x < WINDOW_WIDTH && screen_y < WINDOW_HEIGHT {
+                        let buffer_index = screen_y * WINDOW_WIDTH + screen_x;
+                        if buffer_index < buffer.len() {
+                            buffer[buffer_index] = COLORS[color_index as usize];
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     fn debug_buffer(&self) -> Vec<u32> {
         let mut buffer = vec![0; WINDOW_WIDTH * WINDOW_HEIGHT];
         let title_color: u32 = 0x4f4f4f;
@@ -482,12 +576,21 @@ impl DebugWindow {
         self.render_viewport(&mut buffer, 400, 20);
         title_font_renderer.draw_text(&mut buffer, 400, 300, "Window Tilemap");
         self.render_tilemap(&mut buffer, 400, 320, true);
+        title_font_renderer.draw_text(&mut buffer, 300, 430, "OAM");
+        self.render_oam(&mut buffer, 300, 440);
 
         // Render PPU Mode
         title_font_renderer.draw_text(&mut buffer, 300, 320, "PPU Mode");
         value_font_renderer.draw_text(&mut buffer, 300, 335, &format!("{:?}", self.mode));
         title_font_renderer.draw_text(&mut buffer, 300, 350, "Mode Cycles");
         value_font_renderer.draw_text(&mut buffer, 300, 365, &format!("{:02X}", self.mode_cycles));
+        title_font_renderer.draw_text(&mut buffer, 300, 380, "Frames");
+        value_font_renderer.draw_text(
+            &mut buffer,
+            300,
+            395,
+            &format!("{:?}", self.frame_cycles / 70224),
+        );
 
         // Cartridge Header Information
         title_font_renderer.draw_text(&mut buffer, 150, 10, "CARTRIDGE HEADER");

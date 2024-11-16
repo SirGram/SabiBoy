@@ -14,18 +14,16 @@ pub enum CartridgeHeader {
     SGBFlag = 0x146,
     ROMVersion = 0x14C,
 
-    OldLicenseeCode=  0x14B,
+    OldLicenseeCode = 0x14B,
     NewLicenseeCodeStart = 0x144,
     NewLicenseeCodeEnd = 0x145,
 }
 
-
-
-pub fn get_title( cartridge_data: &[u8]) -> String {
+pub fn get_title(cartridge_data: &[u8]) -> String {
     let title_start = CartridgeHeader::TitleStart as usize;
     let title_end = CartridgeHeader::TitleEnd as usize;
 
-    let title_bytes = &cartridge_data[title_start-0x0100..title_end-0x0100];
+    let title_bytes = &cartridge_data[title_start - 0x0100..title_end - 0x0100];
     let title = String::from_utf8_lossy(title_bytes).to_string();
     if title.trim_end_matches('\0').is_empty() {
         return "None".to_string();
@@ -36,7 +34,7 @@ pub fn get_title( cartridge_data: &[u8]) -> String {
 
 pub fn get_cartridge_type(cartridge_data: &[u8]) -> String {
     let cartridge_type_start = CartridgeHeader::CartridgeType as usize;
-    let cartridge_type_byte = cartridge_data[cartridge_type_start-0x0100];
+    let cartridge_type_byte = cartridge_data[cartridge_type_start - 0x0100];
 
     match cartridge_type_byte {
         0x00 => "ROM ONLY",
@@ -58,11 +56,12 @@ pub fn get_cartridge_type(cartridge_data: &[u8]) -> String {
         0xFE => "HuC3",
         0xFF => "HuC1 + RAM + Battery",
         _ => "Unknown",
-    }.to_string()
+    }
+    .to_string()
 }
 pub fn get_rom_size(cartridge_data: &[u8]) -> String {
     let rom_size_start = CartridgeHeader::ROMsize as usize;
-    let rom_size_byte = cartridge_data[rom_size_start-0x0100];
+    let rom_size_byte = cartridge_data[rom_size_start - 0x0100];
 
     let rom_size = match rom_size_byte {
         0x00 => "32 KiB",
@@ -76,14 +75,15 @@ pub fn get_rom_size(cartridge_data: &[u8]) -> String {
         0x08 => "8 MiB",
         0x52 => "1.1 MiB",
         _ => "Unknown",
-    }.to_string();
+    }
+    .to_string();
 
     rom_size
 }
 
 pub fn get_ram_size(cartridge_data: &[u8]) -> String {
     let ram_size_start = CartridgeHeader::RAMsize as usize;
-    let ram_size_byte = cartridge_data[ram_size_start-0x0100];
+    let ram_size_byte = cartridge_data[ram_size_start - 0x0100];
 
     match ram_size_byte {
         0x00 => "No RAM",
@@ -92,35 +92,38 @@ pub fn get_ram_size(cartridge_data: &[u8]) -> String {
         0x04 => "128 KiB (16 banks)",
         0x05 => "64 KiB (8 banks)",
         _ => "Unknown",
-    }.to_string()
+    }
+    .to_string()
 }
 
-pub  fn get_destination_code(cartridge_data: &[u8]) -> String {
+pub fn get_destination_code(cartridge_data: &[u8]) -> String {
     let destination_code_start = CartridgeHeader::DestinationCode as usize;
-    let destination_code_byte = cartridge_data[destination_code_start-0x100];
+    let destination_code_byte = cartridge_data[destination_code_start - 0x100];
 
     match destination_code_byte {
         0x00 => "Japan & Overseas",
         0x01 => "Overseas only",
         _ => "Unknown",
-    }.to_string()
+    }
+    .to_string()
 }
 
 pub fn get_sgb_flag(cartridge_data: &[u8]) -> String {
-    let sgb_flag_start =  CartridgeHeader::SGBFlag as usize;
+    let sgb_flag_start = CartridgeHeader::SGBFlag as usize;
     let sgb_flag_byte = cartridge_data[sgb_flag_start - 0x0100];
 
     match sgb_flag_byte {
         0x03 => "YES",
         _ => "NO",
-    }.to_string()
+    }
+    .to_string()
 }
 
 pub fn get_mask_rom_version(cartridge_data: &[u8]) -> String {
-    let rom_version_start =  CartridgeHeader::ROMVersion as usize;
+    let rom_version_start = CartridgeHeader::ROMVersion as usize;
     let rom_version_byte = cartridge_data[rom_version_start - 0x100];
 
-     rom_version_byte.to_string()
+    rom_version_byte.to_string()
 }
 pub fn get_licensee_code(cartridge_data: &[u8]) -> String {
     let old_licensee_code_start = CartridgeHeader::OldLicenseeCode as usize - 0x100;
@@ -351,7 +354,7 @@ pub fn get_licensee_code(cartridge_data: &[u8]) -> String {
         0xEE => "IGS",
         0xF0 => "A Wave",
         0xF3 => "Extreme Entertainment",
-        0xFF => "LJN",        
+        0xFF => "LJN",
         _ => "Unknown",
     }
     .to_string()

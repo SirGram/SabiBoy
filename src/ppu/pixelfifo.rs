@@ -1,5 +1,7 @@
 use std::collections::VecDeque;
 
+use super::fetcher_sprites::SpriteFetcher;
+
 pub struct Pixel {
     color: u8,
     sprite_priority: bool, // CGB relevant
@@ -7,12 +9,20 @@ pub struct Pixel {
     palette: bool, // CGB: 0-7
 }
 impl Pixel {
-    pub fn new(color: u8) -> Self {
+    pub fn new_bg_sprite(color: u8) -> Self {
         Self {
             color,
             sprite_priority: false,
             bg_priority: false,
             palette: false,
+        }
+    }
+    pub fn new_sprite(color: u8, bg_priority: bool, palette: bool) -> Self {
+        Self {
+            color,
+            sprite_priority: false,
+            bg_priority: bg_priority,
+            palette: palette,
         }
     }
 }
@@ -34,7 +44,7 @@ impl PixelFifo {
         self.sprite_fifo.clear();
     }
     pub fn push_bg_pixels(&mut self, tile_data: [u8; 2]) -> bool {
-        // Push only if it's empty
+        // Only allow pushing when FIFO is empty
         if !self.bg_fifo.is_empty() {
             return false;
         }
@@ -44,11 +54,34 @@ impl PixelFifo {
             let low_bit = tile_data[0] >> (7 - bit) & 0x1;
             let high_bit = tile_data[1] >> (7 - bit) & 0x1;
             let color = high_bit << 1 | low_bit;
-            self.bg_fifo.push_back(Pixel::new(color));
+            let pixel = Pixel::new_bg_sprite(color);
+            self.bg_fifo.push_back(pixel);
         }
         true
     }
-    pub fn push_sprite_pixels(&mut self) {}
+    pub fn push_sprite_pixels(
+        &mut self,
+        tile_data: [u8; 2],
+        start_pixel: u8,
+        remaining_pixels: u8,
+        palette: bool,
+        bg_priority: bool,
+    ) -> bool {
+        if start_pixel >= 8 || remaining_pixels == 0 {
+            return false;
+        }
+        // Decode 2bpp tile data into 8 pixels
+        for bit in start_pixel..std::cmp::min(8, start_pixel + remaining_pixels) {
+            let low_bit = tile_data[0] >> (7 - bit) & 0x1;
+            let high_bit = tile_data[1] >> (7 - bit) & 0x1;
+            let color = high_bit << 1 | low_bit;
+            if self.sprite_fifo.len() <= (bit - start_pixel) as usize {
+                let pixel = Pixel::new_sprite(color, bg_priority, palette);
+                self.sprite_fifo.push_back(pixel);
+            }
+        }
+        true
+    }
     pub fn pop_pixel(&mut self) -> Option<u8> {
         if self.bg_fifo.is_empty() {
             return None;
@@ -75,5 +108,11 @@ impl PixelFifo {
             }
             None => Some(bg_pixel.color),
         }
+    }
+    pub fn bg_pixel_count(&self) -> usize {
+        return self.bg_fifo.len();
+    }
+    pub fn is_paused(&self, sprite_fetcher: &SpriteFetcher) -> bool {
+        self.bg_fifo.is_empty() || sprite_fetcher.active
     }
 }

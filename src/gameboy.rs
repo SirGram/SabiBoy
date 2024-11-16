@@ -35,6 +35,36 @@ impl GameBoy {
             debug_window,
         }
     }
+
+    pub fn reset(&mut self) {}
+
+    pub fn tick(&mut self) {
+        self.cpu.tick();
+        for _ in 0..self.cpu.cycles {
+            self.timer.tick();
+            self.ppu.tick();
+        }
+    }
+
+    pub fn run(&mut self) {
+        let mut debug_update_counter = 0;
+        loop {
+            self.tick();
+
+            if let Some(ref mut debug_window) = self.debug_window {
+                debug_update_counter += 1;
+                if debug_update_counter >= 100 {
+                    debug_window.update(&self.cpu, &self.bus, &self.ppu);
+                    debug_window.render();
+                    debug_update_counter = 0;
+                }
+            }
+        }
+    }
+
+    pub fn load_rom(&mut self, rom: &[u8]) {
+        self.bus.borrow_mut().load_rom(rom);
+    }
     pub fn set_power_up_sequence(&mut self) {
         // Set initial GB state after boot
         self.cpu.a = 0x01;
@@ -102,35 +132,5 @@ impl GameBoy {
 
         // Interrupt Enable Register
         bus.write_byte(IoRegister::Ie.address(), 0x00);
-    }
-
-    pub fn reset(&mut self) {}
-
-    pub fn tick(&mut self) {
-        self.cpu.tick();
-        for _ in 0..self.cpu.cycles {
-            self.timer.tick();
-            self.ppu.tick();
-        }
-    }
-
-    pub fn run(&mut self) {
-        let mut debug_update_counter = 0;
-        loop {
-            self.tick();
-
-            if let Some(ref mut debug_window) = self.debug_window {
-                debug_update_counter += 1;
-                if debug_update_counter >= 100 {
-                    debug_window.update(&self.cpu, &self.bus, &self.ppu);
-                    debug_window.render();
-                    debug_update_counter = 0;
-                }
-            }
-        }
-    }
-
-    pub fn load_rom(&mut self, rom: &[u8]) {
-        self.bus.borrow_mut().load_rom(rom);
     }
 }

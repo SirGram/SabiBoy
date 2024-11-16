@@ -1,8 +1,12 @@
+mod fetcher;
+mod fetcher_sprites;
 mod helper;
 mod pixelfifo;
 
-use crate::{bus::{io_address::IoRegister, Bus}, joyp::Joypad};
-use helper::should_add_sprite;
+use crate::bus::{io_address::IoRegister, Bus};
+use fetcher::Fetcher;
+use fetcher_sprites::SpriteFetcher;
+use helper::{should_add_sprite, should_fetch_sprite};
 use minifb::{Key, Scale, Window, WindowOptions};
 use pixelfifo::PixelFifo;
 use std::{
@@ -29,50 +33,37 @@ pub enum PPUMode {
     DRAWING = 3,
 }
 pub struct PPU {
-    window: Window,
-    buffer: Vec<u32>,
-    bus: Rc<RefCell<Bus>>,
-
     pub mode: PPUMode,
     pub mode_cycles: usize,
-    frame_cycles: usize,
+    pub frame_cycles: usize,
+
+    window: Window,
+    buffer: Vec<u32>,
+
+    bus: Rc<RefCell<Bus>>,
 
     sprite_buffer: Vec<Sprite>,
-
     fetcher: Fetcher,
+    sprite_fetcher: SpriteFetcher,
     pixel_fifo: PixelFifo,
-
 }
 
-pub struct Fetcher {
-    step: u8,
-    tile_number: u8,
-    tile_data_low: u8,
-    tile_data_high: u8,
-    is_window_fetch: bool,
-
-    x_pos_counter: u16,
-    window_line_counter: u16,
-}
-impl Fetcher {
-    pub fn new() -> Self {
-        Self {
-            step: 0,
-            tile_number: 0,
-            tile_data_low: 0,
-            tile_data_high: 0,
-            is_window_fetch: false,
-            x_pos_counter: 0,
-            window_line_counter: 0,
-        }
-    }
-}
-
+#[derive(Clone)]
 struct Sprite {
     y_pos: u8,
     x_pos: u8,
     tile_number: u8,
     flags: u8,
+}
+impl Sprite {
+    pub fn new() -> Self {
+        Self {
+            y_pos: 0,
+            x_pos: 0,
+            tile_number: 0,
+            flags: 0,
+        }
+    }
 }
 
 impl PPU {
@@ -98,21 +89,22 @@ impl PPU {
             mode_cycles: 0,
             sprite_buffer: Vec::new(),
             fetcher: Fetcher::new(),
+            sprite_fetcher: SpriteFetcher::new(),
             pixel_fifo: PixelFifo::new(),
-
             frame_cycles: 0,
         }
     }
-    pub fn reset(&mut self) {
+    pub fn reset_scanline(&mut self) {
         self.mode = PPUMode::OAM_SCAN;
         self.mode_cycles = 0;
         self.sprite_buffer.clear();
         self.pixel_fifo.reset();
-        self.set_io_register(IoRegister::Ly, 0);
+        self.fetcher.x_pos_counter = 0;
+        self.fetcher.is_window_fetch = false;
     }
 
     pub fn tick(&mut self) {
-        self.frame_cycles += 1;
+        self.frame_cycles = self.frame_cycles.wrapping_add(1);
         // Check if LCD is enabled
         let lcdc = self.get_io_register(IoRegister::Lcdc);
         if (lcdc & 0x80) == 0 {
@@ -145,26 +137,23 @@ impl PPU {
                 self.mode = PPUMode::OAM_SCAN; /*
                                                self.window_line_counter = 0;
                                                self.window_triggered_this_frame = false; */
+                self.sprite_buffer.clear();
             } else {
                 self.set_io_register(IoRegister::Ly, ly + 1);
             }
 
             // Reset fetcher state for new line
-            self.fetcher.x_pos_counter = 0;
-            self.fetcher.is_window_fetch = false;
-            self.fetcher.step = 0; /*
-                                   self.pixel_fifo.clear(); */
+            self.reset_scanline();
         }
 
         self.update_stat();
 
-        if self.frame_cycles >= 1000 {
-            self.frame_cycles = 0;
+        if self.frame_cycles % 1000 == 0 {
             if self.window.is_open() && !self.window.is_key_down(Key::Escape) {
                 self.window
                     .update_with_buffer(&self.buffer, SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize)
                     .unwrap();
-               /*  self.joypad.update(&mut self.window); */
+                self.bus.borrow_mut().joypad.update(&mut self.window);
             }
         }
     }
@@ -184,10 +173,9 @@ impl PPU {
         if self.mode_cycles >= 80 {
             self.mode = PPUMode::DRAWING;
             self.fetcher.x_pos_counter = 0;
+            self.fetcher.step = 0;
+            self.pixel_fifo.reset();
             return;
-        }
-        if self.mode_cycles == 0 {
-            self.sprite_buffer.clear();
         }
         if self.mode_cycles % 2 != 0 {
             let current_entry = self.mode_cycles / 2;
@@ -195,9 +183,54 @@ impl PPU {
             if should_add_sprite(
                 &sprite,
                 self.get_io_register(IoRegister::Ly),
+                self.get_io_register(IoRegister::Lcdc),
                 self.sprite_buffer.len(),
             ) {
                 self.sprite_buffer.push(sprite);
+            }
+        }
+    }
+    fn handle_drawing(&mut self) {
+        // Exit if we've drawn all pixels for this line
+        if self.fetcher.x_pos_counter >= X_POSITION_COUNTER_MAX {
+            self.mode = PPUMode::HBLANK;
+            return;
+        }
+
+        // Check sprites
+        if let Some(sprite) = should_fetch_sprite(self.fetcher.x_pos_counter, &self.sprite_buffer) {
+            self.sprite_fetcher.start_fetch(&sprite, &mut self.fetcher);
+        }
+
+        if self.mode_cycles % 2 == 0 {
+            if self.fetcher.pause {
+                self.sprite_fetcher
+                    .step(&self.bus, &mut self.pixel_fifo, &mut self.fetcher);
+            } else if self.fetcher.delay == 0 {
+                self.fetcher
+                    .step(&self.bus, &mut self.pixel_fifo, self.mode_cycles);
+            } else {
+                self.fetcher.delay -= 1;
+            }
+        }
+
+        // Process pixels from FIFO
+        if !self.pixel_fifo.is_paused(&self.sprite_fetcher) {
+            if let Some(color) = self.pixel_fifo.pop_pixel() {
+                let bgp = self.get_io_register(IoRegister::Bgp);
+                // Apply BGP palette transformation
+                let palette_color = (bgp >> (color * 2)) & 0x3;
+
+                let ly = self.get_io_register(IoRegister::Ly);
+                let x_pos = self.fetcher.x_pos_counter as usize;
+
+                // Only draw if within screen bounds
+                if x_pos < SCREEN_WIDTH as usize && (ly as usize) < SCREEN_HEIGHT as usize {
+                    let buffer_index = ly as usize * SCREEN_WIDTH as usize + x_pos;
+                    self.buffer[buffer_index] = COLORS[palette_color as usize];
+                }
+
+                self.fetcher.x_pos_counter += 1;
             }
         }
     }
@@ -209,148 +242,6 @@ impl PPU {
         // pads 10 vertical scanlines
     }
 
-    fn fetch_tile_number(&mut self) {
-        let lcdc = self.get_io_register(IoRegister::Lcdc);
-        let scx = self.get_io_register(IoRegister::Scx);
-        let scy = self.get_io_register(IoRegister::Scy);
-        let ly = self.get_io_register(IoRegister::Ly);
-        let wx = self.get_io_register(IoRegister::Wx);
-        let wy = self.get_io_register(IoRegister::Wy);
-        /*
-        // Check if window is enabled and should be drawn
-        let window_enabled = (lcdc & 0x20) != 0;
-        let window_visible = window_enabled && wx <= 166 && wy <= ly;
-
-        self.fetcher.is_window_fetch = window_visible &&
-            (self.fetcher.x_pos_counter + 7) >= (wx as u16 - 7); */
-
-        // Calculate the actual pixel position
-        let pixel_x = self.fetcher.x_pos_counter.wrapping_add(scx as u16);
-        let pixel_y = if self.fetcher.is_window_fetch {
-            self.fetcher.window_line_counter
-        } else {
-            ly as u16 + scy as u16
-        };
-
-        // Calculate tile map position (32x32 tiles)
-        let tile_x = (pixel_x / 8) & 0x1F; // Wrap around at 32 tiles
-        let tile_y = (pixel_y / 8) & 0x1F;
-
-        // Select the correct tile map base address
-        let tile_map_base = if self.fetcher.is_window_fetch {
-            if (lcdc & 0x40) != 0 {
-                0x9C00
-            } else {
-                0x9800
-            }
-        } else {
-            if (lcdc & 0x08) != 0 {
-                0x9C00
-            } else {
-                0x9800
-            }
-        };
-
-        // Calculate final address in tile map
-        let tile_map_addr = tile_map_base + tile_y as u16 * 32 + tile_x as u16;
-        self.fetcher.tile_number = self.bus.borrow().read_byte(tile_map_addr);
-    }
-
-    fn fetch_tile_data(&mut self, tile_number: u8, is_high_byte: bool) -> u8 {
-        let ly = self.get_io_register(IoRegister::Ly);
-        let scy = self.get_io_register(IoRegister::Scy);
-        let lcdc = self.get_io_register(IoRegister::Lcdc);
-
-        // Calculate the offset within the tile
-        let offset = if self.fetcher.is_window_fetch {
-            (self.fetcher.window_line_counter % 8) * 2
-        } else {
-            ((ly as u16 + scy as u16) % 8) * 2
-        };
-        // LCDC Bit4 selects Tile Data method 8000 or 8800
-        let use_8000_method = (lcdc & 0x10) != 0;
-
-        let base_address = if use_8000_method {
-            // 8000 method: unsigned addressing
-            0x8000 + (tile_number as u16 * 16)
-        } else {
-            // 8800 method: signed addressing
-            let signed_tile_number = tile_number as i8;
-            0x9000u16.wrapping_add((signed_tile_number as i16 * 16) as u16)
-        };
-
-        // Return the specific byte within the tile data based on the offset
-        if is_high_byte {
-            self.bus.borrow().read_byte(base_address + offset + 1)
-        } else {
-            self.bus.borrow().read_byte(base_address + offset)
-        }
-    }
-    fn push_to_fifo(&mut self) {
-        // this step repeats every cycle until it succeeds
-        if self
-            .pixel_fifo
-            .push_bg_pixels([self.fetcher.tile_data_low, self.fetcher.tile_data_high])
-        {
-            self.fetcher.step = 0;
-        }
-    }
-    fn fetcher_step(&mut self) {
-        match self.fetcher.step {
-            0 => {
-                self.fetch_tile_number();
-                self.fetcher.step += 1;
-            }
-            1 => {
-                self.fetcher.tile_data_low = self.fetch_tile_data(self.fetcher.tile_number, false);
-                self.fetcher.step += 1;
-            }
-            2 => {
-                self.fetcher.tile_data_high = self.fetch_tile_data(self.fetcher.tile_number, true);
-                // Delay of 12 T-cycles before the background FIFO is first filled with pixel data
-                if self.mode_cycles < 12 {
-                    self.fetcher.step = 0;
-                } else {
-                    self.fetcher.step += 1;
-                }
-            }
-            3 => {
-                self.push_to_fifo();
-            }
-            _ => self.fetcher.step = 0,
-        }
-    }
-
-    fn handle_drawing(&mut self) {
-        // Exit if we've drawn all pixels for this line
-        if self.fetcher.x_pos_counter >= X_POSITION_COUNTER_MAX {
-            self.mode = PPUMode::HBLANK;
-            return;
-        }
-
-        // Fetcher runs every 2 cycles
-        if self.mode_cycles % 2 == 0 {
-            self.fetcher_step();
-        }
-
-        // Process pixels from FIFO
-        if let Some(color) = self.pixel_fifo.pop_pixel() {
-            let bgp = self.get_io_register(IoRegister::Bgp);
-            // Apply BGP palette transformation
-            let palette_color = (bgp >> (color * 2)) & 0x3;
-
-            let ly = self.get_io_register(IoRegister::Ly);
-            let x_pos = self.fetcher.x_pos_counter as usize;
-
-            // Only draw if within screen bounds
-            if x_pos < SCREEN_WIDTH as usize && (ly as usize) < SCREEN_HEIGHT as usize {
-                let buffer_index = ly as usize * SCREEN_WIDTH as usize + x_pos;
-                self.buffer[buffer_index] = COLORS[palette_color as usize];
-            }
-
-            self.fetcher.x_pos_counter += 1;
-        }
-    }
     fn get_io_register(&self, register: IoRegister) -> u8 {
         self.bus.borrow().read_byte(register.address())
     }

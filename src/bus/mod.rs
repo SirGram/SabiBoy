@@ -1,3 +1,7 @@
+use io_address::IoRegister;
+
+use crate::joyp::Joypad;
+
 pub mod io_address;
 pub struct Bus {
     rom_bank_0: [u8; 0x4000],
@@ -7,7 +11,8 @@ pub struct Bus {
     ram_bank_0: [u8; 0x1000],
     ram_bank_n: [u8; 0x1000],
     oam: [u8; 0xA0], // object attribute memory
-    io_registers: [u8; 0x80],
+    pub joypad: Joypad,
+    io_registers: [u8; 0x7F],
     hram: [u8; 0x7F],
     ie_register: u8,
     // debug
@@ -24,7 +29,8 @@ impl Bus {
             ram_bank_0: [0; 0x1000],
             ram_bank_n: [0; 0x1000],
             oam: [0; 0xA0],
-            io_registers: [0; 0x80],
+            joypad: Joypad::new(),
+            io_registers: [0; 0x7F],
             hram: [0; 0x7F],
             ie_register: 0,
             debug: [0; 0x100],
@@ -52,7 +58,8 @@ impl Bus {
             0xE000..=0xFDFF => self.read_byte(address - 0x2000), // Echo RAM: Map E000-FDFF to C000-DDFF
             0xFE00..=0xFE9F => self.oam[(address - 0xFE00) as usize],
             0xFEA0..=0xFEFF => self.debug[(address - 0xFEA0) as usize], // not usable TODO: implement https://gbdev.io/pandocs/Memory_Map.html#fea0feff-range
-            0xFF00..=0xFF7F => self.io_registers[(address - 0xFF00) as usize],
+            0xFF00 => self.joypad.read(),
+            0xFF01..=0xFF7F => self.io_registers[(address - 0xFF01) as usize],
             0xFF80..=0xFFFE => self.hram[(address - 0xFF80) as usize],
             0xFFFF => self.ie_register,
             _ => 0xFF,
@@ -74,10 +81,26 @@ impl Bus {
             0xE000..=0xFDFF => self.write_byte(address - 0x2000, value), // Echo RAM: Map E000-FDFF to C000-DDFF
             0xFE00..=0xFE9F => self.oam[(address - 0xFE00) as usize] = value,
             0xFEA0..=0xFEFF => self.debug[(address - 0xFEA0) as usize] = value, // Unusable
-            0xFF00..=0xFF7F => self.io_registers[(address - 0xFF00) as usize] = value,
+            0xFF00 => self.joypad.write(value),
+            0xFF01..=0xFF45 => self.io_registers[(address - 0xFF01) as usize] = value,
+            0xFF46 => self.dma_oam_transfer(value),
+            0xFF47..=0xFF7F => self.io_registers[(address - 0xFF02) as usize] = value,
             0xFF80..=0xFFFE => self.hram[(address - 0xFF80) as usize] = value,
             0xFFFF => self.ie_register = value,
             _ => {}
+        }
+    }
+
+    fn dma_oam_transfer(&mut self, value: u8) {
+        // TODO: maybe make cycle accurate
+        println!("OAM DMA");
+        let source_base = (value as u16) << 8;
+        let destination_base = 0xFE00;
+        let oam_size = 0xA0;
+        for i in 0..oam_size {
+            let address = source_base + i;
+            let transfer_value = self.read_byte(address);
+            self.write_byte(destination_base + i, transfer_value);
         }
     }
 
