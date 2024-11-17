@@ -19,7 +19,7 @@ pub const COLORS: [u32; 4] = [0xA8D08D, 0x6A8E3C, 0x3A5D1D, 0x1F3C06];
 
 const SCREEN_WIDTH: u8 = 160;
 const SCREEN_HEIGHT: u8 = 144;
-const CYCLES_PER_SCANLINE: usize = 455;
+const CYCLES_PER_SCANLINE: usize = 456;
 const X_POSITION_COUNTER_MAX: u16 = 160;
 const SCANLINE_Y_COUNTER_MAX: u8 = 153;
 const VBLANK_START_SCANLINE: u8 = 144;
@@ -95,7 +95,6 @@ impl PPU {
         }
     }
     pub fn reset_scanline(&mut self) {
-        self.mode = PPUMode::OAM_SCAN;
         self.mode_cycles = 0;
         self.sprite_buffer.clear();
         self.fetcher.x_pos_counter = 0;
@@ -139,8 +138,6 @@ impl PPU {
             } else {
                 self.set_io_register(IoRegister::Ly, ly + 1);
             }
-            println!("IF: {:02X}", self.get_io_register(IoRegister::If));
-
 
             // Reset fetcher state for new line
             self.reset_scanline();
@@ -148,18 +145,6 @@ impl PPU {
 
         self.update_stat();
 
-        if self.frame_cycles % 1000 == 0 {
-            if self.window.is_open() && !self.window.is_key_down(Key::Escape) {
-                self.window
-                    .limit_update_rate(Some(std::time::Duration::from_micros(16600))); // ~60fps
-
-                self.window
-                    .update_with_buffer(&self.buffer, SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize)
-                    .unwrap();
-                self.bus.borrow_mut().joypad.update(&mut self.window);
-            }
-        }
-    
         self.mode_cycles += 1;
     }
     fn read_sprite(&self, address: u16) -> Sprite {
@@ -223,19 +208,19 @@ impl PPU {
         }
 
         // Process pixels from FIFO
-            if let Some(color) = self.pixel_fifo.pop_pixel() {
-                let ly = self.get_io_register(IoRegister::Ly);
-                let x_pos = self.fetcher.x_pos_counter as usize;
+        if let Some(color) = self.pixel_fifo.pop_pixel() {
+            let ly = self.get_io_register(IoRegister::Ly);
+            let x_pos = self.fetcher.x_pos_counter as usize;
 
-                // Only draw if within screen bounds
-                if x_pos < SCREEN_WIDTH as usize && (ly as usize) < SCREEN_HEIGHT as usize {
-                    let buffer_index = ly as usize * SCREEN_WIDTH as usize + x_pos;
-                    let color = COLORS[color as usize];
-                    self.buffer[buffer_index] = color;
-                }
-
-                self.fetcher.x_pos_counter += 1;
+            // Only draw if within screen bounds
+            if x_pos < SCREEN_WIDTH as usize && (ly as usize) < SCREEN_HEIGHT as usize {
+                let buffer_index = ly as usize * SCREEN_WIDTH as usize + x_pos;
+                let color = COLORS[color as usize];
+                self.buffer[buffer_index] = color;
             }
+
+            self.fetcher.x_pos_counter += 1;
+        }
     }
     fn handle_hblank(&mut self) {
         // pads till 456 cycles
@@ -243,10 +228,25 @@ impl PPU {
 
     fn handle_vblank(&mut self) {
         // pads 10 vertical scanlines
-         // request vblank interrupt
-         let if_register = self.get_io_register(IoRegister::If);
-         self.set_io_register(IoRegister::If, if_register | 0b0000_0001);
+        // request vblank interrupt
+        let if_register = self.get_io_register(IoRegister::If);
+        self.set_io_register(IoRegister::If, if_register | 0b0000_0001);
+        
+        // update window per frame
+        if self.mode_cycles == 1 && self.get_io_register(IoRegister::Ly) == 145 {
+           self.update_window();
+        }
     }
+    fn update_window(&mut self) {
+        if self.window.is_open() && !self.window.is_key_down(Key::Escape) {
+            self.window
+                .update_with_buffer(&self.buffer, SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize)
+                .unwrap();
+            // take window input
+            self.bus.borrow_mut().joypad.update(&mut self.window);
+        }
+    }
+
 
     fn get_io_register(&self, register: IoRegister) -> u8 {
         self.bus.borrow().read_byte(register.address())

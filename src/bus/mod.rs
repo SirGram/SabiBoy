@@ -93,7 +93,6 @@ impl Bus {
 
     fn dma_oam_transfer(&mut self, value: u8) {
         // TODO: maybe make cycle accurate
-        println!("OAM DMA");
         let source_base = (value as u16) << 8;
         let destination_base = 0xFE00;
         let oam_size = 0xA0;

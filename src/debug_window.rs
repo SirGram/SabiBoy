@@ -59,7 +59,7 @@ pub struct DebugWindow {
     window_x: u8,
     mode_cycles: usize,
     mode: PPUMode,
-    frame_cycles: usize,
+    frames: usize,
     cartridgeState: CartridgeHeaderState,
 }
 
@@ -99,7 +99,7 @@ impl DebugWindow {
             cartridge_header: [0; 0x50],
             cartridge_header_read: false,
             cartridgeState: CartridgeHeaderState::new(),
-            frame_cycles: 0,
+            frames: 0,
             oam_data: [0; 0xA0],
         }
     }
@@ -110,7 +110,13 @@ impl DebugWindow {
             .unwrap();
     }
 
-    pub fn update(&mut self, cpu: &CPU, bus: &Rc<RefCell<bus::Bus>>, ppu: &ppu::PPU) {
+    pub fn update(
+        &mut self,
+        cpu: &CPU,
+        bus: &Rc<RefCell<bus::Bus>>,
+        ppu: &ppu::PPU,
+        frames: usize,
+    ) {
         // CPU registers
         self.cpu_registers = [
             cpu.a,
@@ -135,7 +141,7 @@ impl DebugWindow {
 
         self.mode_cycles = ppu.mode_cycles;
         self.mode = ppu.mode;
-        self.frame_cycles = ppu.frame_cycles;
+        self.frames = frames;
 
         // IO registers update (grouped)
         self.io_registers = vec![
@@ -587,13 +593,8 @@ impl DebugWindow {
         value_font_renderer.draw_text(&mut buffer, 300, 335, &format!("{:?}", self.mode));
         title_font_renderer.draw_text(&mut buffer, 300, 350, "Mode Cycles");
         value_font_renderer.draw_text(&mut buffer, 300, 365, &format!("{:02X}", self.mode_cycles));
-        title_font_renderer.draw_text(&mut buffer, 300, 380, "Frames");
-        value_font_renderer.draw_text(
-            &mut buffer,
-            300,
-            395,
-            &format!("{:?}", self.frame_cycles / 70224),
-        );
+        title_font_renderer.draw_text(&mut buffer, 300, 380, "FPS");
+        value_font_renderer.draw_text(&mut buffer, 300, 395, &format!("{:?}", self.frames));
 
         // Cartridge Header Information
         title_font_renderer.draw_text(&mut buffer, 150, 10, "CARTRIDGE HEADER");

@@ -5,7 +5,12 @@ use crate::{
     ppu::PPU,
     timer::Timer,
 };
-use std::{cell::RefCell, rc::Rc};
+use std::io::{self, Write};
+use std::{
+    cell::RefCell,
+    rc::Rc,
+    time::{Duration, Instant},
+};
 
 pub struct GameBoy {
     pub cpu: CPU,
@@ -48,16 +53,34 @@ impl GameBoy {
 
     pub fn run(&mut self) {
         let mut debug_update_counter = 0;
+
+        let cycles_per_frame = 70_224;
+        let target_frame_time = Duration::from_micros(16_667); // 60 fps
+        let mut last_fps_check = Instant::now();
+        let mut frames = 0;
+        let mut current_fps = 0;
         loop {
-            self.tick();
+            let frame_start_time = Instant::now();
+            let mut cycles_this_frame = 0;
+
+            while cycles_this_frame < cycles_per_frame {
+                self.tick();
+                cycles_this_frame += self.cpu.cycles;
+            }
+            frames += 1;
+            if last_fps_check.elapsed() > Duration::from_secs(1) {
+                current_fps = frames;
+                frames = 0;
+                last_fps_check = Instant::now();
+            }
+            let frame_time = frame_start_time.elapsed();
+            if frame_time < target_frame_time {
+                std::thread::sleep(target_frame_time - frame_time);
+            }
 
             if let Some(ref mut debug_window) = self.debug_window {
-                debug_update_counter += 1;
-                if debug_update_counter >= 100 {
-                    debug_window.update(&self.cpu, &self.bus, &self.ppu);
-                    debug_window.render();
-                    debug_update_counter = 0;
-                }
+                debug_window.update(&self.cpu, &self.bus, &self.ppu, current_fps);
+                debug_window.render();
             }
         }
     }
