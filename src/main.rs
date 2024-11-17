@@ -13,7 +13,7 @@ mod test2;
 mod timer;
 
 fn main() {
-    let mut gb = gameboy::GameBoy::new(true);
+    let mut gb = gameboy::GameBoy::new(false);
 
     gb.set_power_up_sequence();
     gb.load_rom(include_bytes!("../test/tetris.gb"));

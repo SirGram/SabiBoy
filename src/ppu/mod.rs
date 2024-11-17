@@ -230,10 +230,10 @@ impl PPU {
         // pads 10 vertical scanlines
         // request vblank interrupt
         let if_register = self.get_io_register(IoRegister::If);
-        self.set_io_register(IoRegister::If, if_register | 0b0000_0001);
         
         // update window per frame
         if self.mode_cycles == 1 && self.get_io_register(IoRegister::Ly) == 145 {
+            self.set_io_register(IoRegister::If, if_register | 0b0000_0001);
            self.update_window();
         }
     }
