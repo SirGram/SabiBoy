@@ -15,14 +15,12 @@ impl CPU {
         let if_register = self.bus.borrow().read_byte(IoRegister::If.address());
         let interrupts = ie_register & if_register;
 
-        if self.ime {
-            // If IME is set, the CPU enters low-power mode and will wake up on an interrupt
-            self.halt = true;
-        } else if interrupts != 0 {
-            // If an interrupt is pending, exit HALT mode immediately (this triggers the halt bug)
+        if !self.ime && interrupts != 0 {
+            // HALT bug occurs when IME is disabled and an interrupt is pending
             self.halt_bug = true;
+            // Note: The CPU will not enter HALT mode in this case
         } else {
-            // Otherwise, the CPU remains in HALT mode until an interrupt occurs
+            // Either IME is enabled, or no interrupts are pending
             self.halt = true;
         }
     }

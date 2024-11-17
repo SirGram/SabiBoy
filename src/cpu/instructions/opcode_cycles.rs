@@ -663,7 +663,10 @@ impl CPU {
                     0xFE => 8,  // CP n
                     0xFF => 16, // RST 38H
 
-                    _ => panic!("Invald opcode: {:#X}", opcode),
+                    _ => {
+                        println!("Invalid opcode: {:#X}", opcode);
+                        0
+                    },
                 }
             }
         }

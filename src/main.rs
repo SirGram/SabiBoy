@@ -13,9 +13,10 @@ mod test2;
 mod timer;
 
 fn main() {
-    let mut gb = gameboy::GameBoy::new(false);
+    let mut gb = gameboy::GameBoy::new(true);
 
     gb.set_power_up_sequence();
-    gb.load_rom(include_bytes!("../test/tetris.gb"));
+    gb.load_rom(include_bytes!("../test/blargg/02-interrupts.gb"));
+    
     gb.run();
 }

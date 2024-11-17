@@ -52,8 +52,6 @@ impl GameBoy {
     }
 
     pub fn run(&mut self) {
-        let mut debug_update_counter = 0;
-
         let cycles_per_frame = 70_224;
         let target_frame_time = Duration::from_micros(16_667); // 60 fps
         let mut last_fps_check = Instant::now();

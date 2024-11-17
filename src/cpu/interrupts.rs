@@ -2,9 +2,6 @@ use crate::{bus::io_address::IoRegister, cpu::CPU};
 
 impl CPU {
     pub fn handle_interrupts(&mut self) {
-        if !self.ime {
-            return;
-        }
         let ie_register = self.bus.borrow().read_byte(IoRegister::Ie.address());
         let if_register = self.bus.borrow().read_byte(IoRegister::If.address());
         // Interrupts enabled and requested
@@ -17,6 +14,13 @@ impl CPU {
         0001 0000 - Joypad
         */
         /* println!("ie: {:02X} if: {:02X}", ie_register, if_register); */
+
+        if interrupts != 0{
+            self.halt = false;
+        }
+        if !self.ime {
+            return;
+        }
 
         if interrupts != 0 {
             if interrupts & 0x01 != 0 {
@@ -36,14 +40,12 @@ impl CPU {
                 self.service_interrupt(0x60, 4);
             }
         }
-        if self.halt {
-            self.halt = false;
-        }
     }
 
     fn service_interrupt(&mut self, address: u16, bit: u8) {
         // Disable the IME flag and IF register bit. Then perform call instruction
         self.ime = false;
+        self.ime_scheduled = false;
         let if_register = self.bus.borrow().read_byte(IoRegister::If.address());
         let value = if_register & !(1 << bit);
         self.bus
