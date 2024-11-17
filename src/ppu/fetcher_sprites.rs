@@ -106,6 +106,12 @@ impl SpriteFetcher {
         let bg_priority = self.sprite.flags & 0b1000_0000 != 0;
         let palette_number = self.sprite.flags & 0b0001_0000 != 0;
 
-        pixel_fifo.push_sprite_pixels(pixels, start_pixel, self.remaining_pixels, palette_number, bg_priority);
+        pixel_fifo.push_sprite_pixels(
+            pixels,
+            start_pixel,
+            self.remaining_pixels,
+            palette_number,
+            bg_priority,
+        );
     }
 }

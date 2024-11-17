@@ -16,6 +16,6 @@ fn main() {
     let mut gb = gameboy::GameBoy::new(true);
 
     gb.set_power_up_sequence();
-    gb.load_rom(include_bytes!("../test/dmg-acid2.gb"));
+    gb.load_rom(include_bytes!("../test/panda.gb"));
     gb.run();
 }

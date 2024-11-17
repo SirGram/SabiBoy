@@ -44,6 +44,7 @@ impl PixelFifo {
         self.sprite_fifo.clear();
     }
     pub fn push_bg_pixels(&mut self, tile_data: [u8; 2]) -> bool {
+       
         // Only allow pushing when FIFO is empty
         if !self.bg_fifo.is_empty() {
             return false;

@@ -30,13 +30,6 @@ impl Fetcher {
             delay: 0,
         }
     }
-    pub fn pause(&mut self) {
-        self.pause = true;
-        self.step = 0;
-    }
-    pub fn unpause(&mut self) {
-        self.pause = false;
-    }
 
     pub fn step(&mut self, bus: &Rc<RefCell<Bus>>, pixel_fifo: &mut PixelFifo, mode_cycles: usize) {
         if self.pause {
@@ -54,7 +47,7 @@ impl Fetcher {
             2 => {
                 self.tile_data_high = self.fetch_tile_data(bus, self.tile_number, true);
                 // Delay of 12 T-cycles before the background FIFO is first filled with pixel data
-                if mode_cycles <= 12 {
+                if mode_cycles < 12 {
                     self.step = 0;
                 } else {
                     self.step += 1;

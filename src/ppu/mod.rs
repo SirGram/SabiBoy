@@ -19,10 +19,10 @@ pub const COLORS: [u32; 4] = [0xA8D08D, 0x6A8E3C, 0x3A5D1D, 0x1F3C06];
 
 const SCREEN_WIDTH: u8 = 160;
 const SCREEN_HEIGHT: u8 = 144;
-const CYCLES_PER_SCANLINE: usize = 456;
+const CYCLES_PER_SCANLINE: usize = 455;
 const X_POSITION_COUNTER_MAX: u16 = 160;
 const SCANLINE_Y_COUNTER_MAX: u8 = 153;
-const VBLANK_START_SCANLINE: u8 = 143;
+const VBLANK_START_SCANLINE: u8 = 144;
 const FRAME_DURATION: usize = 70224;
 
 #[derive(Debug, Copy, Clone)]
@@ -98,7 +98,6 @@ impl PPU {
         self.mode = PPUMode::OAM_SCAN;
         self.mode_cycles = 0;
         self.sprite_buffer.clear();
-        self.pixel_fifo.reset();
         self.fetcher.x_pos_counter = 0;
         self.fetcher.is_window_fetch = false;
     }
@@ -151,6 +150,9 @@ impl PPU {
         if self.frame_cycles % 1000 == 0 {
             if self.window.is_open() && !self.window.is_key_down(Key::Escape) {
                 self.window
+                    .limit_update_rate(Some(std::time::Duration::from_micros(16600))); // ~60fps
+
+                self.window
                     .update_with_buffer(&self.buffer, SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize)
                     .unwrap();
                 self.bus.borrow_mut().joypad.update(&mut self.window);
@@ -170,13 +172,7 @@ impl PPU {
         /* Add sprites to buffer
         80 T-cycles  / 40 sprites (1 sprite is 4 bytes) = 1 sprite per 2 cycles
         */
-        if self.mode_cycles >= 80 {
-            self.mode = PPUMode::DRAWING;
-            self.fetcher.x_pos_counter = 0;
-            self.fetcher.step = 0;
-            self.pixel_fifo.reset();
-            return;
-        }
+
         if self.mode_cycles % 2 != 0 {
             let current_entry = self.mode_cycles / 2;
             let sprite = self.read_sprite(0xFE00 + current_entry as u16);
@@ -188,6 +184,12 @@ impl PPU {
             ) {
                 self.sprite_buffer.push(sprite);
             }
+        }
+        if self.mode_cycles >= 79 {
+            self.mode = PPUMode::DRAWING;
+            self.fetcher.x_pos_counter = 0;
+            self.fetcher.step = 0;
+            self.pixel_fifo.reset();
         }
     }
     fn handle_drawing(&mut self) {
@@ -207,16 +209,19 @@ impl PPU {
                 self.sprite_fetcher
                     .step(&self.bus, &mut self.pixel_fifo, &mut self.fetcher);
             } else if self.fetcher.delay == 0 {
-                self.fetcher
-                    .step(&self.bus, &mut self.pixel_fifo, self.mode_cycles);
+                // only step if there are no BG pixels
+                if self.pixel_fifo.bg_pixel_count() == 0 {
+                    self.fetcher
+                        .step(&self.bus, &mut self.pixel_fifo, self.mode_cycles);
+                }
             } else {
                 self.fetcher.delay -= 1;
             }
         }
 
         // Process pixels from FIFO
-        if !self.pixel_fifo.is_paused(&self.sprite_fetcher) {
             if let Some(color) = self.pixel_fifo.pop_pixel() {
+                print!("{} ", color);
                 let bgp = self.get_io_register(IoRegister::Bgp);
                 // Apply BGP palette transformation
                 let palette_color = (bgp >> (color * 2)) & 0x3;
@@ -232,7 +237,6 @@ impl PPU {
 
                 self.fetcher.x_pos_counter += 1;
             }
-        }
     }
     fn handle_hblank(&mut self) {
         // pads till 456 cycles
