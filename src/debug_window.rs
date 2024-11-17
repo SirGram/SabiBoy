@@ -124,6 +124,7 @@ impl DebugWindow {
         ];
         self.sp = cpu.sp;
         self.pc = cpu.pc;
+        self.ime = cpu.ime;
         self.op = bus.borrow().read_byte(cpu.pc);
         self.ime = cpu.ime;
         self.halt = cpu.halt;
@@ -549,6 +550,8 @@ impl DebugWindow {
         }
 
         // Special registers
+        text_font_renderer.draw_text(&mut buffer, 10, 145, "IME");
+        value_font_renderer.draw_text(&mut buffer, 60, 145, &format!("{}", self.ime));
         text_font_renderer.draw_text(&mut buffer, 10, 160, "SP");
         value_font_renderer.draw_text(&mut buffer, 60, 160, &format!("{:04X}", self.sp));
         text_font_renderer.draw_text(&mut buffer, 10, 175, "PC");

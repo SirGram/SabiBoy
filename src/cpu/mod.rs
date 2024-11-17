@@ -65,7 +65,6 @@ impl CPU {
 
     pub fn tick(&mut self) {
         if !self.halt {
-            // CB opcode is executed as NOP and is saved for the next tick
             self.ime_instruction();
             let mut opcode = self.fetch_byte();
 

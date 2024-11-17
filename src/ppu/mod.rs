@@ -111,7 +111,6 @@ impl PPU {
         }
 
         // scanline
-        self.mode_cycles += 1;
 
         match self.mode {
             PPUMode::OAM_SCAN => self.handle_oam(),
@@ -121,8 +120,8 @@ impl PPU {
         }
 
         if self.mode_cycles >= CYCLES_PER_SCANLINE {
-            self.mode_cycles = 0;
             let ly = self.get_io_register(IoRegister::Ly);
+            self.mode_cycles = 0;
 
             // Increment LY and handle PPUMode transitions
             if ly < 143 {
@@ -140,6 +139,8 @@ impl PPU {
             } else {
                 self.set_io_register(IoRegister::Ly, ly + 1);
             }
+            println!("IF: {:02X}", self.get_io_register(IoRegister::If));
+
 
             // Reset fetcher state for new line
             self.reset_scanline();
@@ -158,6 +159,8 @@ impl PPU {
                 self.bus.borrow_mut().joypad.update(&mut self.window);
             }
         }
+    
+        self.mode_cycles += 1;
     }
     fn read_sprite(&self, address: u16) -> Sprite {
         Sprite {
@@ -221,18 +224,14 @@ impl PPU {
 
         // Process pixels from FIFO
             if let Some(color) = self.pixel_fifo.pop_pixel() {
-                print!("{} ", color);
-                let bgp = self.get_io_register(IoRegister::Bgp);
-                // Apply BGP palette transformation
-                let palette_color = (bgp >> (color * 2)) & 0x3;
-
                 let ly = self.get_io_register(IoRegister::Ly);
                 let x_pos = self.fetcher.x_pos_counter as usize;
 
                 // Only draw if within screen bounds
                 if x_pos < SCREEN_WIDTH as usize && (ly as usize) < SCREEN_HEIGHT as usize {
                     let buffer_index = ly as usize * SCREEN_WIDTH as usize + x_pos;
-                    self.buffer[buffer_index] = COLORS[palette_color as usize];
+                    let color = COLORS[color as usize];
+                    self.buffer[buffer_index] = color;
                 }
 
                 self.fetcher.x_pos_counter += 1;
@@ -244,6 +243,9 @@ impl PPU {
 
     fn handle_vblank(&mut self) {
         // pads 10 vertical scanlines
+         // request vblank interrupt
+         let if_register = self.get_io_register(IoRegister::If);
+         self.set_io_register(IoRegister::If, if_register | 0b0000_0001);
     }
 
     fn get_io_register(&self, register: IoRegister) -> u8 {

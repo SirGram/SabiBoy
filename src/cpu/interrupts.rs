@@ -16,6 +16,7 @@ impl CPU {
         0000 1000 - Serial
         0001 0000 - Joypad
         */
+        /* println!("ie: {:02X} if: {:02X}", ie_register, if_register); */
 
         if interrupts != 0 {
             if interrupts & 0x01 != 0 {
