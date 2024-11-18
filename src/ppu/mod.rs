@@ -142,8 +142,8 @@ impl PPU {
             // Reset fetcher state for new line
             self.reset_scanline();
         }
-
         self.update_stat();
+
 
         self.mode_cycles += 1;
     }
@@ -242,8 +242,11 @@ impl PPU {
             self.window
                 .update_with_buffer(&self.buffer, SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize)
                 .unwrap();
-            // take window input
-            self.bus.borrow_mut().joypad.update(&mut self.window);
+            let should_trigger = self.bus.borrow_mut().joypad.update(&mut self.window);
+            // Request joypad interrupt if any keys are pressed
+            if should_trigger {
+                self.set_io_register(IoRegister::If, self.get_io_register(IoRegister::If) | 0b0001_0000);
+            }
         }
     }
 
@@ -276,14 +279,14 @@ impl PPU {
         */
         let mut stat = self.get_io_register(IoRegister::Stat);
 
-        let PPUMode = match self.mode {
+        let ppu_mode = match self.mode {
             PPUMode::HBLANK => 0b00,
             PPUMode::VBLANK => 0b01,
             PPUMode::OAM_SCAN => 0b10,
             PPUMode::DRAWING => 0b11,
         };
         stat &= 0b11111100;
-        stat |= PPUMode;
+        stat |= ppu_mode;
 
         // Update coincidence flag
         let ly = self.get_io_register(IoRegister::Ly);
@@ -293,23 +296,25 @@ impl PPU {
         stat |= coincidence_flag << 2;
 
         // Update interrupt enable bits
-        let interrupt_enable = self.get_io_register(IoRegister::Stat) & 0b11110000;
+        let mut should_trigger = false;
+        // LYC=LY check (bit 6)
+    if (stat & 0b01000000 != 0) && coincidence_flag == 1 {
+        should_trigger = true;
+    }
+        match ppu_mode {
+            0b00 => if stat & 0b00001000 != 0 { should_trigger = true }, // Mode 0 (HBlank)
+            0b01 => if stat & 0b00010000 != 0 { should_trigger = true }, // Mode 1 (VBlank)
+            0b10 => if stat & 0b00100000 != 0 { should_trigger = true }, // Mode 2 (OAM)
+            _ => {}
+        }
+        if should_trigger {
+            let if_reg = self.get_io_register(IoRegister::If);
+            self.set_io_register(IoRegister::If, if_reg | 0b0000_0010);
+        }
 
-        // Set interrupt flag based on enabled interrupts and current PPUMode
-        let mut interrupt_flag = 0;
-        if (interrupt_enable & 0b10000) != 0 && PPUMode == 0b00 {
-            interrupt_flag |= 0b10;
-        }
-        if (interrupt_enable & 0b01000) != 0 && PPUMode == 0b01 {
-            interrupt_flag |= 0b10;
-        }
-        if (interrupt_enable & 0b00100) != 0 && PPUMode == 0b10 {
-            interrupt_flag |= 0b10;
-        }
-        if (interrupt_enable & 0b00010) != 0 && coincidence_flag == 1 {
-            interrupt_flag |= 0b10;
-        }
+        stat |= 0b1000_0000; // Bit 7 is always set
 
-        self.set_io_register(IoRegister::Stat, stat | interrupt_enable | interrupt_flag);
+
+        self.set_io_register(IoRegister::Stat, stat );
     }
 }

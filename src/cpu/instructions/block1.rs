@@ -18,7 +18,6 @@ impl CPU {
         if !self.ime && interrupts != 0 {
             // HALT bug occurs when IME is disabled and an interrupt is pending
             self.halt_bug = true;
-            // Note: The CPU will not enter HALT mode in this case
         } else {
             // Either IME is enabled, or no interrupts are pending
             self.halt = true;

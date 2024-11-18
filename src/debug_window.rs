@@ -556,6 +556,8 @@ impl DebugWindow {
         }
 
         // Special registers
+        text_font_renderer.draw_text(&mut buffer, 10, 130, "HALT");
+        value_font_renderer.draw_text(&mut buffer, 60, 130, &format!("{}", self.halt));
         text_font_renderer.draw_text(&mut buffer, 10, 145, "IME");
         value_font_renderer.draw_text(&mut buffer, 60, 145, &format!("{}", self.ime));
         text_font_renderer.draw_text(&mut buffer, 10, 160, "SP");
