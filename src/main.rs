@@ -1,6 +1,3 @@
-use cpu::flags::Flags;
-use serde::de;
-
 mod bus;
 mod cartridge;
 mod cpu;
@@ -16,7 +13,7 @@ fn main() {
     let mut gb = gameboy::GameBoy::new(true);
 
     gb.set_power_up_sequence();
-    gb.load_rom(include_bytes!("../test/tennis.gb"));
-    
+    gb.load_rom(include_bytes!("../test/panda.gb"));
+
     gb.run();
 }

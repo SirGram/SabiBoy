@@ -83,7 +83,9 @@ impl Bus {
             0xFEA0..=0xFEFF => self.debug[(address - 0xFEA0) as usize] = value, // Unusable
             0xFF00 => self.joypad.write(value),
             0xFF01..=0xFF45 => self.io_registers[(address - 0xFF01) as usize] = value,
-            0xFF46 => self.dma_oam_transfer(value),
+            0xFF46 =>
+                /*  self.dma_oam_transfer(value) */
+                {}
             0xFF47..=0xFF7F => self.io_registers[(address - 0xFF02) as usize] = value,
             0xFF80..=0xFFFE => self.hram[(address - 0xFF80) as usize] = value,
             0xFFFF => self.ie_register = value,
@@ -93,6 +95,7 @@ impl Bus {
 
     fn dma_oam_transfer(&mut self, value: u8) {
         // TODO: maybe make cycle accurate
+        println!("DMA write {}", value);
         let source_base = (value as u16) << 8;
         let destination_base = 0xFE00;
         let oam_size = 0xA0;

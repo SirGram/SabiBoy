@@ -1,4 +1,6 @@
-use std::collections::VecDeque;
+use std::{cell::RefCell, collections::VecDeque, rc::Rc};
+
+use crate::bus::{io_address::IoRegister, Bus};
 
 use super::fetcher_sprites::SpriteFetcher;
 
@@ -44,11 +46,6 @@ impl PixelFifo {
         self.sprite_fifo.clear();
     }
     pub fn push_bg_pixels(&mut self, tile_data: [u8; 2]) -> bool {
-        // Only allow pushing when FIFO is empty
-        if !self.bg_fifo.is_empty() {
-            return false;
-        }
-
         // Decode 2bpp tile data into 8 pixels
         for bit in 0..8 {
             let low_bit = tile_data[0] >> (7 - bit) & 0x1;
@@ -82,12 +79,11 @@ impl PixelFifo {
         }
         true
     }
-    pub fn pop_pixel(&mut self) -> Option<u8> {
+    pub fn pop_pixel(&mut self, bus: &Rc<RefCell<Bus>>) -> Option<u8> {
         if self.bg_fifo.is_empty() {
             return None;
-        };
-
-        let bg_pixel = self.bg_fifo.pop_front().unwrap();
+        }
+        let mut bg_pixel = self.bg_fifo.pop_front().unwrap();
         let sprite_pixel = self.sprite_fifo.pop_front();
 
         /*
@@ -96,6 +92,12 @@ impl PixelFifo {
         2) If the BG-to-OBJ-Priority bit is 1 and the color number of the Background Pixel is anything other than 0, the Background Pixel is pushed to the LCD.
         3) If none of the above conditions apply, the Sprite Pixel is pushed to the LCD.
         */
+    
+        let lcdc = bus.borrow().read_byte(IoRegister::Lcdc.address());
+        if lcdc & 0x01 == 0 {
+            // bg/window enable
+            bg_pixel.color = 4;
+        }
         match sprite_pixel {
             Some(sprite) => {
                 if sprite.color == 0 {
@@ -103,7 +105,8 @@ impl PixelFifo {
                 } else if sprite.bg_priority && bg_pixel.color != 0 {
                     Some(bg_pixel.color)
                 } else {
-                    Some(sprite.color)
+                   /*  Some(sprite.color) */
+                      Some(4) 
                 }
             }
             None => Some(bg_pixel.color),

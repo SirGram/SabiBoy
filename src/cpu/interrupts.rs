@@ -15,7 +15,7 @@ impl CPU {
         */
         /* println!("ie: {:02X} if: {:02X}", ie_register, if_register); */
 
-        if interrupts != 0{
+        if interrupts != 0 {
             self.halt = false;
         }
         if !self.ime {

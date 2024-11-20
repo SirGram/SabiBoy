@@ -30,11 +30,17 @@ impl Fetcher {
             delay: 0,
         }
     }
+    pub fn window_trigger(&mut self) {
+        self.step = 0;
+        self.is_window_fetch = true;
+        self.x_pos_counter = 0;
+    }
 
     pub fn step(&mut self, bus: &Rc<RefCell<Bus>>, pixel_fifo: &mut PixelFifo, mode_cycles: usize) {
-        if self.pause {
-            return;
+        if self.is_window_fetch {
+            println!("window ftch")
         }
+
         match self.step {
             0 => {
                 self.fetch_tile_number(bus);
@@ -47,11 +53,7 @@ impl Fetcher {
             2 => {
                 self.tile_data_high = self.fetch_tile_data(bus, self.tile_number, true);
                 // Delay of 12 T-cycles before the background FIFO is first filled with pixel data
-                if mode_cycles < 12 {
-                    self.step = 0;
-                } else {
-                    self.step += 1;
-                }
+                self.step += 1;
             }
             3 => {
                 self.push_to_fifo(pixel_fifo);
@@ -60,25 +62,8 @@ impl Fetcher {
         }
     }
 
-    fn fetch_tile_number(&mut self, bus: &Rc<RefCell<Bus>>) {
-        let lcdc = bus.borrow().read_byte(IoRegister::Lcdc.address());
-        let scx = bus.borrow().read_byte(IoRegister::Scx.address());
-        let scy = bus.borrow().read_byte(IoRegister::Scy.address());
-        let ly = bus.borrow().read_byte(IoRegister::Ly.address());
-
-        // Calculate the tile map coordinates with SCX
-        let map_x = (scx as u16 + self.x_pos_counter) >> 3;
-        let map_y = if self.is_window_fetch {
-            self.window_line_counter >> 3
-        } else {
-            ((ly as u16 + scy as u16) >> 3) & 0x1F
-        };
-
-        // Wrap the x-coordinate properly
-        let wrapped_x = map_x & 0x1F;
-
-        // Select the correct tile map base address
-        let tile_map_base = if self.is_window_fetch {
+    fn get_tile_map_base(&self, lcdc: u8) -> u16 {
+        if self.is_window_fetch {
             if (lcdc & 0x40) != 0 {
                 0x9C00
             } else {
@@ -90,12 +75,36 @@ impl Fetcher {
             } else {
                 0x9800
             }
+        }
+    }
+
+    fn fetch_tile_number(&mut self, bus: &Rc<RefCell<Bus>>) {
+        let lcdc = bus.borrow().read_byte(IoRegister::Lcdc.address());
+        let scx = bus.borrow().read_byte(IoRegister::Scx.address());
+        let scy = bus.borrow().read_byte(IoRegister::Scy.address());
+        let ly = bus.borrow().read_byte(IoRegister::Ly.address());
+
+        // Compute coordinates in the tile map
+        let tile_y = if self.is_window_fetch {
+            self.window_line_counter / 8
+        } else {
+            ((ly.wrapping_add(scy)) / 8) as u16
         };
 
-        // Calculate final address in tile map
-        let tile_map_addr = tile_map_base + (map_y as u16 * 32) + wrapped_x as u16;
-        self.tile_number = bus.borrow().read_byte(tile_map_addr);
+        let tile_x = if self.is_window_fetch {
+            self.x_pos_counter / 8
+        } else {
+            ((scx as u16/ 8) + (self.x_pos_counter / 8)) & 0x1F
+        };
+
+        // Calculate the address of the tile number in VRAM
+        let tile_map_base = self.get_tile_map_base(lcdc);
+        let tile_address = tile_map_base + (tile_y * 32) + tile_x;
+
+        // Read the tile number, considering VRAM access limitations
+        self.tile_number = bus.borrow().read_byte(tile_address) & 0xFF;
     }
+
     fn fetch_tile_data(
         &mut self,
         bus: &Rc<RefCell<Bus>>,
@@ -104,14 +113,15 @@ impl Fetcher {
     ) -> u8 {
         let ly = bus.borrow().read_byte(IoRegister::Ly.address());
         let scy = bus.borrow().read_byte(IoRegister::Scy.address());
-        let lcdc = bus.borrow().read_byte(IoRegister::Lcdc.address());
+        let lcdc = bus.borrow().read_byte(IoRegister::Lcdc.address());        
 
         // Calculate the offset within the tile (0-7)
         let y_offset = if self.is_window_fetch {
             (self.window_line_counter & 7) * 2
         } else {
-            ((ly as u16 + scy as u16) & 7) * 2
+            ((ly as u16  + scy as u16 ) & 7) * 2
         };
+
 
         // LCDC Bit4 selects Tile Data method
         let base_address = if (lcdc & 0x10) != 0 {
@@ -127,9 +137,12 @@ impl Fetcher {
             .read_byte(base_address + y_offset + if is_high_byte { 1 } else { 0 })
     }
 
-    fn push_to_fifo(&mut self, pixel_fifo: &mut PixelFifo) {
-        // this step repeats every cycle until it succeeds
-        if pixel_fifo.push_bg_pixels([self.tile_data_low, self.tile_data_high]) {
+    fn push_to_fifo(&mut self, pixel_fifo: &mut PixelFifo) {        
+        if self.pause || pixel_fifo.bg_pixel_count() != 0 {
+            return;
+        }
+        let pixels = [self.tile_data_low, self.tile_data_high];
+        if pixel_fifo.push_bg_pixels(pixels) {
             self.step = 0;
         }
     }

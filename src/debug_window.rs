@@ -163,6 +163,14 @@ impl DebugWindow {
                 bus.borrow().read_byte(IoRegister::Scx.address()),
             ),
             (
+                "WY".to_string(),
+                bus.borrow().read_byte(IoRegister::Wy.address()),
+            ),
+            (
+                "WX".to_string(),
+                bus.borrow().read_byte(IoRegister::Wx.address()),
+            ),
+            (
                 "LY".to_string(),
                 bus.borrow().read_byte(IoRegister::Ly.address()),
             ),

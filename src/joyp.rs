@@ -16,7 +16,7 @@ impl Joypad {
             register: 0xFF,
         }
     }
-    pub fn update(&mut self, window: &mut minifb::Window)-> bool {
+    pub fn update(&mut self, window: &mut minifb::Window) -> bool {
         /*
             0 = Pressed, 1 = Released
             Bit 0 = Right
@@ -55,15 +55,14 @@ impl Joypad {
             self.keys &= !0x80;
         }
 
-         // Only trigger interrupt if there's a change in key state and a key is pressed
-         if old_keys != self.keys && self.keys != 0xFF {
+        // Only trigger interrupt if there's a change in key state and a key is pressed
+        if old_keys != self.keys && self.keys != 0xFF {
             // Request joypad interrupt
             true;
         }
         false
     }
-   
-   
+
     pub fn read(&self) -> u8 {
         let mut result = 0xCF; // Bit 6 and 7 are always set. Buttons released
 
@@ -71,16 +70,16 @@ impl Joypad {
         let action_select = self.register & 0x20 == 0;
 
         if direction_select {
-            result &= !(0x0F & !self.keys);  
+            result &= !(0x0F & !self.keys);
         }
         if action_select {
-            result &= !(0x0F & !(self.keys >> 4));  
+            result &= !(0x0F & !(self.keys >> 4));
         }
 
         result
     }
     pub fn write(&mut self, value: u8) {
-         // Only bits 4-5 are writable
-         self.register = (value & 0x30) | (self.register & 0xCF);
+        // Only bits 4-5 are writable
+        self.register = (value & 0x30) | (self.register & 0xCF);
     }
 }

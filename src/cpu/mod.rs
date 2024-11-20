@@ -70,15 +70,15 @@ impl CPU {
 
             self.check_halt_bug();
             if opcode == 0xCB {
-               /*  print!("CB OPCODE: {} ", opcode); */
+                /*  print!("CB OPCODE: {} ", opcode); */
                 opcode = self.fetch_byte();
                 self.execute_cb(opcode);
             } else {
                 self.execute(opcode);
             }
             self.cycles = self.get_clock_cycles(opcode, opcode == 0xCB);
-           /*  println!("OPCODE: {:02X} CYCLES: {}", opcode, self.cycles); */
-        }else{
+            /*  println!("OPCODE: {:02X} CYCLES: {}", opcode, self.cycles); */
+        } else {
             // 4 t-cycles when halted
             self.cycles += 4;
         }

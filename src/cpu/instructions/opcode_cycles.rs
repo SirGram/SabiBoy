@@ -666,7 +666,7 @@ impl CPU {
                     _ => {
                         println!("Invalid opcode: {:#X}", opcode);
                         0
-                    },
+                    }
                 }
             }
         }

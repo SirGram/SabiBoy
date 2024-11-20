@@ -15,7 +15,7 @@ use std::{
     vec,
 };
 
-pub const COLORS: [u32; 4] = [0xA8D08D, 0x6A8E3C, 0x3A5D1D, 0x1F3C06];
+pub const COLORS: [u32; 5] = [0xA8D08D, 0x6A8E3C, 0x3A5D1D, 0x1F3C06, 0xFF0000];
 
 const SCREEN_WIDTH: u8 = 160;
 const SCREEN_HEIGHT: u8 = 144;
@@ -46,6 +46,9 @@ pub struct PPU {
     fetcher: Fetcher,
     sprite_fetcher: SpriteFetcher,
     pixel_fifo: PixelFifo,
+    window_triggered_this_frame: bool,
+
+    previous_stat_conditions: u8,
 }
 
 #[derive(Clone)]
@@ -92,14 +95,54 @@ impl PPU {
             sprite_fetcher: SpriteFetcher::new(),
             pixel_fifo: PixelFifo::new(),
             frame_cycles: 0,
+            window_triggered_this_frame: false,
+            previous_stat_conditions: 0,
         }
     }
+    
+    fn check_window(&mut self) -> bool {
+        /*
+        Bit 5 of the LCDC register is set to 1
+        The condition WY = LY has been true at any point in the currently rendered frame.
+        The current X-position of the shifter is greater than or equal to WX - 7
+        */
+        let lcdc = self.bus.borrow().read_byte(IoRegister::Lcdc.address());
+        if lcdc & 0b0010_0000 == 0 {
+            return false;
+        } else { /*
+             println!("window lcdc {}", lcdc); */
+        }
+        let wy = self.bus.borrow().read_byte(IoRegister::Wy.address());
+        let wx = self.bus.borrow().read_byte(IoRegister::Wx.address());
+        let ly = self.bus.borrow().read_byte(IoRegister::Ly.address());
+        /*
+        if self.window_triggered_this_frame {
+            println!("window {} {}", ly, wy);
+        } */
+        if ly == wy {
+            if !self.window_triggered_this_frame {
+                self.window_triggered_this_frame = true;
+            }
+        }
+        self.window_triggered_this_frame
+            && self.fetcher.x_pos_counter >= (wx as u16).wrapping_sub(7)
+    }
+
+  
     pub fn reset_scanline(&mut self) {
         self.mode_cycles = 0;
-        self.sprite_buffer.clear();
+        self.sprite_buffer.clear();        
         self.fetcher.x_pos_counter = 0;
-        self.fetcher.is_window_fetch = false;
     }
+    fn reset_frame(&mut self) {
+        self.reset_scanline();
+        self.set_io_register(IoRegister::Ly, 0);
+        self.mode = PPUMode::OAM_SCAN;
+        self.window_triggered_this_frame = false;
+        
+    }
+
+
 
     pub fn tick(&mut self) {
         self.frame_cycles = self.frame_cycles.wrapping_add(1);
@@ -109,32 +152,40 @@ impl PPU {
             return;
         }
 
+        // Window check
+        /* if self.check_window() {
+            /*   self.pixel_fifo.bg_fifo.clear(); */
+            self.fetcher.window_trigger();
+        } */
+
         // scanline
 
         match self.mode {
             PPUMode::OAM_SCAN => self.handle_oam(),
             PPUMode::DRAWING => self.handle_drawing(),
             PPUMode::HBLANK => self.handle_hblank(),
-            PPUMode::VBLANK => self.handle_vblank(),
+            PPUMode::VBLANK => {}
         }
+        
+        self.update_stat();
+        
+        self.mode_cycles += 1;
+        
 
         if self.mode_cycles >= CYCLES_PER_SCANLINE {
             let ly = self.get_io_register(IoRegister::Ly);
-            self.mode_cycles = 0;
 
             // Increment LY and handle PPUMode transitions
-            if ly < 143 {
+            if ly < VBLANK_START_SCANLINE {
                 self.set_io_register(IoRegister::Ly, ly + 1);
                 self.mode = PPUMode::OAM_SCAN;
             } else if ly == VBLANK_START_SCANLINE {
+                // vblank start
                 self.set_io_register(IoRegister::Ly, ly + 1);
                 self.mode = PPUMode::VBLANK;
-            } else if ly >= SCANLINE_Y_COUNTER_MAX {
-                self.set_io_register(IoRegister::Ly, 0);
-                self.mode = PPUMode::OAM_SCAN; /*
-                                               self.window_line_counter = 0;
-                                               self.window_triggered_this_frame = false; */
-                self.sprite_buffer.clear();
+                self.handle_vblank();
+            } else if ly > SCANLINE_Y_COUNTER_MAX {
+                self.reset_frame();
             } else {
                 self.set_io_register(IoRegister::Ly, ly + 1);
             }
@@ -142,12 +193,15 @@ impl PPU {
             // Reset fetcher state for new line
             self.reset_scanline();
         }
-        self.update_stat();
+        let ly = self.get_io_register(IoRegister::Ly);
+        if ly < 10 {
+            println!("  cycles: {}  ly: {} x: {}",self.mode_cycles, ly,  self.fetcher.x_pos_counter,   );
+        }
 
 
-        self.mode_cycles += 1;
     }
-    fn read_sprite(&self, address: u16) -> Sprite {
+
+  fn read_sprite(&self, address: u16) -> Sprite {
         Sprite {
             y_pos: self.bus.borrow().read_byte(address),
             x_pos: self.bus.borrow().read_byte(address + 1),
@@ -161,9 +215,9 @@ impl PPU {
         80 T-cycles  / 40 sprites (1 sprite is 4 bytes) = 1 sprite per 2 cycles
         */
 
-        if self.mode_cycles % 2 != 0 {
+        if self.mode_cycles % 2 == 0 {
             let current_entry = self.mode_cycles / 2;
-            let sprite = self.read_sprite(0xFE00 + current_entry as u16);
+            let sprite = self.read_sprite(0xFE00 + (current_entry as u16 * 4));
             if should_add_sprite(
                 &sprite,
                 self.get_io_register(IoRegister::Ly),
@@ -173,42 +227,49 @@ impl PPU {
                 self.sprite_buffer.push(sprite);
             }
         }
-        if self.mode_cycles >= 79 {
+        if self.mode_cycles >= 80 {
             self.mode = PPUMode::DRAWING;
-            self.fetcher.x_pos_counter = 0;
             self.fetcher.step = 0;
-            self.pixel_fifo.reset();
+            self.sprite_buffer.sort_by(|a, b| a.x_pos.cmp(&b.x_pos));
         }
     }
+
     fn handle_drawing(&mut self) {
         // Exit if we've drawn all pixels for this line
         if self.fetcher.x_pos_counter >= X_POSITION_COUNTER_MAX {
             self.mode = PPUMode::HBLANK;
             return;
         }
+        /* if a bg fetch is in progress and you run into the start of a sprite;
+            immediately stop popping off pixels and finish up that bg fetch (and save the fetched data),
+            perform the sprite fetch and load up the sprite data into the sprite fifo,
+            then resume popping off pixels and try to push that saved bg data into the fifo,
+            then start the next bg fetch when the data's been pushed
+        */
 
         // Check sprites
-        if let Some(sprite) = should_fetch_sprite(self.fetcher.x_pos_counter, &self.sprite_buffer) {
-            self.sprite_fetcher.start_fetch(&sprite, &mut self.fetcher);
-        }
+        // First handle sprite fetching if needed
 
+       /*  if let Some(sprite) = should_fetch_sprite(self.fetcher.x_pos_counter, &self.sprite_buffer) {
+            // Now start sprite fetch
+            self.sprite_fetcher.start_fetch(&sprite);
+        } */
+
+        // Every 2 dots, run fetcher steps
         if self.mode_cycles % 2 == 0 {
-            if self.fetcher.pause {
+            // If sprite fetch is active, prioritize it
+            if self.sprite_fetcher.active {
                 self.sprite_fetcher
                     .step(&self.bus, &mut self.pixel_fifo, &mut self.fetcher);
-            } else if self.fetcher.delay == 0 {
-                // only step if there are no BG pixels
-                if self.pixel_fifo.bg_pixel_count() == 0 {
-                    self.fetcher
-                        .step(&self.bus, &mut self.pixel_fifo, self.mode_cycles);
-                }
-            } else {
-                self.fetcher.delay -= 1;
             }
+            self.fetcher
+                .step(&self.bus, &mut self.pixel_fifo, self.mode_cycles);
         }
 
-        // Process pixels from FIFO
-        if let Some(color) = self.pixel_fifo.pop_pixel() {
+        if self.pixel_fifo.is_paused(&self.sprite_fetcher) {
+            return;
+        }
+        if let Some(color) = self.pixel_fifo.pop_pixel(&self.bus) {
             let ly = self.get_io_register(IoRegister::Ly);
             let x_pos = self.fetcher.x_pos_counter as usize;
 
@@ -220,22 +281,25 @@ impl PPU {
             }
 
             self.fetcher.x_pos_counter += 1;
+           
         }
     }
     fn handle_hblank(&mut self) {
         // pads till 456 cycles
+        if self.mode_cycles == 456 && self.window_triggered_this_frame {
+            self.fetcher.window_line_counter += 1;
+        }
     }
 
     fn handle_vblank(&mut self) {
         // pads 10 vertical scanlines
-        // request vblank interrupt
+
+        //request vblank interrupt
         let if_register = self.get_io_register(IoRegister::If);
-        
+        self.set_io_register(IoRegister::If, if_register | 0b0000_0001);
         // update window per frame
-        if self.mode_cycles == 1 && self.get_io_register(IoRegister::Ly) == 145 {
-            self.set_io_register(IoRegister::If, if_register | 0b0000_0001);
-           self.update_window();
-        }
+        self.update_window();
+        self.fetcher.window_line_counter = 0;
     }
     fn update_window(&mut self) {
         if self.window.is_open() && !self.window.is_key_down(Key::Escape) {
@@ -243,13 +307,14 @@ impl PPU {
                 .update_with_buffer(&self.buffer, SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize)
                 .unwrap();
             let should_trigger = self.bus.borrow_mut().joypad.update(&mut self.window);
-            // Request joypad interrupt if any keys are pressed
             if should_trigger {
-                self.set_io_register(IoRegister::If, self.get_io_register(IoRegister::If) | 0b0001_0000);
+                self.set_io_register(
+                    IoRegister::If,
+                    self.get_io_register(IoRegister::If) | 0b0001_0000, // request joypad interrupt
+                );
             }
         }
     }
-
 
     fn get_io_register(&self, register: IoRegister) -> u8 {
         self.bus.borrow().read_byte(register.address())
@@ -279,42 +344,52 @@ impl PPU {
         */
         let mut stat = self.get_io_register(IoRegister::Stat);
 
+        // Determine the current PPU mode
         let ppu_mode = match self.mode {
             PPUMode::HBLANK => 0b00,
             PPUMode::VBLANK => 0b01,
             PPUMode::OAM_SCAN => 0b10,
             PPUMode::DRAWING => 0b11,
         };
-        stat &= 0b11111100;
-        stat |= ppu_mode;
 
-        // Update coincidence flag
+        // Clear and set mode bits
+        stat &= 0b11111100; // Clear the mode bits
+        stat |= ppu_mode; // Set the current mode bits
+
+        // Update the coincidence flag
         let ly = self.get_io_register(IoRegister::Ly);
         let lyc = self.get_io_register(IoRegister::Lyc);
         let coincidence_flag = if ly == lyc { 1 } else { 0 };
-        stat &= 0b11111011;
-        stat |= coincidence_flag << 2;
+        stat &= 0b11111011; // Clear the coincidence flag bit
+        stat |= coincidence_flag << 2; // Set the current coincidence flag bit
 
-        // Update interrupt enable bits
-        let mut should_trigger = false;
-        // LYC=LY check (bit 6)
-    if (stat & 0b01000000 != 0) && coincidence_flag == 1 {
-        should_trigger = true;
-    }
+        // Key change: Track the current interrupt conditions more precisely
+        let mut current_conditions = 0;
+
+        // Check LYC=LY condition
+        if coincidence_flag == 1 && (stat & 0b01000000 != 0) {
+            current_conditions |= 0b0001;
+        }
+
+        // Check mode-specific conditions
         match ppu_mode {
-            0b00 => if stat & 0b00001000 != 0 { should_trigger = true }, // Mode 0 (HBlank)
-            0b01 => if stat & 0b00010000 != 0 { should_trigger = true }, // Mode 1 (VBlank)
-            0b10 => if stat & 0b00100000 != 0 { should_trigger = true }, // Mode 2 (OAM)
+            0b00 if stat & 0b00001000 != 0 => current_conditions |= 0b0010, // Mode 0 (H-Blank)
+            0b01 if stat & 0b00010000 != 0 => current_conditions |= 0b0100, // Mode 1 (V-Blank)
+            0b10 if stat & 0b00100000 != 0 => current_conditions |= 0b1000, // Mode 2 (OAM)
             _ => {}
         }
-        if should_trigger {
+
+        // Trigger STAT interrupt only if conditions are met and were not previously met
+        if current_conditions != 0 && self.previous_stat_conditions == 0 {
             let if_reg = self.get_io_register(IoRegister::If);
             self.set_io_register(IoRegister::If, if_reg | 0b0000_0010);
         }
 
-        stat |= 0b1000_0000; // Bit 7 is always set
+        // Store current conditions for next comparison
+        self.previous_stat_conditions = current_conditions;
 
-
-        self.set_io_register(IoRegister::Stat, stat );
+        // Ensure bit 7 is always set
+        stat |= 0b1000_0000;
+        self.set_io_register(IoRegister::Stat, stat);
     }
 }

@@ -24,11 +24,6 @@ pub fn should_add_sprite(sprite: &Sprite, ly: u8, lcdc: u8, buffer_count: usize)
         && buffer_count < MAX_SPRITES_IN_BUFFER
 }
 
-pub fn should_fetch_sprite(pixel_x_position: u16, buffer: &[Sprite]) -> Option<Sprite> {
-    for sprite in buffer {
-        if sprite.x_pos as u16 <= pixel_x_position + 8 {
-            return Some(sprite.clone());
-        }
-    }
-    None
+pub fn should_fetch_sprite(pixel_x_position: u16, buffer: &[Sprite]) -> Option<&Sprite> {
+    buffer.iter().find(|sprite| sprite.x_pos <= (pixel_x_position + 8) as u8)
 }
