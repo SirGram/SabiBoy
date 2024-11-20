@@ -49,6 +49,7 @@ pub struct PPU {
     window_triggered_this_frame: bool,
 
     previous_stat_conditions: u8,
+    x_render_counter: i16,
 }
 
 #[derive(Clone)]
@@ -97,6 +98,7 @@ impl PPU {
             frame_cycles: 0,
             window_triggered_this_frame: false,
             previous_stat_conditions: 0,
+            x_render_counter: -8,
         }
     }
     
@@ -125,7 +127,7 @@ impl PPU {
             }
         }
         self.window_triggered_this_frame
-            && self.fetcher.x_pos_counter >= (wx as u16).wrapping_sub(7)
+            && self.fetcher.x_pos_counter as u16 >= (wx as u16).wrapping_sub(7)
     }
 
   
@@ -133,6 +135,7 @@ impl PPU {
         self.mode_cycles = 0;
         self.sprite_buffer.clear();        
         self.fetcher.x_pos_counter = 0;
+        self.x_render_counter = -8;
     }
     fn reset_frame(&mut self) {
         self.reset_scanline();
@@ -236,7 +239,7 @@ impl PPU {
 
     fn handle_drawing(&mut self) {
         // Exit if we've drawn all pixels for this line
-        if self.fetcher.x_pos_counter >= X_POSITION_COUNTER_MAX {
+        if self.x_render_counter  >= X_POSITION_COUNTER_MAX as i16 {
             self.mode = PPUMode::HBLANK;
             return;
         }
@@ -271,16 +274,16 @@ impl PPU {
         }
         if let Some(color) = self.pixel_fifo.pop_pixel(&self.bus) {
             let ly = self.get_io_register(IoRegister::Ly);
-            let x_pos = self.fetcher.x_pos_counter as usize;
 
-            // Only draw if within screen bounds
-            if x_pos < SCREEN_WIDTH as usize && (ly as usize) < SCREEN_HEIGHT as usize {
-                let buffer_index = ly as usize * SCREEN_WIDTH as usize + x_pos;
+            // Only draw if within screen bounds. Discard 1st tile.
+            if self.x_render_counter >= 0 && self.x_render_counter < SCREEN_WIDTH as i16  && (ly as usize) < SCREEN_HEIGHT as usize {
+                let buffer_index = ly as usize * SCREEN_WIDTH as usize + self.x_render_counter as usize;
                 let color = COLORS[color as usize];
                 self.buffer[buffer_index] = color;
             }
-
             self.fetcher.x_pos_counter += 1;
+            self.x_render_counter += 1;
+
            
         }
     }
