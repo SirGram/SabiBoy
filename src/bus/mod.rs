@@ -84,9 +84,9 @@ impl Bus {
             0xFF00 => self.joypad.write(value),
             0xFF01..=0xFF45 => self.io_registers[(address - 0xFF01) as usize] = value,
             0xFF46 =>
-                /*  self.dma_oam_transfer(value) */
-                {}
-            0xFF47..=0xFF7F => self.io_registers[(address - 0xFF02) as usize] = value,
+                  self.dma_oam_transfer(value) ,
+               
+            0xFF47..=0xFF7F => self.io_registers[(address - 0xFF01) as usize] = value,
             0xFF80..=0xFFFE => self.hram[(address - 0xFF80) as usize] = value,
             0xFFFF => self.ie_register = value,
             _ => {}

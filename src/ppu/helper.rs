@@ -24,6 +24,12 @@ pub fn should_add_sprite(sprite: &Sprite, ly: u8, lcdc: u8, buffer_count: usize)
         && buffer_count < MAX_SPRITES_IN_BUFFER
 }
 
-pub fn should_fetch_sprite(pixel_x_position: u16, buffer: &[Sprite]) -> Option<&Sprite> {
-    buffer.iter().find(|sprite| sprite.x_pos <= (pixel_x_position + 8) as u8)
+pub fn should_fetch_sprite(pixel_x_position: i16, buffer: &mut Vec<Sprite>) -> Option<Sprite> {
+    if let Some(index) = buffer
+        .iter()
+        .position(|sprite| sprite.x_pos as i16 <= (pixel_x_position + 8))
+    {
+        return Some(buffer.remove(index));
+    }
+    None
 }

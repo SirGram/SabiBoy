@@ -10,9 +10,7 @@ use helper::{should_add_sprite, should_fetch_sprite};
 use minifb::{Key, Scale, Window, WindowOptions};
 use pixelfifo::PixelFifo;
 use std::{
-    cell::{Ref, RefCell},
-    rc::Rc,
-    vec,
+    cell::{Ref, RefCell}, cmp::Ordering, rc::Rc, vec
 };
 
 pub const COLORS: [u32; 5] = [0xA8D08D, 0x6A8E3C, 0x3A5D1D, 0x1F3C06, 0xFF0000];
@@ -50,6 +48,7 @@ pub struct PPU {
 
     previous_stat_conditions: u8,
     x_render_counter: i16,
+    window_line_counter_incremented_this_scanline: bool,
 }
 
 #[derive(Clone)]
@@ -99,9 +98,10 @@ impl PPU {
             window_triggered_this_frame: false,
             previous_stat_conditions: 0,
             x_render_counter: -8,
+            window_line_counter_incremented_this_scanline: false,
         }
     }
-    
+
     fn check_window(&mut self) -> bool {
         /*
         Bit 5 of the LCDC register is set to 1
@@ -111,8 +111,6 @@ impl PPU {
         let lcdc = self.bus.borrow().read_byte(IoRegister::Lcdc.address());
         if lcdc & 0b0010_0000 == 0 {
             return false;
-        } else { /*
-             println!("window lcdc {}", lcdc); */
         }
         let wy = self.bus.borrow().read_byte(IoRegister::Wy.address());
         let wx = self.bus.borrow().read_byte(IoRegister::Wx.address());
@@ -127,25 +125,27 @@ impl PPU {
             }
         }
         self.window_triggered_this_frame
-            && self.fetcher.x_pos_counter as u16 >= (wx as u16).wrapping_sub(7)
+            && self.x_render_counter as i16 >= (wx.wrapping_sub(7)) as i16
     }
 
-  
     pub fn reset_scanline(&mut self) {
         self.mode_cycles = 0;
-        self.sprite_buffer.clear();        
-        self.fetcher.x_pos_counter = 0;
+        self.sprite_buffer.clear();
+        self.fetcher.scanline_reset();
+        self.sprite_fetcher.scanline_reset();
         self.x_render_counter = -8;
+        if self.window_line_counter_incremented_this_scanline {
+            self.fetcher.window_line_counter += 1;
+        }
+        self.window_line_counter_incremented_this_scanline = false;
     }
     fn reset_frame(&mut self) {
         self.reset_scanline();
-        self.set_io_register(IoRegister::Ly, 0);
         self.mode = PPUMode::OAM_SCAN;
         self.window_triggered_this_frame = false;
-        
+        self.fetcher.window_line_counter = 0;
+        self.set_io_register(IoRegister::Ly, 0);
     }
-
-
 
     pub fn tick(&mut self) {
         self.frame_cycles = self.frame_cycles.wrapping_add(1);
@@ -155,13 +155,22 @@ impl PPU {
             return;
         }
 
-        // Window check
-        /* if self.check_window() {
-            /*   self.pixel_fifo.bg_fifo.clear(); */
-            self.fetcher.window_trigger();
-        } */
-
         // scanline
+        let ly = self.get_io_register(IoRegister::Ly);
+
+      /*   println!(
+            "ly {} cycles {} window {} wcoun {} xpos {} xposren {} bg_fifo_len {} sprite_fifo_len {} current_sprite_x {} sprftch_act {}",
+            ly,
+            self.mode_cycles,
+            self.fetcher.is_window_fetch,
+            self.fetcher.window_line_counter,
+            self.fetcher.x_pos_counter,
+            self.x_render_counter,
+            self.pixel_fifo.bg_fifo.len(),
+            self.pixel_fifo.sprite_fifo.len(),
+            self.sprite_fetcher.sprite.x_pos,
+            self.sprite_fetcher.active
+        ); */
 
         match self.mode {
             PPUMode::OAM_SCAN => self.handle_oam(),
@@ -169,42 +178,32 @@ impl PPU {
             PPUMode::HBLANK => self.handle_hblank(),
             PPUMode::VBLANK => {}
         }
-        
-        self.update_stat();
-        
-        self.mode_cycles += 1;
-        
 
         if self.mode_cycles >= CYCLES_PER_SCANLINE {
-            let ly = self.get_io_register(IoRegister::Ly);
-
+            // Reset fetcher state for new line
+            self.reset_scanline();
             // Increment LY and handle PPUMode transitions
             if ly < VBLANK_START_SCANLINE {
                 self.set_io_register(IoRegister::Ly, ly + 1);
                 self.mode = PPUMode::OAM_SCAN;
             } else if ly == VBLANK_START_SCANLINE {
                 // vblank start
-                self.set_io_register(IoRegister::Ly, ly + 1);
                 self.mode = PPUMode::VBLANK;
                 self.handle_vblank();
-            } else if ly > SCANLINE_Y_COUNTER_MAX {
+                self.set_io_register(IoRegister::Ly, ly + 1);
+            } else if ly >= SCANLINE_Y_COUNTER_MAX {
                 self.reset_frame();
             } else {
                 self.set_io_register(IoRegister::Ly, ly + 1);
             }
-
-            // Reset fetcher state for new line
-            self.reset_scanline();
-        }
-        let ly = self.get_io_register(IoRegister::Ly);
-        if ly < 10 {
-            println!("  cycles: {}  ly: {} x: {}",self.mode_cycles, ly,  self.fetcher.x_pos_counter,   );
         }
 
+        self.update_stat();
 
+        self.mode_cycles += 1;
     }
 
-  fn read_sprite(&self, address: u16) -> Sprite {
+    fn read_sprite(&self, address: u16) -> Sprite {
         Sprite {
             y_pos: self.bus.borrow().read_byte(address),
             x_pos: self.bus.borrow().read_byte(address + 1),
@@ -232,16 +231,66 @@ impl PPU {
         }
         if self.mode_cycles >= 80 {
             self.mode = PPUMode::DRAWING;
-            self.fetcher.step = 0;
-            self.sprite_buffer.sort_by(|a, b| a.x_pos.cmp(&b.x_pos));
+            self.sprite_buffer.sort_by(|a, b| {
+                match a.x_pos.cmp(&b.x_pos) {
+                    Ordering::Equal =>b.flags.cmp(&a.flags), //  Higher OAM  index
+                    ordering => ordering,
+                }
+            });
         }
     }
 
     fn handle_drawing(&mut self) {
         // Exit if we've drawn all pixels for this line
-        if self.x_render_counter  >= X_POSITION_COUNTER_MAX as i16 {
+        if self.x_render_counter >= X_POSITION_COUNTER_MAX as i16 {
             self.mode = PPUMode::HBLANK;
             return;
+        }
+
+        // Window check
+         if !self.fetcher.is_window_fetch {
+            if self.check_window() {
+                let ly = self.get_io_register(IoRegister::Ly);
+                let wx = self.get_io_register(IoRegister::Wx);
+                self.fetcher.window_trigger(&mut self.pixel_fifo);
+                if !self.window_line_counter_incremented_this_scanline {
+                    self.window_line_counter_incremented_this_scanline = true;
+                }
+            }
+        } 
+
+        // Pixel shifting
+        if !self.pixel_fifo.is_paused(&self.sprite_fetcher) {
+            if let Some(color) = self.pixel_fifo.pop_pixel(&self.bus) {
+                let ly = self.get_io_register(IoRegister::Ly);
+
+                // Only draw if within screen bounds. Discard 1st tile.
+                if self.x_render_counter >= 0
+                    && self.x_render_counter < SCREEN_WIDTH as i16
+                    && (ly as usize) < SCREEN_HEIGHT as usize
+                {
+                    let buffer_index =
+                        ly as usize * SCREEN_WIDTH as usize + self.x_render_counter as usize;
+                        
+                    let color = COLORS[color as usize];
+                    self.buffer[buffer_index] = color;
+                }
+                self.fetcher.x_pos_counter += 1;
+                self.x_render_counter += 1;
+            }
+        }
+
+        // Check sprites
+        if !self.sprite_fetcher.active && self.pixel_fifo.sprite_pixel_count() == 0 {
+           /*  println!("sprite fetch "); */
+
+            if let Some(sprite) =
+                should_fetch_sprite(self.x_render_counter, &mut self.sprite_buffer)
+            {
+                // Now start sprite fetch
+                self.sprite_fetcher.start_fetch(&sprite);
+                /* println!("sprite found x {}", sprite.x_pos); */
+            }
         }
         /* if a bg fetch is in progress and you run into the start of a sprite;
             immediately stop popping off pixels and finish up that bg fetch (and save the fetched data),
@@ -250,48 +299,20 @@ impl PPU {
             then start the next bg fetch when the data's been pushed
         */
 
-        // Check sprites
-        // First handle sprite fetching if needed
-
-       /*  if let Some(sprite) = should_fetch_sprite(self.fetcher.x_pos_counter, &self.sprite_buffer) {
-            // Now start sprite fetch
-            self.sprite_fetcher.start_fetch(&sprite);
-        } */
-
         // Every 2 dots, run fetcher steps
-        if self.mode_cycles % 2 == 0 {
-            // If sprite fetch is active, prioritize it
-            if self.sprite_fetcher.active {
-                self.sprite_fetcher
-                    .step(&self.bus, &mut self.pixel_fifo, &mut self.fetcher);
-            }
-            self.fetcher
-                .step(&self.bus, &mut self.pixel_fifo, self.mode_cycles);
-        }
-
-        if self.pixel_fifo.is_paused(&self.sprite_fetcher) {
-            return;
-        }
-        if let Some(color) = self.pixel_fifo.pop_pixel(&self.bus) {
-            let ly = self.get_io_register(IoRegister::Ly);
-
-            // Only draw if within screen bounds. Discard 1st tile.
-            if self.x_render_counter >= 0 && self.x_render_counter < SCREEN_WIDTH as i16  && (ly as usize) < SCREEN_HEIGHT as usize {
-                let buffer_index = ly as usize * SCREEN_WIDTH as usize + self.x_render_counter as usize;
-                let color = COLORS[color as usize];
-                self.buffer[buffer_index] = color;
-            }
-            self.fetcher.x_pos_counter += 1;
-            self.x_render_counter += 1;
-
-           
+        if self.mode_cycles % 2 == 0 {}
+        self.fetcher
+            .step(&self.bus, &mut self.pixel_fifo, self.mode_cycles);
+        if self.sprite_fetcher.active {
+            self.fetcher.pause();
+            self.sprite_fetcher.step(&self.bus, &mut self.pixel_fifo);
+        } else {
+            self.fetcher.unpause();
         }
     }
+
     fn handle_hblank(&mut self) {
         // pads till 456 cycles
-        if self.mode_cycles == 456 && self.window_triggered_this_frame {
-            self.fetcher.window_line_counter += 1;
-        }
     }
 
     fn handle_vblank(&mut self) {
@@ -302,7 +323,6 @@ impl PPU {
         self.set_io_register(IoRegister::If, if_register | 0b0000_0001);
         // update window per frame
         self.update_window();
-        self.fetcher.window_line_counter = 0;
     }
     fn update_window(&mut self) {
         if self.window.is_open() && !self.window.is_key_down(Key::Escape) {

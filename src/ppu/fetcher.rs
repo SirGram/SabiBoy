@@ -6,7 +6,7 @@ use super::pixelfifo::PixelFifo;
 
 pub struct Fetcher {
     pub step: u8,
-    tile_number: u8,
+    pub tile_number: u8,
     tile_data_low: u8,
     tile_data_high: u8,
     pub is_window_fetch: bool,
@@ -30,17 +30,21 @@ impl Fetcher {
             delay: 0,
         }
     }
-    pub fn window_trigger(&mut self) {
+    pub fn scanline_reset(&mut self) {
+        self.step = 0;
+        self.is_window_fetch = false;
+        self.x_pos_counter = 0;
+        self.pause = false;
+    }
+    pub fn window_trigger(&mut self, pixel_fifo: &mut PixelFifo) {
         self.step = 0;
         self.is_window_fetch = true;
-        self.x_pos_counter = 0;
+        self.x_pos_counter = 7; // make up for the -8 offset
+
+        /* pixel_fifo.bg_fifo.clear();  */
     }
 
     pub fn step(&mut self, bus: &Rc<RefCell<Bus>>, pixel_fifo: &mut PixelFifo, mode_cycles: usize) {
-        if self.is_window_fetch {
-            println!("window ftch")
-        }
-
         match self.step {
             0 => {
                 self.fetch_tile_number(bus);
@@ -85,16 +89,17 @@ impl Fetcher {
         let ly = bus.borrow().read_byte(IoRegister::Ly.address());
 
         // Compute coordinates in the tile map
+        // Current code
         let tile_y = if self.is_window_fetch {
-            self.window_line_counter / 8
+            (self.window_line_counter / 8) & 0x1F
         } else {
-            ((ly.wrapping_add(scy)) / 8) as u16
+            ((ly.wrapping_add(scy)) / 8) as u16 & 0x1F
         };
 
         let tile_x = if self.is_window_fetch {
             self.x_pos_counter / 8
         } else {
-            ((scx as u16/ 8) + (self.x_pos_counter / 8)) & 0x1F
+            ((scx as u16 / 8) + (self.x_pos_counter / 8)) & 0x1F
         };
 
         // Calculate the address of the tile number in VRAM
@@ -113,15 +118,14 @@ impl Fetcher {
     ) -> u8 {
         let ly = bus.borrow().read_byte(IoRegister::Ly.address());
         let scy = bus.borrow().read_byte(IoRegister::Scy.address());
-        let lcdc = bus.borrow().read_byte(IoRegister::Lcdc.address());        
+        let lcdc = bus.borrow().read_byte(IoRegister::Lcdc.address());
 
         // Calculate the offset within the tile (0-7)
         let y_offset = if self.is_window_fetch {
             (self.window_line_counter & 7) * 2
         } else {
-            ((ly as u16  + scy as u16 ) & 7) * 2
+            ((ly as u16 + scy as u16) & 7) * 2
         };
-
 
         // LCDC Bit4 selects Tile Data method
         let base_address = if (lcdc & 0x10) != 0 {
@@ -137,13 +141,18 @@ impl Fetcher {
             .read_byte(base_address + y_offset + if is_high_byte { 1 } else { 0 })
     }
 
-    fn push_to_fifo(&mut self, pixel_fifo: &mut PixelFifo) {        
-        if self.pause || pixel_fifo.bg_pixel_count() != 0 {
+    fn push_to_fifo(&mut self, pixel_fifo: &mut PixelFifo) {
+        if pixel_fifo.bg_pixel_count() != 0 || self.pause {
             return;
         }
         let pixels = [self.tile_data_low, self.tile_data_high];
-        if pixel_fifo.push_bg_pixels(pixels) {
-            self.step = 0;
-        }
+        pixel_fifo.push_bg_pixels(pixels);
+        self.step = 0;
+    }
+    pub fn pause(&mut self) {
+        self.pause = true;
+    }
+    pub fn unpause(&mut self) {
+        self.pause = false;
     }
 }
