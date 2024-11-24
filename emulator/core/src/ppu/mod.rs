@@ -7,7 +7,6 @@ use crate::bus::{io_address::IoRegister, Bus};
 use fetcher::Fetcher;
 use fetcher_sprites::SpriteFetcher;
 use helper::{should_add_sprite, should_fetch_sprite};
-use minifb::{Key, Scale, Window, WindowOptions};
 use pixelfifo::PixelFifo;
 use std::{
     cell::{Ref, RefCell}, cmp::Ordering, rc::Rc, vec
@@ -21,7 +20,6 @@ const CYCLES_PER_SCANLINE: usize = 456;
 const X_POSITION_COUNTER_MAX: u16 = 160;
 const SCANLINE_Y_COUNTER_MAX: u8 = 153;
 const VBLANK_START_SCANLINE: u8 = 144;
-const FRAME_DURATION: usize = 70224;
 
 #[derive(Debug, Copy, Clone)]
 pub enum PPUMode {
@@ -35,7 +33,6 @@ pub struct PPU {
     pub mode_cycles: usize,
     pub frame_cycles: usize,
 
-    window: Window,
     buffer: Vec<u32>,
 
     bus: Rc<RefCell<Bus>>,
@@ -49,6 +46,7 @@ pub struct PPU {
     previous_stat_conditions: u8,
     x_render_counter: i16,
     window_line_counter_incremented_this_scanline: bool,
+    new_frame: bool,
 }
 
 #[derive(Clone)]
@@ -73,19 +71,10 @@ impl PPU {
     /* https://hacktix.github.io/GBEDG/ppu/
      */
     pub fn new(bus: Rc<RefCell<Bus>>) -> Self {
-        let window = Window::new(
-            "SabiBoy",
-            SCREEN_WIDTH as usize,
-            SCREEN_HEIGHT as usize,
-            WindowOptions {
-                scale: Scale::X2,
-                ..WindowOptions::default()
-            },
-        )
-        .unwrap();
+       
 
         Self {
-            window,
+        
             buffer: vec![0; SCREEN_WIDTH as usize * SCREEN_HEIGHT as usize],
             bus: bus,
             mode: PPUMode::OAM_SCAN,
@@ -99,6 +88,7 @@ impl PPU {
             previous_stat_conditions: 0,
             x_render_counter: -8,
             window_line_counter_incremented_this_scanline: false,
+            new_frame: false,
         }
     }
 
@@ -128,6 +118,10 @@ impl PPU {
             && self.x_render_counter as i16 >= (wx.wrapping_sub(7)) as i16
     }
 
+    pub fn get_frame_buffer(&self) -> &[u32] {
+        &self.buffer
+
+    }
     pub fn reset_scanline(&mut self) {
         self.mode_cycles = 0;
         self.sprite_buffer.clear();
@@ -140,6 +134,7 @@ impl PPU {
         self.window_line_counter_incremented_this_scanline = false;
     }
     fn reset_frame(&mut self) {
+        self.new_frame = false;
         self.reset_scanline();
         self.mode = PPUMode::OAM_SCAN;
         self.window_triggered_this_frame = false;
@@ -322,22 +317,9 @@ impl PPU {
         let if_register = self.get_io_register(IoRegister::If);
         self.set_io_register(IoRegister::If, if_register | 0b0000_0001);
         // update window per frame
-        self.update_window();
+        self.new_frame = true;
     }
-    fn update_window(&mut self) {
-        if self.window.is_open() && !self.window.is_key_down(Key::Escape) {
-            self.window
-                .update_with_buffer(&self.buffer, SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize)
-                .unwrap();
-            let should_trigger = self.bus.borrow_mut().joypad.update(&mut self.window);
-            if should_trigger {
-                self.set_io_register(
-                    IoRegister::If,
-                    self.get_io_register(IoRegister::If) | 0b0001_0000, // request joypad interrupt
-                );
-            }
-        }
-    }
+  
 
     fn get_io_register(&self, register: IoRegister) -> u8 {
         self.bus.borrow().read_byte(register.address())

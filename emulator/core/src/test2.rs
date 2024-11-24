@@ -1,6 +1,6 @@
 // Compares state with logs from https://github.com/wheremyfoodat/Gameboy-logs
 
-use crate::gameboy::GameBoy;
+use crate::gameboy::Gameboy;
 use regex::Regex;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
@@ -65,7 +65,7 @@ impl TestHarness {
         })
     }
 
-    pub fn get_current_state(&self, gb: &GameBoy) -> CPUState {
+    pub fn get_current_state(&self, gb: &Gameboy) -> CPUState {
         let bus = gb.bus.borrow();
         CPUState {
             a: gb.cpu.a,
@@ -87,7 +87,7 @@ impl TestHarness {
         }
     }
 
-    pub fn step(&mut self, gb: &GameBoy) -> Result<(), String> {
+    pub fn step(&mut self, gb: &Gameboy) -> Result<(), String> {
         if self.current_state >= self.expected_states.len() {
             return Err("Test completed successfully".to_string());
         }
@@ -182,7 +182,7 @@ mod tests {
 
     #[test]
     fn test_blargg_cpu_instructions() -> io::Result<()> {
-        let mut gb = GameBoy::new(false);
+        let mut gb = Gameboy::new(false);
 
         // Set initial CPU state to match test expectations
         gb.cpu.a = 0x01;

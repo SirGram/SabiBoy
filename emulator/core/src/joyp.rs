@@ -1,6 +1,6 @@
 use std::{cell::RefCell, io, rc::Rc};
 
-use minifb::Key;
+
 
 use crate::bus::{io_address::IoRegister, Bus};
 
@@ -16,7 +16,7 @@ impl Joypad {
             register: 0xFF,
         }
     }
-    pub fn update(&mut self, window: &mut minifb::Window) -> bool {
+    pub fn update(&mut self) -> bool {
         /*
             0 = Pressed, 1 = Released
             Bit 0 = Right
@@ -30,7 +30,7 @@ impl Joypad {
         */
         let old_keys = self.keys;
         self.keys = 0xFF;
-        if window.is_key_down(Key::Right) {
+      /*   if window.is_key_down(Key::Right) {
             self.keys &= !0x01;
         }
         if window.is_key_down(Key::Left) {
@@ -53,7 +53,7 @@ impl Joypad {
         }
         if window.is_key_down(Key::Enter) {
             self.keys &= !0x80;
-        }
+        } */
 
         // Only trigger interrupt if there's a change in key state and a key is pressed
         if old_keys != self.keys && self.keys != 0xFF {

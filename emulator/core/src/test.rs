@@ -1,6 +1,6 @@
 use std::{fs, path::Path};
 
-use crate::{bus::io_address::IoRegister, gameboy::GameBoy};
+use crate::{bus::io_address::IoRegister, gameboy::Gameboy};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
@@ -52,7 +52,7 @@ impl From<Vec<serde_json::Value>> for CycleState {
     }
 }
 
-impl GameBoy {
+impl Gameboy {
     pub fn run_tests(&mut self, from: usize, to: Option<usize>) {
         // Get the path to the sm83 test directory
         let sm83_dir = Path::new("test/sm83");
@@ -280,7 +280,7 @@ impl GameBoy {
         Ok(())
     }
 }
-fn print_detailed_state_comparison(gb: &GameBoy, expected: &CPUState, initial: &CPUState) {
+fn print_detailed_state_comparison(gb: &Gameboy, expected: &CPUState, initial: &CPUState) {
     println!("\nDetailed CPU State Comparison:");
     println!("Register  Initial   Expected  Actual");
     println!("----------------------------------");

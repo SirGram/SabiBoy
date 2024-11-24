@@ -1,7 +1,7 @@
 use crate::{
     bus::{io_address::IoRegister, Bus},
     cpu::{flags::Flags, CPU},
-    debug_window::DebugWindow,
+   
     ppu::PPU,
     timer::Timer,
 };
@@ -12,32 +12,26 @@ use std::{
     time::{Duration, Instant},
 };
 
-pub struct GameBoy {
+pub struct Gameboy {
     pub cpu: CPU,
     pub bus: Rc<RefCell<Bus>>,
     pub timer: Timer,
     pub ppu: PPU,
-    pub debug_window: Option<DebugWindow>,
 }
 
-impl GameBoy {
+impl Gameboy {
     pub fn new(debug: bool) -> Self {
         let bus = Rc::new(RefCell::new(Bus::new()));
         let timer = Timer::new(Rc::clone(&bus));
         let cpu = CPU::new(Rc::clone(&bus));
         let ppu = PPU::new(Rc::clone(&bus));
-        let debug_window = if debug {
-            Some(DebugWindow::new())
-        } else {
-            None
-        };
+      
 
         Self {
             cpu,
             timer,
             bus,
             ppu,
-            debug_window,
         }
     }
 
@@ -70,15 +64,11 @@ impl GameBoy {
                 current_fps = frames;
                 frames = 0;
                 last_fps_check = Instant::now();
+                println!("FPS: {}", current_fps);
             }
             let frame_time = frame_start_time.elapsed();
             if frame_time < target_frame_time {
                 std::thread::sleep(target_frame_time - frame_time);
-            }
-
-            if let Some(ref mut debug_window) = self.debug_window {
-                debug_window.update(&self.cpu, &self.bus, &self.ppu, current_fps);
-                debug_window.render();
             }
         }
     }
