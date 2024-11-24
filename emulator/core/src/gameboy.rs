@@ -20,7 +20,7 @@ pub struct Gameboy {
 }
 
 impl Gameboy {
-    pub fn new(debug: bool) -> Self {
+    pub fn new() -> Self {
         let bus = Rc::new(RefCell::new(Bus::new()));
         let timer = Timer::new(Rc::clone(&bus));
         let cpu = CPU::new(Rc::clone(&bus));
@@ -45,33 +45,6 @@ impl Gameboy {
         }
     }
 
-    pub fn run(&mut self) {
-        let cycles_per_frame = 70_224;
-        let target_frame_time = Duration::from_micros(16_667); // 60 fps
-        let mut last_fps_check = Instant::now();
-        let mut frames = 0;
-        let mut current_fps = 0;
-        loop {
-            let frame_start_time = Instant::now();
-            let mut cycles_this_frame = 0;
-
-            while cycles_this_frame < cycles_per_frame {
-                self.tick();
-                cycles_this_frame += self.cpu.cycles;
-            }
-            frames += 1;
-            if last_fps_check.elapsed() > Duration::from_secs(1) {
-                current_fps = frames;
-                frames = 0;
-                last_fps_check = Instant::now();
-                println!("FPS: {}", current_fps);
-            }
-            let frame_time = frame_start_time.elapsed();
-            if frame_time < target_frame_time {
-                std::thread::sleep(target_frame_time - frame_time);
-            }
-        }
-    }
 
     pub fn load_rom(&mut self, rom: &[u8]) {
         self.bus.borrow_mut().load_rom(rom);

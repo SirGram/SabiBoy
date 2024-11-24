@@ -3,11 +3,12 @@ use minifb_fonts::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::bus::io_address::IoRegister;
-use crate::cartridge::cartridge_header;
-use crate::cpu::CPU;
-use crate::ppu::{PPUMode, COLORS};
-use crate::{bus, ppu};
+use gameboy_core as GameboyCore;
+use GameboyCore::bus::io_address::IoRegister;
+use GameboyCore::cartridge::cartridge_header;
+use GameboyCore::cpu::CPU;
+use GameboyCore::ppu::{PPUMode, COLORS};
+use GameboyCore::{bus, ppu};
 
 const WINDOW_WIDTH: usize = 800;
 const WINDOW_HEIGHT: usize = 600;
@@ -60,7 +61,7 @@ pub struct DebugWindow {
     mode_cycles: usize,
     mode: PPUMode,
     frames: usize,
-    cartridgeState: CartridgeHeaderState,
+    cartridge_state: CartridgeHeaderState,
 }
 
 impl DebugWindow {
@@ -98,7 +99,7 @@ impl DebugWindow {
             last_cycle: 0,
             cartridge_header: [0; 0x50],
             cartridge_header_read: false,
-            cartridgeState: CartridgeHeaderState::new(),
+            cartridge_state: CartridgeHeaderState::new(),
             frames: 0,
             oam_data: [0; 0xA0],
         }
@@ -263,16 +264,16 @@ impl DebugWindow {
         if !self.cartridge_header_read {
             self.cartridge_header = bus.borrow().read_cartridge_header();
             let title = cartridge_header::get_title(&self.cartridge_header);
-            self.cartridgeState.title = title;
-            self.cartridgeState.kind = cartridge_header::get_cartridge_type(&self.cartridge_header);
-            self.cartridgeState.rom_size = cartridge_header::get_rom_size(&self.cartridge_header);
-            self.cartridgeState.ram_size = cartridge_header::get_ram_size(&self.cartridge_header);
-            self.cartridgeState.destination =
+            self.cartridge_state.title = title;
+            self.cartridge_state.kind = cartridge_header::get_cartridge_type(&self.cartridge_header);
+            self.cartridge_state.rom_size = cartridge_header::get_rom_size(&self.cartridge_header);
+            self.cartridge_state.ram_size = cartridge_header::get_ram_size(&self.cartridge_header);
+            self.cartridge_state.destination =
                 cartridge_header::get_destination_code(&self.cartridge_header);
-            self.cartridgeState.sgb_flag = cartridge_header::get_sgb_flag(&self.cartridge_header);
-            self.cartridgeState.rom_version =
+            self.cartridge_state.sgb_flag = cartridge_header::get_sgb_flag(&self.cartridge_header);
+            self.cartridge_state.rom_version =
                 cartridge_header::get_mask_rom_version(&self.cartridge_header);
-            self.cartridgeState.licensee_code =
+            self.cartridge_state.licensee_code =
                 cartridge_header::get_licensee_code(&self.cartridge_header);
 
             self.cartridge_header_read = true;
@@ -609,21 +610,21 @@ impl DebugWindow {
         // Cartridge Header Information
         title_font_renderer.draw_text(&mut buffer, 150, 10, "CARTRIDGE HEADER");
         title_font_renderer.draw_text(&mut buffer, 150, 25, "Title");
-        value_font_renderer.draw_text(&mut buffer, 190, 25, &self.cartridgeState.title);
+        value_font_renderer.draw_text(&mut buffer, 190, 25, &self.cartridge_state.title);
         title_font_renderer.draw_text(&mut buffer, 150, 40, "Type");
-        value_font_renderer.draw_text(&mut buffer, 190, 40, &self.cartridgeState.kind);
+        value_font_renderer.draw_text(&mut buffer, 190, 40, &self.cartridge_state.kind);
         title_font_renderer.draw_text(&mut buffer, 150, 55, "ROM ");
-        value_font_renderer.draw_text(&mut buffer, 190, 55, &self.cartridgeState.rom_size);
+        value_font_renderer.draw_text(&mut buffer, 190, 55, &self.cartridge_state.rom_size);
         title_font_renderer.draw_text(&mut buffer, 150, 70, "RAM ");
-        value_font_renderer.draw_text(&mut buffer, 190, 70, &self.cartridgeState.ram_size);
+        value_font_renderer.draw_text(&mut buffer, 190, 70, &self.cartridge_state.ram_size);
         title_font_renderer.draw_text(&mut buffer, 150, 85, "Destin");
-        value_font_renderer.draw_text(&mut buffer, 190, 85, &self.cartridgeState.destination);
+        value_font_renderer.draw_text(&mut buffer, 190, 85, &self.cartridge_state.destination);
         title_font_renderer.draw_text(&mut buffer, 150, 100, "SGB");
-        value_font_renderer.draw_text(&mut buffer, 190, 100, &self.cartridgeState.sgb_flag);
+        value_font_renderer.draw_text(&mut buffer, 190, 100, &self.cartridge_state.sgb_flag);
         title_font_renderer.draw_text(&mut buffer, 150, 115, "Version");
-        value_font_renderer.draw_text(&mut buffer, 190, 115, &self.cartridgeState.rom_version);
+        value_font_renderer.draw_text(&mut buffer, 190, 115, &self.cartridge_state.rom_version);
         title_font_renderer.draw_text(&mut buffer, 150, 130, "Licensee");
-        value_font_renderer.draw_text(&mut buffer, 190, 130, &self.cartridgeState.licensee_code);
+        value_font_renderer.draw_text(&mut buffer, 190, 130, &self.cartridge_state.licensee_code);
 
         buffer
     }

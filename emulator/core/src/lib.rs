@@ -1,16 +1,13 @@
 use log::info;
 
 pub mod gameboy;
-mod bus;
-mod cartridge;
-mod cpu;
-mod joyp;
-mod ppu;
-mod test;
-mod test2;
-mod timer;
+pub mod bus;
+pub mod cartridge;
+pub mod cpu;
+pub mod joyp;
+pub mod ppu;
+pub mod test;
+pub mod test2;
+pub mod timer;
 
-fn main() {
-   
-    
-}
+

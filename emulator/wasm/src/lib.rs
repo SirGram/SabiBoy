@@ -12,7 +12,7 @@ impl GameboyWasm {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         Self {
-            gameboy: GameboyCore::gameboy::Gameboy::new(false),
+            gameboy: GameboyCore::gameboy::Gameboy::new(),
         }
     }
 

@@ -182,7 +182,7 @@ mod tests {
 
     #[test]
     fn test_blargg_cpu_instructions() -> io::Result<()> {
-        let mut gb = Gameboy::new(false);
+        let mut gb = Gameboy::new();
 
         // Set initial CPU state to match test expectations
         gb.cpu.a = 0x01;
