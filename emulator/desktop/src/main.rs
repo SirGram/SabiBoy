@@ -43,7 +43,7 @@ fn set_up_window()-> Window {
     
 
  fn run(window: &mut Window, gameboy: &mut gameboy_core::gameboy::Gameboy, debug_window: &mut Option<debug_window::DebugWindow>) {
-    let cycles_per_frame = 70_224;
+    let cycles_per_frame = 70_224 ;
     let target_frame_time = Duration::from_micros(16_667); // 60 fps
     let mut last_fps_check = Instant::now();
     let mut frames = 0;
@@ -54,13 +54,7 @@ fn set_up_window()-> Window {
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let frame_start_time = Instant::now();
-        let mut cycles_this_frame = 0;
-
-        // Run one frame worth of emulation
-        while cycles_this_frame < cycles_per_frame {
-            gameboy.tick();
-            cycles_this_frame += gameboy.cpu.cycles;
-        }
+       gameboy.run_frame();
 
         // Get the frame buffer from PPU and convert colors
         let gb_buffer = gameboy.ppu.get_frame_buffer();

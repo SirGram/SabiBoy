@@ -1,34 +1,32 @@
 import { useEffect, useRef, useState } from "react";
 import init, { GameboyWasm } from "../wasm/pkg/gameboy_wasm";
+import { useParams } from "react-router-dom";
 
-const TICKS_PER_FRAME = 70224;
-const TARGET_FPS = 60;
-const FRAME_DURATION = 1000 / TARGET_FPS;
 
 const GameboyDisplay = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const gameboyRef = useRef<GameboyWasm | null>(null);
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
   const imageDataRef = useRef<ImageData | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+
   const [fps, setFps] = useState(0);
   const [pressedKeys, setPressedKeys] = useState(0xFF);
 
-  type KeyMapping = {
-    [key: string]: {
-      mask: number;
-      bit: number;
-    };
-  }
+  const { itemId } = useParams<{ itemId: string }>();
 
-  const keyMapping: KeyMapping = {
+  type KeyMappingType = {
+    [key: string]: { mask: number; bit: number };
+  };
+  const keyMapping: KeyMappingType = {
     "ArrowRight":  { mask: 0xfe, bit: 0 },
     "ArrowLeft":   { mask: 0xfd, bit: 1 },
     "ArrowUp":     { mask: 0xfb, bit: 2 },
     "ArrowDown":   { mask: 0xf7, bit: 3 },
-    "z":           { mask: 0xef, bit: 4 }, // A
-    "x":           { mask: 0xdf, bit: 5 }, // B
-    "Backspace":   { mask: 0xbf, bit: 6 }, // Select
-    "Enter":       { mask: 0x7f, bit: 7 }  // Start
+    "z":           { mask: 0xef, bit: 4 }, 
+    "x":           { mask: 0xdf, bit: 5 }, 
+    "Backspace":   { mask: 0xbf, bit: 6 }, 
+    "Enter":       { mask: 0x7f, bit: 7 }  
   };
 
   const handleKeyDown = (event: KeyboardEvent) => {
@@ -66,24 +64,22 @@ const GameboyDisplay = () => {
       imageDataRef.current = ctx.createImageData(160, 144);
 
       const gameboy = new GameboyWasm();
-      gameboy.init();
+      if (!itemId) return;
+      gameboy.init(itemId);
       gameboyRef.current = gameboy;
 
-      const lastFrameTime = { value: performance.now() };
       let frameCount = 0;
-      let fpsUpdateTime = lastFrameTime.value;
+      let lastFpsUpdate = performance.now();
 
-      const renderFrame = (currentTime: number) => {
+      const renderFrame = () => {
         const gameboy = gameboyRef.current;
         const ctx = contextRef.current;
         const imageData = imageDataRef.current;
 
         if (!gameboy || !ctx || !imageData) return;
 
-        // Run emulation ticks for this frame
-        for (let i = 0; i < TICKS_PER_FRAME; i++) {
-          gameboy.tick();
-        }
+        // Run full frame
+        gameboy.run_frame();
 
         // Render frame
         const frameBuffer = gameboy.get_frame_buffer();
@@ -92,28 +88,26 @@ const GameboyDisplay = () => {
 
         // FPS calculation
         frameCount++;
-        if (currentTime - fpsUpdateTime >= 1000) {
+        const now = performance.now();
+        if (now - lastFpsUpdate >= 1000) {
           setFps(frameCount);
           frameCount = 0;
-          fpsUpdateTime = currentTime;
+          lastFpsUpdate = now;
         }
 
-        // Ensure consistent frame timing
-        const elapsed = currentTime - lastFrameTime.value;
-        if (elapsed < FRAME_DURATION) {
-          setTimeout(() => requestAnimationFrame(renderFrame), FRAME_DURATION - elapsed);
-        } else {
-          requestAnimationFrame(renderFrame);
-        }
-
-        lastFrameTime.value = currentTime;
+        // Schedule next frame
+        animationFrameRef.current = requestAnimationFrame(renderFrame);
       };
 
-      requestAnimationFrame(renderFrame);
+      animationFrameRef.current = requestAnimationFrame(renderFrame);
+
       window.addEventListener("keydown", handleKeyDown);
       window.addEventListener("keyup", handleKeyUp);
 
       return () => {
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+        }
         window.removeEventListener("keydown", handleKeyDown);
         window.removeEventListener("keyup", handleKeyUp);
         gameboy.free();
@@ -121,7 +115,7 @@ const GameboyDisplay = () => {
     };
 
     initGameboy();
-  }, []);
+  }, [itemId]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 p-4">

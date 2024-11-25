@@ -44,6 +44,15 @@ impl Gameboy {
             self.ppu.tick();
         }
     }
+    pub fn run_frame(&mut self) {
+        // Run one frame worth of emulation
+        let cycles_per_frame = 70224;
+        let mut cycles_this_frame = 0;
+        while cycles_this_frame < cycles_per_frame {
+            self.tick();
+            cycles_this_frame += self.cpu.cycles;
+        }
+    }
 
 
     pub fn load_rom(&mut self, rom: &[u8]) {

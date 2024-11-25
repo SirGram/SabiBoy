@@ -1,5 +1,5 @@
 use wasm_bindgen::prelude::*;
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, fs, rc::Rc};
 use gameboy_core as GameboyCore;
 
 #[wasm_bindgen]
@@ -20,15 +20,23 @@ impl GameboyWasm {
         self.gameboy.load_rom(rom_data);
         self.gameboy.set_power_up_sequence();
     } */
-   pub fn init(&mut self) {
+    pub fn init(&mut self, rom_name: &str) -> Result<(), String> {
+        let rom_data = match rom_name {
+            "tennis" => include_bytes!("../test/tennis.gb"),
+            "tetris" => include_bytes!("../test/tetris.gb"),
+            _ => return Err(format!("Unknown ROM: {}", rom_name))
+        };
     
-    self.gameboy.set_power_up_sequence();
-    self.gameboy.load_rom(include_bytes!("../test/tennis.gb"));
-
-   }
+        self.gameboy.set_power_up_sequence();
+        self.gameboy.load_rom(rom_data);
+        Ok(())
+    }
 
     pub fn tick(&mut self) {    
         self.gameboy.tick();
+    }
+    pub fn run_frame(&mut self) {
+      self.gameboy.run_frame();
     }
 
     pub fn get_frame_buffer(&self) -> Vec<u8> {
