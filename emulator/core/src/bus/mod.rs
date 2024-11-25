@@ -4,6 +4,7 @@ use crate::joyp::Joypad;
 
 pub mod io_address;
 pub struct Bus {
+    pub joypad: Joypad,
     rom_bank_0: [u8; 0x4000],
     rom_bank_n: [u8; 0x4000],
     vram: [u8; 0x2000],
@@ -11,7 +12,6 @@ pub struct Bus {
     ram_bank_0: [u8; 0x1000],
     ram_bank_n: [u8; 0x1000],
     oam: [u8; 0xA0], // object attribute memory
-    pub joypad: Joypad,
     io_registers: [u8; 0x7F],
     hram: [u8; 0x7F],
     ie_register: u8,

@@ -1,5 +1,5 @@
 use std::{env::Args, time::{Duration, Instant}};
-use gameboy_core::{self, gameboy};
+use gameboy_core::{self, gameboy, joyp::JoyPadKey};
 use minifb::{Key, Window, WindowOptions};
 
 mod debug_window;
@@ -96,10 +96,39 @@ fn set_up_window()-> Window {
             std::thread::sleep(target_frame_time - frame_time);
         }
 
+        // update key input
+        handle_input(window, gameboy);
+
+
+
+
+        // update debug window
         if let Some(debug_window) = debug_window {
             debug_window.update(&gameboy.cpu, &gameboy.bus, &gameboy.ppu, current_fps);
             debug_window.render();
         }
         
     }
+}
+
+fn handle_input(window: &mut Window, gameboy: &mut gameboy_core::gameboy::Gameboy) {
+    use gameboy_core::joyp::JoyPadKey;
+    let keys = [
+        (Key::Right, JoyPadKey::Right),
+        (Key::Left, JoyPadKey::Left),
+        (Key::Up, JoyPadKey::Up),
+        (Key::Down, JoyPadKey::Down),
+        (Key::Z, JoyPadKey::A),
+        (Key::X, JoyPadKey::B),
+        (Key::Backspace, JoyPadKey::Select),
+        (Key::Enter, JoyPadKey::Start),
+    ];
+    let mut new_keys: u8 = 0xFF; // Start with all keys released
+    for (minifb_key, gb_key) in keys.iter() {
+        if window.is_key_down(*minifb_key) {
+            new_keys &= !(gb_key.bit_mask()); // Set key as pressed (bit 0)
+        }
+    }
+    gameboy.bus.borrow_mut().joypad.update_keys(new_keys);
+    
 }

@@ -45,6 +45,9 @@ impl GameboyWasm {
         
         rgba
     }
+    pub fn handle_keys(&mut self, keys: u8) {
+        self.gameboy.bus.borrow_mut().joypad.update_keys(keys);
+    }
 
     
 }

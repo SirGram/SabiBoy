@@ -4,6 +4,32 @@ use std::{cell::RefCell, io, rc::Rc};
 
 use crate::bus::{io_address::IoRegister, Bus};
 
+
+pub enum JoyPadKey{
+    Right,
+    Left,
+    Up,
+    Down,
+    A,
+    B,
+    Select,
+    Start,
+}
+impl JoyPadKey{
+    pub fn bit_mask(&self) -> u8{
+        match self{
+            JoyPadKey::Right => 0x01,
+            JoyPadKey::Left => 0x02,
+            JoyPadKey::Up => 0x04,
+            JoyPadKey::Down => 0x08,
+            JoyPadKey::A => 0x10,
+            JoyPadKey::B => 0x20,
+            JoyPadKey::Select => 0x40,
+            JoyPadKey::Start => 0x80,
+        }
+    }
+}
+
 pub struct Joypad {
     keys: u8,
     register: u8,
@@ -61,6 +87,18 @@ impl Joypad {
             true;
         }
         false
+    }
+   
+    pub fn update_keys(&mut self, new_keys: u8) {
+        let old_keys = self.keys;
+        
+        // Update keys
+        if new_keys != old_keys{
+            self.keys = new_keys;
+        }
+        
+        // Request joypad interrupt TODO:implement
+        old_keys != self.keys && self.keys != 0xFF;
     }
 
     pub fn read(&self) -> u8 {
