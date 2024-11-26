@@ -19,7 +19,7 @@ fn main() {
     // Initialize GameBoy
     let mut gameboy = gameboy_core::gameboy::Gameboy::new();
     gameboy.set_power_up_sequence();
-    gameboy.load_rom(include_bytes!("../test/mbc5/rom_64Mb.gb"));
+    gameboy.load_rom(include_bytes!("../test/zelda_awakening.gb"));
 
     run(&mut window, &mut gameboy, &mut debug_window);
 }
@@ -80,7 +80,6 @@ fn run(
             current_fps = frames;
             frames = 0;
             last_fps_check = Instant::now();
-            println!("FPS: {}", current_fps);
         }
 
         // Frame timing

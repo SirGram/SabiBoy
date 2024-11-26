@@ -1,5 +1,3 @@
-use serde::de::value;
-
 pub struct Mbc5 {
     current_rom_bank: u16,
     current_ram_bank: u8,
@@ -14,12 +12,12 @@ impl Mbc5 {
     RAM BANK: Up to 16 banks of 8KB
      */
     // TODO: rumble?
-    pub fn new(rom: &[u8]) -> Self {
+    pub fn new(rom: &[u8], ram_size: usize) -> Self {
         Self {
             current_rom_bank: 1,
             current_ram_bank: 0,
             rom: rom.to_vec(),
-            ram: vec![0; 0x2000 * 16],
+            ram: vec![0; ram_size],
             external_ram_enabled: false,
         }
     }
@@ -27,13 +25,11 @@ impl Mbc5 {
         match address {
             0x0000..=0x3FFF => self.rom[address as usize],
             0x4000..=0x7FFF => {
-                self.rom
-                    [0x4000 * self.current_rom_bank as usize + (address as usize - 0x4000)]
+                self.rom[0x4000 * self.current_rom_bank as usize + (address as usize - 0x4000)]
             }
             0xA000..=0xBFFF => {
                 if self.external_ram_enabled {
-                    self.ram
-                        [0x2000 * self.current_ram_bank as usize + (address as usize - 0xA000)]
+                    self.ram[0x2000 * self.current_ram_bank as usize + (address as usize - 0xA000)]
                 } else {
                     0xFF
                 }
@@ -54,7 +50,8 @@ impl Mbc5 {
             }
             0x2000..=0x2FFF => {
                 // set lower 8 bits and preserve 9th bit
-                self.current_rom_bank = (self.current_rom_bank & 0x100) | value as u16;
+                let new_rom_bank_number = (self.current_rom_bank & 0x100) | value as u16;
+               self.current_rom_bank = new_rom_bank_number;
             }
             0x3000..=0x3FFF => {
                 // set bit0 higher 8 bits and preserve lower 8 bits

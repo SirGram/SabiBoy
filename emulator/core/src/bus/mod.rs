@@ -1,6 +1,7 @@
-use io_address::IoRegister;
-
-use crate::{cartridge::{mbc0::Mbc0, mbc5::Mbc5, MbcType}, joyp::Joypad};
+use crate::{
+    cartridge::{mbc0::Mbc0, mbc1::Mbc1, mbc5::Mbc5, MbcType},
+    joyp::Joypad,
+};
 
 pub mod io_address;
 pub struct Bus {
@@ -15,7 +16,7 @@ pub struct Bus {
     // debug
     debug: [u8; 0x100],
     // cartridge
-    mbc:MbcType
+    mbc: MbcType,
 }
 
 impl Bus {
@@ -35,10 +36,22 @@ impl Bus {
     }
 
     pub fn load_rom(&mut self, rom: &[u8]) {
+        let ram_size = match rom[0x149] {
+            0x00 => 0,       // No RAM
+            0x02 => 0x2000,  // 8 KiB
+            0x03 => 0x8000,  // 32 KiB
+            0x04 => 0x20000, // 128 KiB
+            0x05 => 0x10000, // 64 KiB
+            _ => 0x2000,
+        };
+        println!("ram_size: {} bytes", ram_size);
+        println!("mbctype: {:04X}", rom[0x147]);
         // Detect MBC type from ROM header
-        self.mbc = match rom[0x0147] {
+        self.mbc = match rom[0x147] {
             0x00 => MbcType::Mbc0(Mbc0::new(rom)),
-            0x19..=0x1E => MbcType::Mbc5(Mbc5::new(rom)),
+            0x01..=0x03 => MbcType::Mbc1(Mbc1::new(rom, ram_size)),
+            0x19..=0x1E => MbcType::Mbc5(Mbc5::new(rom, ram_size)),
+
             _ => panic!("Unsupported MBC type"),
         };
     }
