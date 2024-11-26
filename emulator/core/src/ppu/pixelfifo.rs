@@ -29,7 +29,6 @@ impl Pixel {
     }
 }
 
-
 pub struct PixelFifo {
     pub bg_fifo: VecDeque<Pixel>,
     pub sprite_fifo: VecDeque<Pixel>,
@@ -94,7 +93,7 @@ impl PixelFifo {
 
         let bgp = bus.borrow().read_byte(IoRegister::Bgp.address());
 
-          let final_color = if let Some(mut sprite) = sprite_pixel {
+        let final_color = if let Some(mut sprite) = sprite_pixel {
             // object enable
             if lcdc & 0x02 == 0 {
                 sprite.color = 0;
@@ -104,22 +103,18 @@ impl PixelFifo {
             } else if sprite.bg_priority && bg_pixel.color != 0 {
                 (bgp >> (bg_pixel.color * 2)) & 0x03
             } else {
-                 // Bit 4 = 1: Use OBP1 | Bit 4 = 0: Use OBP0
+                // Bit 4 = 1: Use OBP1 | Bit 4 = 0: Use OBP0
                 let palette = if sprite.palette {
-                    bus.borrow().read_byte(IoRegister::Obp1.address()) 
+                    bus.borrow().read_byte(IoRegister::Obp1.address())
                 } else {
                     bus.borrow().read_byte(IoRegister::Obp0.address())
                 };
                 (palette >> (sprite.color * 2)) & 0x03
             }
         } else {
-           
             (bgp >> (bg_pixel.color * 2)) & 0x03
-
         };
         Some(final_color)
-        
-
     }
     pub fn bg_pixel_count(&self) -> usize {
         return self.bg_fifo.len();

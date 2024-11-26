@@ -1,11 +1,8 @@
 use std::{cell::RefCell, io, rc::Rc};
 
-
-
 use crate::bus::{io_address::IoRegister, Bus};
 
-
-pub enum JoyPadKey{
+pub enum JoyPadKey {
     Right,
     Left,
     Up,
@@ -15,9 +12,9 @@ pub enum JoyPadKey{
     Select,
     Start,
 }
-impl JoyPadKey{
-    pub fn bit_mask(&self) -> u8{
-        match self{
+impl JoyPadKey {
+    pub fn bit_mask(&self) -> u8 {
+        match self {
             JoyPadKey::Right => 0x01,
             JoyPadKey::Left => 0x02,
             JoyPadKey::Up => 0x04,
@@ -44,12 +41,12 @@ impl Joypad {
     }
     pub fn update_keys(&mut self, new_keys: u8) {
         let old_keys = self.keys;
-        
+
         // Update keys
-        if new_keys != old_keys{
+        if new_keys != old_keys {
             self.keys = new_keys;
         }
-        
+
         // Request joypad interrupt TODO:implement
         old_keys != self.keys && self.keys != 0xFF;
     }

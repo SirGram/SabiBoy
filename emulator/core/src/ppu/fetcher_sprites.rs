@@ -66,12 +66,16 @@ impl SpriteFetcher {
 
         let y_flip = self.sprite.flags & 0x40 != 0;
         let x_flip = self.sprite.flags & 0x20 != 0;
-        let sprite_size = if bus.borrow().read_byte(IoRegister::Lcdc.address()) & 0x04 != 0 { 16 } else { 8 };
+        let sprite_size = if bus.borrow().read_byte(IoRegister::Lcdc.address()) & 0x04 != 0 {
+            16
+        } else {
+            8
+        };
 
-         // Calculate the actual Y line within the tile, handling Y-flip
-         let relative_y = ly.wrapping_sub(self.sprite.y_pos);
-         let mut y_line = if y_flip {
-            (sprite_size  as u8 - 1).wrapping_sub(relative_y)
+        // Calculate the actual Y line within the tile, handling Y-flip
+        let relative_y = ly.wrapping_sub(self.sprite.y_pos);
+        let mut y_line = if y_flip {
+            (sprite_size as u8 - 1).wrapping_sub(relative_y)
         } else {
             relative_y
         };
@@ -93,7 +97,6 @@ impl SpriteFetcher {
             self.tile_number
         };
         let y_offset = (y_line as u16 & 7) * 2;
-
 
         // only 8000 method for sprites
         let base_address = 0x8000 + (actual_tile as u16 * 16);

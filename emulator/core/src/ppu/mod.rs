@@ -9,7 +9,10 @@ use fetcher_sprites::SpriteFetcher;
 use helper::{should_add_sprite, should_fetch_sprite};
 use pixelfifo::PixelFifo;
 use std::{
-    cell::{Ref, RefCell}, cmp::Ordering, rc::Rc, vec
+    cell::{Ref, RefCell},
+    cmp::Ordering,
+    rc::Rc,
+    vec,
 };
 
 pub const COLORS: [u32; 5] = [0xA8D08D, 0x6A8E3C, 0x3A5D1D, 0x1F3C06, 0xFF0000];
@@ -71,10 +74,7 @@ impl PPU {
     /* https://hacktix.github.io/GBEDG/ppu/
      */
     pub fn new(bus: Rc<RefCell<Bus>>) -> Self {
-       
-
         Self {
-        
             buffer: vec![0; SCREEN_WIDTH as usize * SCREEN_HEIGHT as usize],
             bus: bus,
             mode: PPUMode::OAM_SCAN,
@@ -120,7 +120,6 @@ impl PPU {
 
     pub fn get_frame_buffer(&self) -> &[u32] {
         &self.buffer
-
     }
     pub fn reset_scanline(&mut self) {
         self.mode_cycles = 0;
@@ -153,7 +152,7 @@ impl PPU {
         // scanline
         let ly = self.get_io_register(IoRegister::Ly);
 
-      /*   println!(
+        /*   println!(
             "ly {} cycles {} window {} wcoun {} xpos {} xposren {} bg_fifo_len {} sprite_fifo_len {} current_sprite_x {} sprftch_act {}",
             ly,
             self.mode_cycles,
@@ -228,7 +227,7 @@ impl PPU {
             self.mode = PPUMode::DRAWING;
             self.sprite_buffer.sort_by(|a, b| {
                 match a.x_pos.cmp(&b.x_pos) {
-                    Ordering::Equal =>b.flags.cmp(&a.flags), //  Higher OAM  index
+                    Ordering::Equal => b.flags.cmp(&a.flags), //  Higher OAM  index
                     ordering => ordering,
                 }
             });
@@ -242,7 +241,7 @@ impl PPU {
             return;
         }
 
-        // Window check
+        /*   // Window check
          if !self.fetcher.is_window_fetch {
             if self.check_window() {
                 let ly = self.get_io_register(IoRegister::Ly);
@@ -252,7 +251,7 @@ impl PPU {
                     self.window_line_counter_incremented_this_scanline = true;
                 }
             }
-        } 
+        }  */
 
         // Pixel shifting
         if !self.pixel_fifo.is_paused(&self.sprite_fetcher) {
@@ -266,7 +265,7 @@ impl PPU {
                 {
                     let buffer_index =
                         ly as usize * SCREEN_WIDTH as usize + self.x_render_counter as usize;
-                        
+
                     let color = COLORS[color as usize];
                     self.buffer[buffer_index] = color;
                 }
@@ -277,7 +276,7 @@ impl PPU {
 
         // Check sprites
         if !self.sprite_fetcher.active && self.pixel_fifo.sprite_pixel_count() == 0 {
-           /*  println!("sprite fetch "); */
+            /*  println!("sprite fetch "); */
 
             if let Some(sprite) =
                 should_fetch_sprite(self.x_render_counter, &mut self.sprite_buffer)
@@ -319,7 +318,6 @@ impl PPU {
         // update window per frame
         self.new_frame = true;
     }
-  
 
     fn get_io_register(&self, register: IoRegister) -> u8 {
         self.bus.borrow().read_byte(register.address())

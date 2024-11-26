@@ -1,7 +1,6 @@
 use crate::{
     bus::{io_address::IoRegister, Bus},
     cpu::{flags::Flags, CPU},
-   
     ppu::PPU,
     timer::Timer,
 };
@@ -25,7 +24,6 @@ impl Gameboy {
         let timer = Timer::new(Rc::clone(&bus));
         let cpu = CPU::new(Rc::clone(&bus));
         let ppu = PPU::new(Rc::clone(&bus));
-      
 
         Self {
             cpu,
@@ -53,7 +51,6 @@ impl Gameboy {
             cycles_this_frame += self.cpu.cycles;
         }
     }
-
 
     pub fn load_rom(&mut self, rom: &[u8]) {
         self.bus.borrow_mut().load_rom(rom);

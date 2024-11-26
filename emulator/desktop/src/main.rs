@@ -1,6 +1,9 @@
-use std::{env::Args, time::{Duration, Instant}};
 use gameboy_core::{self, gameboy, joyp::JoyPadKey};
 use minifb::{Key, Window, WindowOptions};
+use std::{
+    env::Args,
+    time::{Duration, Instant},
+};
 
 mod debug_window;
 fn main() {
@@ -16,12 +19,12 @@ fn main() {
     // Initialize GameBoy
     let mut gameboy = gameboy_core::gameboy::Gameboy::new();
     gameboy.set_power_up_sequence();
-    gameboy.load_rom(include_bytes!("../../wasm/test/tennis.gb"));
+    gameboy.load_rom(include_bytes!("../test/mbc5/rom_64Mb.gb"));
 
     run(&mut window, &mut gameboy, &mut debug_window);
 }
 
-fn set_up_window()-> Window {
+fn set_up_window() -> Window {
     let width = 160;
     let height = 144;
     let window_options = WindowOptions {
@@ -30,31 +33,29 @@ fn set_up_window()-> Window {
         ..WindowOptions::default()
     };
 
-    let mut window = Window::new(
-        "SabiBoy",
-        width,
-        height,
-        window_options,
-    ).expect("Failed to create window");
-    
+    let mut window =
+        Window::new("SabiBoy", width, height, window_options).expect("Failed to create window");
+
     window.limit_update_rate(Some(std::time::Duration::from_micros(16667)));
     window
 }
-    
 
- fn run(window: &mut Window, gameboy: &mut gameboy_core::gameboy::Gameboy, debug_window: &mut Option<debug_window::DebugWindow>) {
-    let cycles_per_frame = 70_224 ;
+fn run(
+    window: &mut Window,
+    gameboy: &mut gameboy_core::gameboy::Gameboy,
+    debug_window: &mut Option<debug_window::DebugWindow>,
+) {
     let target_frame_time = Duration::from_micros(16_667); // 60 fps
     let mut last_fps_check = Instant::now();
     let mut frames = 0;
     let mut current_fps = 0;
-    
+
     // Buffer to hold the converted pixels
     let mut buffer = vec![0u32; 160 * 144];
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let frame_start_time = Instant::now();
-       gameboy.run_frame();
+        gameboy.run_frame();
 
         // Get the frame buffer from PPU and convert colors
         let gb_buffer = gameboy.ppu.get_frame_buffer();
@@ -63,17 +64,15 @@ fn set_up_window()-> Window {
             let r = ((color >> 16) & 0xFF) as u32;
             let g = ((color >> 8) & 0xFF) as u32;
             let b = (color & 0xFF) as u32;
-            
+
             // Pack RGB values into a single u32 (0RGB)
             buffer[i] = (r << 16) | (g << 8) | b;
         }
 
         // Update the window with the new frame
-        window.update_with_buffer(
-            &buffer,
-            160,
-            144
-        ).expect("Failed to update window");
+        window
+            .update_with_buffer(&buffer, 160, 144)
+            .expect("Failed to update window");
 
         // FPS calculation
         frames += 1;
@@ -93,15 +92,11 @@ fn set_up_window()-> Window {
         // update key input
         handle_input(window, gameboy);
 
-
-
-
         // update debug window
         if let Some(debug_window) = debug_window {
             debug_window.update(&gameboy.cpu, &gameboy.bus, &gameboy.ppu, current_fps);
             debug_window.render();
         }
-        
     }
 }
 
@@ -124,5 +119,4 @@ fn handle_input(window: &mut Window, gameboy: &mut gameboy_core::gameboy::Gamebo
         }
     }
     gameboy.bus.borrow_mut().joypad.update_keys(new_keys);
-    
 }

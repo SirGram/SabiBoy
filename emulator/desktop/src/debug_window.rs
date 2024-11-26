@@ -265,7 +265,8 @@ impl DebugWindow {
             self.cartridge_header = bus.borrow().read_cartridge_header();
             let title = cartridge_header::get_title(&self.cartridge_header);
             self.cartridge_state.title = title;
-            self.cartridge_state.kind = cartridge_header::get_cartridge_type(&self.cartridge_header);
+            self.cartridge_state.kind =
+                cartridge_header::get_cartridge_type(&self.cartridge_header);
             self.cartridge_state.rom_size = cartridge_header::get_rom_size(&self.cartridge_header);
             self.cartridge_state.ram_size = cartridge_header::get_ram_size(&self.cartridge_header);
             self.cartridge_state.destination =
