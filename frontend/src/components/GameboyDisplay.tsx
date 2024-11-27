@@ -1,17 +1,20 @@
 import { useEffect, useRef, useState } from "react";
-import init, { GameboyWasm } from "../wasm/pkg/gameboy_wasm";
+import { GameboyWasm } from "../wasm/pkg/gameboy_wasm";
 import { useParams } from "react-router-dom";
+import { CartridgeHeaderState } from "../pages/Game";
 
-
-const GameboyDisplay = () => {
+type GameboyDisplayProps = {
+  setFps: React.Dispatch<React.SetStateAction<number>>;
+  setCartridgeInfo: (info: CartridgeHeaderState) => void;
+};
+const GameboyDisplay = ({ setFps, setCartridgeInfo }: GameboyDisplayProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const gameboyRef = useRef<GameboyWasm | null>(null);
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
   const imageDataRef = useRef<ImageData | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
-  const [fps, setFps] = useState(0);
-  const [pressedKeys, setPressedKeys] = useState(0xFF);
+  const [pressedKeys, setPressedKeys] = useState(0xff);
 
   const { itemId } = useParams<{ itemId: string }>();
 
@@ -19,14 +22,14 @@ const GameboyDisplay = () => {
     [key: string]: { mask: number; bit: number };
   };
   const keyMapping: KeyMappingType = {
-    "ArrowRight":  { mask: 0xfe, bit: 0 },
-    "ArrowLeft":   { mask: 0xfd, bit: 1 },
-    "ArrowUp":     { mask: 0xfb, bit: 2 },
-    "ArrowDown":   { mask: 0xf7, bit: 3 },
-    "z":           { mask: 0xef, bit: 4 }, 
-    "x":           { mask: 0xdf, bit: 5 }, 
-    "Backspace":   { mask: 0xbf, bit: 6 }, 
-    "Enter":       { mask: 0x7f, bit: 7 }  
+    ArrowRight: { mask: 0xfe, bit: 0 },
+    ArrowLeft: { mask: 0xfd, bit: 1 },
+    ArrowUp: { mask: 0xfb, bit: 2 },
+    ArrowDown: { mask: 0xf7, bit: 3 },
+    z: { mask: 0xef, bit: 4 },
+    x: { mask: 0xdf, bit: 5 },
+    Backspace: { mask: 0xbf, bit: 6 },
+    Enter: { mask: 0x7f, bit: 7 },
   };
 
   const handleKeyDown = (event: KeyboardEvent) => {
@@ -34,7 +37,7 @@ const GameboyDisplay = () => {
 
     const { mask } = keyMapping[event.key];
     const newPressedKeys = pressedKeys & mask;
-    
+
     event.preventDefault();
     setPressedKeys(newPressedKeys);
     gameboyRef.current.handle_keys(newPressedKeys);
@@ -45,15 +48,36 @@ const GameboyDisplay = () => {
 
     const { bit } = keyMapping[event.key];
     const newPressedKeys = pressedKeys | (1 << bit);
-    
+
     event.preventDefault();
     setPressedKeys(newPressedKeys);
     gameboyRef.current.handle_keys(newPressedKeys);
   };
 
+  async function handleCartridgeInfo() {
+    if (!gameboyRef.current) return;
+    try {
+      const info = await gameboyRef.current.get_cartridge_info();
+      console.log("Raw info:", info);
+
+      // Safely extract and set cartridge info
+      setCartridgeInfo({
+        title: info.title ?? "",
+        kind: info.kind ?? "",
+        rom_size: info.rom_size ?? "",
+        ram_size: info.ram_size ?? "",
+        destination: info.destination ?? "",
+        sgb_flag: info.sgb_flag ?? "",
+        rom_version: info.rom_version ?? "",
+        licensee_code: info.licensee_code ?? "",
+      });
+    } catch (error) {
+      console.error("Error setting cartridge info:", error);
+    }
+  }
+
   useEffect(() => {
     const initGameboy = async () => {
-      await init();
       const canvas = canvasRef.current!;
       const ctx = canvas.getContext("2d")!;
 
@@ -67,6 +91,7 @@ const GameboyDisplay = () => {
       if (!itemId) return;
       gameboy.init(itemId);
       gameboyRef.current = gameboy;
+      handleCartridgeInfo();
 
       let frameCount = 0;
       let lastFpsUpdate = performance.now();
@@ -118,15 +143,14 @@ const GameboyDisplay = () => {
   }, [itemId]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 p-4">
-      <div className="text-white mb-4">FPS: {fps}</div>
+    <div className="flex flex-col items-center justify-center bg-gray-900 p-4 rounded-lg">
       <canvas
         ref={canvasRef}
-        className="border-4 border-gray-700 rounded-lg shadow-lg"
+        className=" rounded-lg shadow-lg"
         style={{
           imageRendering: "pixelated",
-          width: "480px", 
-          height: "432px", 
+          width: "480px",
+          height: "432px",
           backgroundColor: "#9BA4B5",
         }}
       />

@@ -1,6 +1,7 @@
 import GameCard from "./components/GameCard";
 import tetrisImage from "../../../test/tetris.jpg";
 import tennisImage from "../../../test/tennis.png";
+import zeldaImage from "../../../test/zelda_awakening.jpg";
 
 export default function Library() {
   type Game = {
@@ -22,11 +23,17 @@ export default function Library() {
       image: tennisImage,
       rom_path: "tennis",
     },
+    {
+      id: 3,
+      title: "The Legend of Zelda: Link's Awakening",
+      image: zeldaImage,
+      rom_path: "zelda_awakening",
+    },
   ];
   return (
     <div className="">
       <h1>Library</h1>
-      <div className="grid grid-cols-4 gap-10 w-full h-full justify-center items-center">
+      <div className="flex flex-cols-4 gap-10 w-full h-full justify-center items-center">
         {games.map((game) => (
           <GameCard
             key={String(game.id)}
