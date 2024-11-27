@@ -1,7 +1,4 @@
 import GameCard from "./components/GameCard";
-import tetrisImage from "../../../test/tetris.jpg";
-import tennisImage from "../../../test/tennis.png";
-import zeldaImage from "../../../test/zelda_awakening.jpg";
 
 export default function Library() {
   type Game = {
@@ -14,20 +11,14 @@ export default function Library() {
     {
       id: 1,
       title: "Tetris",
-      image: tetrisImage,
+      image: '',
       rom_path: "tetris",
     },
     {
       id: 2,
-      title: "Tennis",
-      image: tennisImage,
-      rom_path: "tennis",
-    },
-    {
-      id: 3,
-      title: "The Legend of Zelda: Link's Awakening",
-      image: zeldaImage,
-      rom_path: "zelda_awakening",
+      title: "Dr Mario",
+      image: '',
+      rom_path: "dr_mario",
     },
   ];
   return (

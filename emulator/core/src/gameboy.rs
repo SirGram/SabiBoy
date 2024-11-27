@@ -40,6 +40,7 @@ impl Gameboy {
         for _ in 0..self.cpu.cycles {
             self.timer.tick();
             self.ppu.tick();
+            self.bus.borrow_mut().mbc.tick();
         }
     }
     pub fn run_frame(&mut self) {

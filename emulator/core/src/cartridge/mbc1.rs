@@ -32,13 +32,13 @@ impl Mbc1 {
                 if !self.mode {
                     self.rom[address as usize]
                 } else {
-                    let zero_bank_number = self.get_zero_bank_number();               
+                    let zero_bank_number = self.get_zero_bank_number();
                     self.rom[0x4000 * zero_bank_number as usize + address as usize]
                 }
             }
             0x4000..=0x7FFF => {
                 let high_bank_number = self.get_high_bank_number();
-           
+
                 self.rom[0x4000 * high_bank_number as usize + (address - 0x4000) as usize]
             }
             0xA000..=0xBFFF => {
@@ -103,7 +103,7 @@ impl Mbc1 {
                     self.ram[(address - 0xA000) as usize + offset] = value;
                 } else {
                     // 8|16 KB ram
-                    self.ram[(address - 0xA000) as usize % ram_size ] = value;
+                    self.ram[(address - 0xA000) as usize % ram_size] = value;
                 }
             }
             _ => {}
@@ -158,12 +158,12 @@ impl Mbc1 {
 fn get_bit_mask(number_rom_banks: u8) -> u8 {
     match number_rom_banks {
         128 => 0b00011111,
-        64 =>  0b00011111,
-        32 =>  0b00011111,
-        16 =>  0b00001111,
-        8 =>   0b00000111,
-        4 =>   0b00000011,
-        2 =>   0b00000001,
+        64 => 0b00011111,
+        32 => 0b00011111,
+        16 => 0b00001111,
+        8 => 0b00000111,
+        4 => 0b00000011,
+        2 => 0b00000001,
         _ => unreachable!(),
     }
 }

@@ -21,9 +21,8 @@ impl GameboyWasm {
     } */
     pub fn init(&mut self, rom_name: &str) -> Result<(), String> {
         let rom_data: &[u8] = match rom_name {
-            "tennis" => include_bytes!("../test/tennis.gb"),
-            "tetris" => include_bytes!("../test/tetris.gb"),
-            "zelda_awakening" => include_bytes!("../test/zelda_awakening.gb"),
+            "tetris" => include_bytes!("../../../test/tetris.gb"),
+            "dr_mario" => include_bytes!("../../../test/dr_mario.gb"),
             _ => return Err(format!("Unknown ROM: {}", rom_name)),
         };
 

@@ -51,7 +51,7 @@ impl Mbc5 {
             0x2000..=0x2FFF => {
                 // set lower 8 bits and preserve 9th bit
                 let new_rom_bank_number = (self.current_rom_bank & 0x100) | value as u16;
-               self.current_rom_bank = new_rom_bank_number;
+                self.current_rom_bank = new_rom_bank_number;
             }
             0x3000..=0x3FFF => {
                 // set bit0 higher 8 bits and preserve lower 8 bits

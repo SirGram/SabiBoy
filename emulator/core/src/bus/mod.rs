@@ -1,5 +1,5 @@
 use crate::{
-    cartridge::{mbc0::Mbc0, mbc1::Mbc1, mbc5::Mbc5, MbcType},
+    cartridge::{mbc0::Mbc0, mbc1::Mbc1, mbc3::Mbc3, mbc5::Mbc5, MbcType},
     joyp::Joypad,
 };
 
@@ -16,7 +16,7 @@ pub struct Bus {
     // debug
     debug: [u8; 0x100],
     // cartridge
-    mbc: MbcType,
+    pub mbc: MbcType,
 }
 
 impl Bus {
@@ -50,6 +50,8 @@ impl Bus {
         self.mbc = match rom[0x147] {
             0x00 => MbcType::Mbc0(Mbc0::new(rom)),
             0x01..=0x03 => MbcType::Mbc1(Mbc1::new(rom, ram_size)),
+            0x0F | 0x10 => MbcType::Mbc3(Mbc3::new(rom, ram_size, true)), // RTC is present
+            0x11..=0x13 => MbcType::Mbc3(Mbc3::new(rom, ram_size, false)), // RTC is absent
             0x19..=0x1E => MbcType::Mbc5(Mbc5::new(rom, ram_size)),
 
             _ => panic!("Unsupported MBC type"),
