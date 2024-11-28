@@ -4,6 +4,7 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 pub struct GameboyWasm {
     gameboy: GameboyCore::gameboy::Gameboy,
+    is_paused: bool,
 }
 
 #[wasm_bindgen]
@@ -12,6 +13,7 @@ impl GameboyWasm {
     pub fn new() -> Self {
         Self {
             gameboy: GameboyCore::gameboy::Gameboy::new(),
+            is_paused: false,
         }
     }
 
@@ -34,8 +36,18 @@ impl GameboyWasm {
     pub fn tick(&mut self) {
         self.gameboy.tick();
     }
+    pub fn pause(&mut self) {
+        self.is_paused = true;
+    }
+
+    pub fn resume(&mut self) {
+        self.is_paused = false;
+    }
+
     pub fn run_frame(&mut self) {
-        self.gameboy.run_frame();
+        if !self.is_paused {
+            self.gameboy.run_frame();
+        }
     }
 
     pub fn get_frame_buffer(&self) -> Vec<u8> {
