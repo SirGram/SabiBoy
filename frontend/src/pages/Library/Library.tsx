@@ -1,26 +1,23 @@
+import { useEffect, useState } from "react";
 import GameCard from "./components/GameCard";
+import { Game } from "../../types";
+import drMarioImage from "../../../../test/Library/Doctor Mario/cover.jpg";
 
 export default function Library() {
-  type Game = {
-    id: number;
-    title: string;
-    image: string;
-    rom_path: string;
-  };
-  const games: Game[] = [
-    {
-      id: 1,
-      title: "Tetris",
-      image: '',
-      rom_path: "tetris",
-    },
-    {
-      id: 2,
-      title: "Dr Mario",
-      image: '',
-      rom_path: "dr_mario",
-    },
-  ];
+  const [games, setGames] = useState<Game[]>([]);
+
+  useEffect(() => {
+    const games: Game[] = [
+      {
+        id: 1,
+        title: "Doctor Mario",
+        image: drMarioImage,
+        rom_path: "dr_mario",
+      },
+    ];
+    setGames(games);
+  }, []);
+
   return (
     <div className="">
       <h1>Library</h1>
