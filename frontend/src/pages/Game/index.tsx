@@ -2,6 +2,7 @@ import { useState } from "react";
 import GameboyDisplay from "../../components/GameboyDisplay";
 import { ChevronDown, ChevronUp, PauseIcon, PlayIcon } from "lucide-react";
 import { GameboyProvider } from "../../context/GameboyContext";
+import { GameboyFrame } from "./components/GameboyFrame";
 
 export interface CartridgeHeaderState {
   title: string;
@@ -29,23 +30,25 @@ export default function Game() {
   const [speed, setSpeed] = useState(1);
   return (
     <GameboyProvider>
-    <div className="flex flex-col items-center justify-center min-h-screen  p-4">
-      <ControlButtons
-        isGameboyPaused={isGameboyPaused}
-        setIsGameboyPaused={setIsGameboyPaused}
-        speed={speed}
-        setSpeed={setSpeed}
-      />
-      <div className="text-white mb-4">
-        FPS: {fps}
-        <GameboyDisplay
-          setFps={setFps}
-          setCartridgeInfo={setCartridgeInfo}
+      <div className="flex flex-col items-center justify-center min-h-screen  p-4">
+        <ControlButtons
           isGameboyPaused={isGameboyPaused}
+          setIsGameboyPaused={setIsGameboyPaused}
+          speed={speed}
+          setSpeed={setSpeed}
         />
+          <div className="text-white mb-4">
+            FPS: {fps}
+        <GameboyFrame>
+            <GameboyDisplay
+              setFps={setFps}
+              setCartridgeInfo={setCartridgeInfo}
+              isGameboyPaused={isGameboyPaused}
+            />
+        </GameboyFrame>
+          </div>
+        <CartridgeInfo info={cartridgeInfo} />
       </div>
-      <CartridgeInfo info={cartridgeInfo} />
-    </div>
     </GameboyProvider>
   );
 }

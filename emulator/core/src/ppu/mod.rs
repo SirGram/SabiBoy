@@ -34,7 +34,6 @@ pub enum PPUMode {
 pub struct PPU {
     pub mode: PPUMode,
     pub mode_cycles: usize,
-    pub frame_cycles: usize,
 
     buffer: Vec<u32>,
 
@@ -83,7 +82,6 @@ impl PPU {
             fetcher: Fetcher::new(),
             sprite_fetcher: SpriteFetcher::new(),
             pixel_fifo: PixelFifo::new(),
-            frame_cycles: 0,
             window_triggered_this_frame: false,
             previous_stat_conditions: 0,
             x_render_counter: -8,
@@ -142,17 +140,16 @@ impl PPU {
     }
 
     pub fn tick(&mut self) {
-        self.frame_cycles = self.frame_cycles.wrapping_add(1);
         // Check if LCD is enabled
         let lcdc = self.get_io_register(IoRegister::Lcdc);
         if (lcdc & 0x80) == 0 {
             return;
         }
 
-        // scanline
+        self.update_stat();
         let ly = self.get_io_register(IoRegister::Ly);
 
-        /*   println!(
+        /*    println!(
             "ly {} cycles {} window {} wcoun {} xpos {} xposren {} bg_fifo_len {} sprite_fifo_len {} current_sprite_x {} sprftch_act {}",
             ly,
             self.mode_cycles,
@@ -164,7 +161,7 @@ impl PPU {
             self.pixel_fifo.sprite_fifo.len(),
             self.sprite_fetcher.sprite.x_pos,
             self.sprite_fetcher.active
-        ); */
+        );  */
 
         match self.mode {
             PPUMode::OAM_SCAN => self.handle_oam(),
@@ -192,7 +189,6 @@ impl PPU {
             }
         }
 
-        self.update_stat();
 
         self.mode_cycles += 1;
     }
@@ -241,18 +237,6 @@ impl PPU {
             return;
         }
 
-        /*   // Window check
-         if !self.fetcher.is_window_fetch {
-            if self.check_window() {
-                let ly = self.get_io_register(IoRegister::Ly);
-                let wx = self.get_io_register(IoRegister::Wx);
-                self.fetcher.window_trigger(&mut self.pixel_fifo);
-                if !self.window_line_counter_incremented_this_scanline {
-                    self.window_line_counter_incremented_this_scanline = true;
-                }
-            }
-        }  */
-
         // Pixel shifting
         if !self.pixel_fifo.is_paused(&self.sprite_fetcher) {
             if let Some(color) = self.pixel_fifo.pop_pixel(&self.bus) {
@@ -274,7 +258,7 @@ impl PPU {
             }
         }
 
-        // Check sprites
+         // Check sprites
         if !self.sprite_fetcher.active && self.pixel_fifo.sprite_pixel_count() == 0 {
             /*  println!("sprite fetch "); */
 
@@ -285,7 +269,7 @@ impl PPU {
                 self.sprite_fetcher.start_fetch(&sprite);
                 /* println!("sprite found x {}", sprite.x_pos); */
             }
-        }
+        } 
         /* if a bg fetch is in progress and you run into the start of a sprite;
             immediately stop popping off pixels and finish up that bg fetch (and save the fetched data),
             perform the sprite fetch and load up the sprite data into the sprite fifo,
@@ -303,6 +287,16 @@ impl PPU {
         } else {
             self.fetcher.unpause();
         }
+
+         // Window check
+         if !self.fetcher.is_window_fetch {
+            if self.check_window() {
+                self.fetcher.window_trigger(&mut self.pixel_fifo);
+                if !self.window_line_counter_incremented_this_scanline {
+                    self.window_line_counter_incremented_this_scanline = true;
+                }
+            }
+        }  
     }
 
     fn handle_hblank(&mut self) {

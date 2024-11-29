@@ -1,28 +1,29 @@
 import { Play } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useGameboy } from "../../../context/GameboyContext";
 
 type GameCardProps = {
-  title: string;
-  image: string;
-  rom_path: string;
+  name: string;
+  coverPath?: string;
 };
-export default function GameCard({ title, image, rom_path }: GameCardProps) {
+export default function GameCard({ name, coverPath }: GameCardProps) {
   const navigate = useNavigate();
+  const { setRomData } = useGameboy();
 
   const handleClick = () => {
-    navigate(`/${rom_path}`);
+    navigate(`/${name}`);
   };
   return (
-    <div className=" flex flex-col w-40 rounded-lg bg-gray-950 h-full overflow-hidden">
+    <div className=" flex flex-col w-40 h-72 rounded-lg bg-muted/20  overflow-hidden">
       <div className="flex items-center h-20 justify-center py-2">
-        <h2 className=" w-full text-center   text-ellipsis">{title}</h2>
+        <h2 className=" w-full text-center   text-ellipsis">{name}</h2>
       </div>
-      <img src={image} alt={title} className="w-full h-full" />
+      <img src={coverPath} alt={name} className="w-full h-full object-cover" />
       <button
         onClick={handleClick}
-        className=" p-10 flex justify-center items-center hover:bg-gray-900 transition-colors"
+        className=" p-2 flex h-full justify-center items-center hover:bg-primary transition-colors"
       >
-        <Play className="text-white" />
+        <Play className="text-base-foreground" />
       </button>
     </div>
   );

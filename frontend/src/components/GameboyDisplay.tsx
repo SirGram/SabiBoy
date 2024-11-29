@@ -19,8 +19,7 @@ const GameboyDisplay = ({
   const animationFrameRef = useRef<number | null>(null);
   const [pressedKeys, setPressedKeys] = useState(0xff);
 
-  const { gameboy, initGameboy } = useGameboy();
-  const { itemId } = useParams<{ itemId: string }>();
+  const { gameboy, initGameboy, romData, setRomData } = useGameboy();
 
   const keyMapping: { [key: string]: { mask: number; bit: number } } = {
     ArrowRight: { mask: 0xfe, bit: 0 },
@@ -81,7 +80,7 @@ const GameboyDisplay = ({
   }, [gameboy, setCartridgeInfo]);
 
   useEffect(() => {
-    if (!gameboy || !itemId) return;
+    if (!gameboy) return;
 
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext("2d")!;
@@ -129,14 +128,7 @@ const GameboyDisplay = ({
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [
-    gameboy,
-    itemId,
-    handleKeyDown,
-    handleKeyUp,
-    handleCartridgeInfo,
-    setFps,
-  ]);
+  }, [gameboy, handleKeyDown, handleKeyUp, handleCartridgeInfo, setFps]);
 
   useEffect(() => {
     // control buttons
@@ -150,11 +142,22 @@ const GameboyDisplay = ({
   }, [gameboy, isGameboyPaused]);
 
   useEffect(() => {
-    // reload gameboy if rom changes
-    if (itemId) {
-      initGameboy(itemId);
-    }
-  }, [itemId, initGameboy]);
+    const loadRom = async () => {
+      const response = await fetch(drMarioRom);
+      const romArrayBuffer = await response.arrayBuffer();
+      const romData = new Uint8Array(romArrayBuffer);
+
+      if (romData.length > 0) {
+        try {
+          initGameboy(romData);
+          console.log("initializing gameboy");
+        } catch (e) {
+          console.error("Error initializing GameBoy emulator:", e);
+        }
+      }
+    };
+    loadRom();
+  }, []);
 
   return (
     <div className="flex flex-col items-center justify-center bg-gray-900 p-4 rounded-lg">

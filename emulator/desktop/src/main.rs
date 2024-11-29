@@ -19,7 +19,7 @@ fn main() {
     // Initialize GameBoy
     let mut gameboy = gameboy_core::gameboy::Gameboy::new();
     gameboy.set_power_up_sequence();
-    gameboy.load_rom(include_bytes!("../../../test/pok_red.gb"));
+    gameboy.load_rom(include_bytes!("../../../test/dmg-acid2.gb"));
 
     run(&mut window, &mut gameboy, &mut debug_window);
 }

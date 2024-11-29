@@ -1,5 +1,3 @@
-use serde::de::value;
-
 pub struct Mbc0 {
     rom: Vec<u8>,
     ram: Vec<u8>,
@@ -11,10 +9,10 @@ impl Mbc0 {
     RAM BANK: Up to 1 bank 8KB
      */
     // TODO: rumble?
-    pub fn new(rom: &[u8]) -> Self {
+    pub fn new(rom: &[u8], ram_size: usize) -> Self {
         Self {
             rom: rom.to_vec(),
-            ram: vec![0; 0x2000],
+            ram: vec![0; ram_size],
         }
     }
 

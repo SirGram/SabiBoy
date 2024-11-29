@@ -21,15 +21,9 @@ impl GameboyWasm {
         self.gameboy.load_rom(rom_data);
         self.gameboy.set_power_up_sequence();
     } */
-    pub fn init(&mut self, rom_name: &str) -> Result<(), String> {
-        let rom_data: &[u8] = match rom_name {
-            "tetris" => include_bytes!("../../../test/tetris.gb"),
-            "dr_mario" => include_bytes!("../../../test/dr_mario.gb"),
-            _ => return Err(format!("Unknown ROM: {}", rom_name)),
-        };
-
+    pub fn init(&mut self, rom: &[u8]) -> Result<(), String> {   
         self.gameboy.set_power_up_sequence();
-        self.gameboy.load_rom(rom_data);
+        self.gameboy.load_rom(rom);
         Ok(())
     }
 

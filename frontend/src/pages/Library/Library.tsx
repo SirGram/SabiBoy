@@ -1,36 +1,44 @@
 import { useEffect, useState } from "react";
 import GameCard from "./components/GameCard";
-import { Game } from "../../types";
-import drMarioImage from "../../../../test/Library/Doctor Mario/cover.jpg";
+import { useGameboy } from "../../context/GameboyContext";
 
 export default function Library() {
   const [games, setGames] = useState<Game[]>([]);
+  const { setRomData } = useGameboy();
 
+  type Game = {
+    id: string;
+    name: string;
+    coverPath?: string;
+    romPath?: string;
+  };
   useEffect(() => {
-    const games: Game[] = [
-      {
-        id: 1,
-        title: "Doctor Mario",
-        image: drMarioImage,
-        rom_path: "dr_mario",
-      },
-    ];
-    setGames(games);
+    const loadGames = async () => {
+      try {
+        const response = await fetch("api/games");
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data: Game[] = await response.json();
+        console.log(data);
+        setGames(data);
+      } catch (error) {
+        console.error("Failed to load ROM:", error);
+      }
+    };
+
+    loadGames();
   }, []);
 
   return (
-    <div className="">
-      <h1>Library</h1>
-      <div className="flex flex-cols-4 gap-10 w-full h-full justify-center items-center">
-        {games.map((game) => (
-          <GameCard
-            key={String(game.id)}
-            title={game.title}
-            image={game.image}
-            rom_path={game.rom_path}
-          />
-        ))}
-      </div>
+    <div className="flex  gap-10 h-full  justify-center items-center">
+      {games.map((game) => (
+        <GameCard
+          key={String(game.id)}
+          name={game.name}
+          coverPath={game.coverPath}
+        />
+      ))}
     </div>
   );
 }

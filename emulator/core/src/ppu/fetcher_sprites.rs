@@ -62,7 +62,6 @@ impl SpriteFetcher {
     }
     fn fetch_tile_data(&mut self, bus: &Rc<RefCell<bus::Bus>>, is_high_byte: bool) -> u8 {
         let ly = bus.borrow().read_byte(IoRegister::Ly.address());
-        let scy = bus.borrow().read_byte(IoRegister::Scy.address());
 
         let y_flip = self.sprite.flags & 0x40 != 0;
         let x_flip = self.sprite.flags & 0x20 != 0;
@@ -80,19 +79,10 @@ impl SpriteFetcher {
             relative_y
         };
 
-        // For 8x16 sprites, we need to:
-        // 1. Handle which tile we're using (top or bottom)
-        // 2. Adjust the y_line for the bottom tile
         let actual_tile = if sprite_size == 16 {
-            let is_bottom_half = y_line >= 8;
-            if is_bottom_half {
-                y_line -= 8;
-                // For 8x16 sprites, the bottom tile is the next tile
-                self.tile_number | 1
-            } else {
                 // For 8x16 sprites, the top tile is the tile number with bit 0 cleared
                 self.tile_number & !1
-            }
+          
         } else {
             self.tile_number
         };

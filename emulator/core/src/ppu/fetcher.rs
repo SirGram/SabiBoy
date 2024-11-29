@@ -41,7 +41,7 @@ impl Fetcher {
         self.is_window_fetch = true;
         self.x_pos_counter = 7; // make up for the -8 offset
 
-        /* pixel_fifo.bg_fifo.clear();  */
+         pixel_fifo.bg_fifo.clear(); 
     }
 
     pub fn step(&mut self, bus: &Rc<RefCell<Bus>>, pixel_fifo: &mut PixelFifo, mode_cycles: usize) {
