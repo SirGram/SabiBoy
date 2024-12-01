@@ -1,17 +1,17 @@
 import { useEffect, useState } from "react";
 import GameCard from "./components/GameCard";
-import { useGameboy } from "../../context/GameboyContext";
+import Layout from "../../components/Layout";
 
+export type TGame = {
+  id: string;
+  name: string;
+  coverPath?: string;
+  romPath?: string;
+};
 export default function Library() {
-  const [games, setGames] = useState<Game[]>([]);
-  const { setRomData } = useGameboy();
+  const [games, setGames] = useState<TGame[]>([]);
 
-  type Game = {
-    id: string;
-    name: string;
-    coverPath?: string;
-    romPath?: string;
-  };
+ 
   useEffect(() => {
     const loadGames = async () => {
       try {
@@ -19,7 +19,7 @@ export default function Library() {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const data: Game[] = await response.json();
+        const data: TGame[] = await response.json();
         console.log(data);
         setGames(data);
       } catch (error) {
@@ -31,14 +31,15 @@ export default function Library() {
   }, []);
 
   return (
-    <div className="flex  gap-10 h-full  justify-center items-center">
-      {games.map((game) => (
-        <GameCard
-          key={String(game.id)}
-          name={game.name}
-          coverPath={game.coverPath}
-        />
-      ))}
-    </div>
+    <Layout>
+      <div className="flex flex-wrap gap-4 h-full  justify-center py-20">
+        {games.map((game) => (
+          <GameCard
+            key={String(game.id)}
+            game={game}
+          />
+        ))}
+      </div>
+    </Layout>
   );
 }

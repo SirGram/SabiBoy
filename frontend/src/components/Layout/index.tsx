@@ -7,7 +7,7 @@ import {
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-base-background h-screen flex">
+    <div className=" h-screen flex">
       <Navbar />
       <div className="w-full h-full">{children}</div>
     </div>

@@ -1,18 +1,23 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Library from "./pages/Library/Library";
-import Game from "./pages/Game";
-import Layout from "./components/Layout";
+import Emulator from "./pages/Game/Emulator";
+import { GameboyProvider } from "./context/GameboyContext";
+import Options from "./pages/Options/Options";
+import { OptionsProvider } from "./context/OptionsContext";
 
 function App() {
   return (
-    <Router>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Library />} />
-          <Route path="/:itemId" element={<Game />} />
-        </Routes>
-      </Layout>
-    </Router>
+    <OptionsProvider>
+      <GameboyProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<Library />} />
+            <Route path="/options" element={<Options />} />
+            <Route path="/emulator" element={<Emulator />} />
+          </Routes>
+        </Router>
+      </GameboyProvider>
+    </OptionsProvider>
   );
 }
 

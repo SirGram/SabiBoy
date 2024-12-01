@@ -6,23 +6,24 @@ import {
   useState,
 } from "react";
 import { GameboyWasm } from "../wasm/pkg/gameboy_wasm";
+import { TGame } from "../pages/Library/Library";
 
 const GameboyContext = createContext<{
   gameboy: GameboyWasm | null;
   initGameboy: (romData: Uint8Array) => void;
-  romData: Uint8Array;
-  setRomData: (romData: Uint8Array) => void;
+  currentGame: TGame | null;
+  setCurrentGame: (game: TGame | null) => void;
 }>({
   gameboy: null,
   initGameboy: () => {},
-  romData: new Uint8Array(),
-  setRomData: () => {},
+  currentGame: null,
+  setCurrentGame: () => {},
 });
 export const GameboyProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [gameboy, setGameboy] = useState<GameboyWasm | null>(null);
-  const [romData, setRomData] = useState<Uint8Array>(new Uint8Array());
+  const [currentGame, setCurrentGame] = useState<TGame | null>(null);
 
   const initGameboy = useCallback((romData: Uint8Array) => {
 
@@ -42,10 +43,10 @@ export const GameboyProvider: React.FC<{ children: React.ReactNode }> = ({
     () => ({
       gameboy,
       initGameboy,
-      romData,
-      setRomData,
+      currentGame,
+      setCurrentGame,
     }),
-    [gameboy, initGameboy, romData, setRomData]
+    [gameboy, initGameboy, currentGame, setCurrentGame],
   );
 
   return (

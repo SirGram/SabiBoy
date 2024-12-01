@@ -38,6 +38,7 @@ export class GamesService {
             id: gameFolder,
             name: gameFolder,
             coverPath: coverPath,
+            romPath: romPath,
           });
         } catch (err) {
           this.logger.error('Error reading game folder:', err);

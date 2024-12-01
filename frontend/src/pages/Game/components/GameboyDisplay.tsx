@@ -1,64 +1,28 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
-import { CartridgeHeaderState } from "../pages/Game";
-import { useGameboy } from "../context/GameboyContext";
+import { CartridgeHeaderState } from "../Emulator";
+import { useGameboy } from "../../../context/GameboyContext";
 
 type GameboyDisplayProps = {
   setFps: React.Dispatch<React.SetStateAction<number>>;
   setCartridgeInfo: (info: CartridgeHeaderState) => void;
   isGameboyPaused: boolean;
+  handleKeyDown: (event: KeyboardEvent) => void;
+  handleKeyUp: (event: KeyboardEvent) => void;
+  canvasRef: React.RefObject<HTMLCanvasElement>;
 };
 const GameboyDisplay = ({
   setFps,
   setCartridgeInfo,
   isGameboyPaused,
+  handleKeyDown,
+  handleKeyUp,
+  canvasRef,
 }: GameboyDisplayProps) => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
   const imageDataRef = useRef<ImageData | null>(null);
   const animationFrameRef = useRef<number | null>(null);
-  const [pressedKeys, setPressedKeys] = useState(0xff);
 
-  const { gameboy, initGameboy, romData, setRomData } = useGameboy();
-
-  const keyMapping: { [key: string]: { mask: number; bit: number } } = {
-    ArrowRight: { mask: 0xfe, bit: 0 },
-    ArrowLeft: { mask: 0xfd, bit: 1 },
-    ArrowUp: { mask: 0xfb, bit: 2 },
-    ArrowDown: { mask: 0xf7, bit: 3 },
-    z: { mask: 0xef, bit: 4 },
-    x: { mask: 0xdf, bit: 5 },
-    Backspace: { mask: 0xbf, bit: 6 },
-    Enter: { mask: 0x7f, bit: 7 },
-  };
-
-  const handleKeyDown = useCallback(
-    (event: KeyboardEvent) => {
-      if (!gameboy || !keyMapping[event.key]) return;
-
-      const { mask } = keyMapping[event.key];
-      const newPressedKeys = pressedKeys & mask;
-
-      event.preventDefault();
-      setPressedKeys(newPressedKeys);
-      gameboy.handle_keys(newPressedKeys);
-    },
-    [gameboy, pressedKeys]
-  );
-
-  const handleKeyUp = useCallback(
-    (event: KeyboardEvent) => {
-      if (!gameboy || !keyMapping[event.key]) return;
-
-      const { bit } = keyMapping[event.key];
-      const newPressedKeys = pressedKeys | (1 << bit);
-
-      event.preventDefault();
-      setPressedKeys(newPressedKeys);
-      gameboy.handle_keys(newPressedKeys);
-    },
-    [gameboy, pressedKeys]
-  );
+  const { gameboy, initGameboy, currentGame } = useGameboy();
 
   const handleCartridgeInfo = useCallback(async () => {
     if (!gameboy) return;
@@ -143,7 +107,7 @@ const GameboyDisplay = ({
 
   useEffect(() => {
     const loadRom = async () => {
-      const response = await fetch(drMarioRom);
+      const response = await fetch(currentGame?.romPath!);
       const romArrayBuffer = await response.arrayBuffer();
       const romData = new Uint8Array(romArrayBuffer);
 
@@ -157,21 +121,18 @@ const GameboyDisplay = ({
       }
     };
     loadRom();
-  }, []);
+    console.log(currentGame);
+  }, [currentGame]);
 
   return (
-    <div className="flex flex-col items-center justify-center bg-gray-900 p-4 rounded-lg">
-      <canvas
-        ref={canvasRef}
-        className="rounded-lg shadow-lg"
-        style={{
-          imageRendering: "pixelated",
-          width: "480px",
-          height: "432px",
-          backgroundColor: "#9BA4B5",
-        }}
-      />
-    </div>
+    <canvas
+      ref={canvasRef}
+      className=" h-full w-full "
+      style={{
+        imageRendering: "pixelated",
+        backgroundColor: "#000000",
+      }}
+    />
   );
 };
 
