@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import GameCard from "./components/GameCard";
 import Layout from "../../components/Layout";
+import GameInfoCard from "./components/GameInfo";
 
 export type TGame = {
   id: string;
@@ -11,7 +12,6 @@ export type TGame = {
 export default function Library() {
   const [games, setGames] = useState<TGame[]>([]);
 
- 
   useEffect(() => {
     const loadGames = async () => {
       try {
@@ -32,13 +32,13 @@ export default function Library() {
 
   return (
     <Layout>
-      <div className="flex flex-wrap gap-4 h-full  justify-center py-20">
-        {games.map((game) => (
-          <GameCard
-            key={String(game.id)}
-            game={game}
-          />
-        ))}
+      <div className="flex flex-col md:flex-row h-full w-full justify-between">
+        <div className="flex flex-wrap gap-4  py-20 px-5 justify-center w-full">
+          {games.map((game) => (
+            <GameCard key={String(game.id)} game={game} />
+          ))}
+        </div>
+        <GameInfoCard />
       </div>
     </Layout>
   );

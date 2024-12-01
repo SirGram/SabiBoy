@@ -11,6 +11,7 @@ import { GameboyFrame } from "./components/Frame/GameboyFrame";
 import GameboyDisplay from "./components/GameboyDisplay";
 import { useGameboy } from "../../context/GameboyContext";
 import { useNavigate } from "react-router-dom";
+import { useOptions } from "../../context/OptionsContext";
 
 export interface CartridgeHeaderState {
   title: string;
@@ -38,36 +39,39 @@ export default function Emulator() {
 
   const { gameboy } = useGameboy();
   const [pressedKeys, setPressedKeys] = useState(0xff);
-  const keyMapping: { [key: string]: { mask: number; bit: number } } = {
-    ArrowRight: { mask: 0xfe, bit: 0 },
-    ArrowLeft: { mask: 0xfd, bit: 1 },
-    ArrowUp: { mask: 0xfb, bit: 2 },
-    ArrowDown: { mask: 0xf7, bit: 3 },
-    z: { mask: 0xef, bit: 4 },
-    x: { mask: 0xdf, bit: 5 },
-    Backspace: { mask: 0xbf, bit: 6 },
-    Enter: { mask: 0x7f, bit: 7 },
-  };
 
+  const { options } = useOptions();
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
-      if (!gameboy || !keyMapping[event.key]) return;
+      if (!gameboy) return;
 
-      const { mask } = keyMapping[event.key];
+      // Find the button that corresponds to the pressed key
+      const button = Object.entries(options.keys).find(
+        ([_, mapping]) => mapping.mapped === event.key
+      );
+
+      if (!button) return;
+      const [, { mask }] = button;
       const newPressedKeys = pressedKeys & mask;
 
       event.preventDefault();
       setPressedKeys(newPressedKeys);
       gameboy.handle_keys(newPressedKeys);
     },
-    [gameboy, pressedKeys]
+    [gameboy, pressedKeys, options.keys]
   );
 
   const handleKeyUp = useCallback(
     (event: KeyboardEvent) => {
-      if (!gameboy || !keyMapping[event.key]) return;
+      if (!gameboy) return;
 
-      const { bit } = keyMapping[event.key];
+      // Find the button that corresponds to the pressed key
+      const button = Object.entries(options.keys).find(
+        ([_, mapping]) => mapping.mapped === event.key
+      );
+      if (!button) return;
+
+      const [, { bit }] = button;
       const newPressedKeys = pressedKeys | (1 << bit);
 
       event.preventDefault();
@@ -78,8 +82,9 @@ export default function Emulator() {
   );
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const displayRef = useRef<HTMLDivElement | null>(null);
   const toggleFullscreen = () => {
-    const canvas = canvasRef.current;
+    const canvas = displayRef.current;
     if (canvas) {
       if (!document.fullscreenElement) {
         canvas.requestFullscreen({ navigationUI: "show" });
@@ -96,7 +101,7 @@ export default function Emulator() {
       <div className=" mb-4">
         FPS: {fps}
         <GameboyFrame handleKeyDown={handleKeyDown} handleKeyUp={handleKeyUp}>
-          <div className="group relative">
+          <div className="group relative" ref={displayRef}>
             <div className="rounded-md group-hover:brightness-50 overflow-hidden">
               <GameboyDisplay
                 setFps={setFps}
