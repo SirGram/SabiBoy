@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import GameCard from "./components/GameCard";
 import Layout from "../../components/Layout";
 import GameInfoCard from "./components/GameInfo";
+import { SearchIcon } from "lucide-react";
 
 export type TGame = {
   id: string;
@@ -32,14 +33,38 @@ export default function Library() {
 
   return (
     <Layout>
-      <div className="flex flex-col md:flex-row h-full w-full justify-between">
-        <div className="flex flex-wrap gap-4  py-20 px-5 justify-center w-full">
-          {games.map((game) => (
-            <GameCard key={String(game.id)} game={game} />
-          ))}
+      <div className="flex w-full">
+        <div className="flex flex-col py-10 px-5">
+          <SearchBar />
+          <div className="flex flex-wrap gap-4  pt-10 justify-center w-full">
+            {games.map((game) => (
+              <GameCard key={String(game.id)} game={game} />
+            ))}
+          </div>
         </div>
         <GameInfoCard />
       </div>
     </Layout>
+  );
+}
+
+function SearchBar() {
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(event.target.value);
+  };
+
+  return (
+    <div className="flex items-center gap-2 w-full ">
+      <SearchIcon />
+      <input
+        type="text"
+        value={searchTerm}
+        onChange={handleSearchChange}
+        placeholder="Search..."
+        className="w-full rounded-lg border border-base-border bg-base-background px-4 py-2 text-sm"
+      />
+    </div>
   );
 }

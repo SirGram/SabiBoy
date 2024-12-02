@@ -4,6 +4,7 @@ import Emulator from "./pages/Game/Emulator";
 import { GameboyProvider } from "./context/GameboyContext";
 import Options from "./pages/Options/Options";
 import { OptionsProvider } from "./context/OptionsContext";
+import Board from "./pages/Board/Board";
 
 function App() {
   return (
@@ -11,7 +12,8 @@ function App() {
       <GameboyProvider>
         <Router>
           <Routes>
-            <Route path="/" element={<Library />} />
+            <Route path="/" element={<Board />} />
+            <Route path="/library" element={<Library />} />
             <Route path="/options" element={<Options />} />
             <Route path="/emulator" element={<Emulator />} />
           </Routes>

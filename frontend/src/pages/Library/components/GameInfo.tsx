@@ -1,4 +1,4 @@
-import { Book, Calendar,  Star, Tag, Users } from "lucide-react";
+import { Book, Calendar, Star, Tag, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useGameboy } from "../../../context/GameboyContext";
 import { useEffect, useState } from "react";
@@ -76,7 +76,7 @@ export default function GameInfo() {
 
   return (
     gameInfo && (
-      <div className=" flex flex-col h-screen w-full md:w-[800px] bg-base-background overflow-y-auto p-6 shadow-lg border-t md:border-t-0 md:border-l border-base-border">
+      <div className=" flex flex-col h-screen w-full md:min-w-[400px] bg-base-background overflow-y-auto p-6 shadow-lg border-t md:border-t-0 md:border-l border-base-border">
         {/* Game Cover */}
         <div className="w-full mb-6">
           <img
@@ -99,7 +99,7 @@ export default function GameInfo() {
                 )
                 .map((altName, index) => (
                   <p key={index} className="text-base-foreground/60">
-                     Original: {altName.name}
+                    Original: {altName.name}
                   </p>
                 ))}
             </div>
