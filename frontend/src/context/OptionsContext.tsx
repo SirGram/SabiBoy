@@ -53,6 +53,7 @@ const OptionsContext = createContext<{
   updateKeyMapping: (button: Buttons, newKey: string) => void;
   resetToDefaultKeys: () => void;
   updatePalette: (newPalette: number[]) => void;
+  resetPalette: () => void;
 }>({
   options: defaultOptions,
   setOptions: () => {},
@@ -60,6 +61,7 @@ const OptionsContext = createContext<{
   updateKeyMapping: () => {},
   resetToDefaultKeys: () => {},
   updatePalette: () => {},
+  resetPalette: () => {},
 });
 
 export const OptionsProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -112,6 +114,12 @@ export const OptionsProvider: React.FC<{ children: React.ReactNode }> = ({
       palette: newPalette,
     }));
   };
+  const resetPalette = () => {
+    setOptions((prev) => ({
+      ...prev,
+      palette: DEFAULT_PALETTE,
+    }));
+  };
 
   const value = useMemo(
     () => ({
@@ -121,6 +129,7 @@ export const OptionsProvider: React.FC<{ children: React.ReactNode }> = ({
       updateKeyMapping,
       resetToDefaultKeys,
       updatePalette,
+      resetPalette
     }),
     [options]
   );
