@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   Github,
   HomeIcon,
@@ -85,12 +85,21 @@ type NavItemProps = {
 };
 
 function NavItem({ label, to, Icon }: NavItemProps) {
+  const { pathname } = useLocation();
+  const isActive = pathname === to;
+
   return (
     <Link
       to={to}
-      className="group flex flex-col relative hover:bg-muted/20 py-5 px-3  w-full rounded-md transition-colors duration-300 justify-center items-center"
+      className={`group flex flex-col relative hover:bg-muted/20 py-5 px-3 w-full rounded-md transition-colors duration-300 justify-center items-center`}
     >
-      <Icon className="text-base-foreground group-hover:text-primary w-7 h-7 transition-all duration-300 transform group-hover:scale-110" />
+      <Icon
+        className={`w-7 h-7 transition-all duration-300 transform group-hover:scale-110 ${
+          isActive
+            ? "text-blue-500"
+            : "text-base-foreground group-hover:text-primary"
+        }`}
+      />
       <span className="text-sm text-muted-foreground">{label}</span>
     </Link>
   );

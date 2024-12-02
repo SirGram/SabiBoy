@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CartridgeHeaderState } from "../Emulator";
 import { useGameboy } from "../../../context/GameboyContext";
+import { useOptions } from "../../../context/OptionsContext";
 
 type GameboyDisplayProps = {
   setFps: React.Dispatch<React.SetStateAction<number>>;
@@ -23,6 +24,7 @@ const GameboyDisplay = ({
   const animationFrameRef = useRef<number | null>(null);
 
   const { gameboy, initGameboy, currentGame } = useGameboy();
+  const { options } = useOptions();
 
   const handleCartridgeInfo = useCallback(async () => {
     if (!gameboy) return;
@@ -113,7 +115,7 @@ const GameboyDisplay = ({
 
       if (romData.length > 0) {
         try {
-          initGameboy(romData);
+          initGameboy(romData, options.palette);
           console.log("initializing gameboy");
         } catch (e) {
           console.error("Error initializing GameBoy emulator:", e);

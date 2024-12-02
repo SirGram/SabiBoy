@@ -2,44 +2,48 @@ import React, { useState, useMemo, useContext, createContext } from "react";
 
 export enum Buttons {
   UP = "Up",
-  DOWN = "Down", 
+  DOWN = "Down",
   LEFT = "Left",
   RIGHT = "Right",
   A = "A",
   B = "B",
   SELECT = "Select",
-  START = "Start"
+  START = "Start",
 }
 
 type KeyMappingEntry = {
   mapped: string;
   mask: number;
   bit: number;
-}
+};
 
 type KeyMapping = {
   [key in Buttons]: KeyMappingEntry;
-}
+};
 
 const DEFAULT_KEY_MAPPING: KeyMapping = {
-  [Buttons.RIGHT]: {mapped:"ArrowRight", mask: 0xfe, bit: 0},
-  [Buttons.LEFT]: {mapped:"ArrowLeft", mask: 0xfd, bit: 1},
-  [Buttons.UP]: {mapped:"ArrowUp", mask: 0xfb, bit: 2},
-  [Buttons.DOWN]: {mapped:"ArrowDown", mask: 0xf7, bit: 3},
-  [Buttons.B]: {mapped:"z", mask: 0xdf, bit: 5},
-  [Buttons.A]: {mapped:"x", mask: 0xef, bit: 4},
-  [Buttons.SELECT]: {mapped:"Backspace", mask: 0xbf, bit: 6},
-  [Buttons.START]: {mapped:"Enter", mask: 0x7f, bit: 7},
+  [Buttons.RIGHT]: { mapped: "ArrowRight", mask: 0xfe, bit: 0 },
+  [Buttons.LEFT]: { mapped: "ArrowLeft", mask: 0xfd, bit: 1 },
+  [Buttons.UP]: { mapped: "ArrowUp", mask: 0xfb, bit: 2 },
+  [Buttons.DOWN]: { mapped: "ArrowDown", mask: 0xf7, bit: 3 },
+  [Buttons.B]: { mapped: "z", mask: 0xdf, bit: 5 },
+  [Buttons.A]: { mapped: "x", mask: 0xef, bit: 4 },
+  [Buttons.SELECT]: { mapped: "Backspace", mask: 0xbf, bit: 6 },
+  [Buttons.START]: { mapped: "Enter", mask: 0x7f, bit: 7 },
 };
 
 type Options = {
   showFrame: boolean;
   keys: KeyMapping;
+  palette: number[];
 };
+
+const DEFAULT_PALETTE = [0xa8d08d, 0x6a8e3c, 0x3a5d1d, 0x1f3c06];
 
 const defaultOptions: Options = {
   showFrame: true,
   keys: DEFAULT_KEY_MAPPING,
+  palette: DEFAULT_PALETTE,
 };
 
 const OptionsContext = createContext<{
@@ -48,12 +52,14 @@ const OptionsContext = createContext<{
   toggleShowFrame: () => void;
   updateKeyMapping: (button: Buttons, newKey: string) => void;
   resetToDefaultKeys: () => void;
+  updatePalette: (newPalette: number[]) => void;
 }>({
   options: defaultOptions,
   setOptions: () => {},
   toggleShowFrame: () => {},
   updateKeyMapping: () => {},
   resetToDefaultKeys: () => {},
+  updatePalette: () => {},
 });
 
 export const OptionsProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -62,17 +68,17 @@ export const OptionsProvider: React.FC<{ children: React.ReactNode }> = ({
   const [options, setOptions] = useState<Options>(defaultOptions);
 
   const toggleShowFrame = () => {
-    setOptions(prev => ({
+    setOptions((prev) => ({
       ...prev,
-      showFrame: !prev.showFrame
+      showFrame: !prev.showFrame,
     }));
   };
 
   const updateKeyMapping = (button: Buttons, newKey: string) => {
-    setOptions(prev => {
+    setOptions((prev) => {
       // Check if the new key is already in use
       const isKeyAlreadyUsed = Object.values(prev.keys).some(
-        mapping => mapping.mapped === newKey
+        (mapping) => mapping.mapped === newKey
       );
 
       if (isKeyAlreadyUsed) {
@@ -86,17 +92,24 @@ export const OptionsProvider: React.FC<{ children: React.ReactNode }> = ({
           ...prev.keys,
           [button]: {
             ...prev.keys[button],
-            mapped: newKey
-          }
-        }
+            mapped: newKey,
+          },
+        },
       };
     });
   };
 
   const resetToDefaultKeys = () => {
-    setOptions(prev => ({
+    setOptions((prev) => ({
       ...prev,
-      keys: DEFAULT_KEY_MAPPING
+      keys: DEFAULT_KEY_MAPPING,
+    }));
+  };
+
+  const updatePalette = (newPalette: number[]) => {
+    setOptions((prev) => ({
+      ...prev,
+      palette: newPalette,
     }));
   };
 
@@ -106,23 +119,22 @@ export const OptionsProvider: React.FC<{ children: React.ReactNode }> = ({
       setOptions,
       toggleShowFrame,
       updateKeyMapping,
-      resetToDefaultKeys
+      resetToDefaultKeys,
+      updatePalette,
     }),
     [options]
   );
 
   return (
-    <OptionsContext.Provider value={value}>
-      {children}
-    </OptionsContext.Provider>
+    <OptionsContext.Provider value={value}>{children}</OptionsContext.Provider>
   );
 };
 
 export const useOptions = () => {
   const context = useContext(OptionsContext);
-  
+
   if (!context) {
-    throw new Error('useOptions must be used within an OptionsProvider');
+    throw new Error("useOptions must be used within an OptionsProvider");
   }
 
   return context;

@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { EditIcon, SaveIcon, XIcon } from "lucide-react";
 import Layout from "../../components/Layout";
 import { useOptions } from "../../context/OptionsContext";
 import { Buttons } from "../../context/OptionsContext"; // Adjust import path
 
 export default function Options() {
-  const { options, resetToDefaultKeys, updateKeyMapping, toggleShowFrame } =
+  const { options, resetToDefaultKeys, updateKeyMapping, toggleShowFrame, updatePalette } =
     useOptions();
   const [editingButton, setEditingButton] = useState<Buttons | null>(null);
   const [newKey, setNewKey] = useState("");
@@ -50,6 +50,19 @@ export default function Options() {
   const cancelKeyEdit = () => {
     setEditingButton(null);
     setNewKey("");
+  };
+
+  const [localPalette, setLocalPalette] = useState(options.palette);
+
+  const readHexColor = (color: string) => {
+    const hexColor = color.replace("#", "");
+    return parseInt(hexColor, 16);
+  };
+
+  const handleColorChange = (index: number, newColor: string) => {
+    const newPaletteColors = [...localPalette];
+    newPaletteColors[index] = readHexColor(newColor);
+    setLocalPalette(newPaletteColors);
   };
 
   return (
@@ -123,6 +136,34 @@ export default function Options() {
               className="bg-destructive text-white px-4 py-2 rounded hover:bg-destructive-hover transition"
             >
               Reset to Default Keys
+            </button>
+          </div>
+        </div>
+        {/* Palette Editor */}
+        <div className="w-full">
+          <h2 className="text-xl font-semibold mb-4">Palette Editor</h2>
+          <div className="flex flex-col gap-4">
+            {localPalette.map((color, index) => (
+              <div
+                key={index}
+                className="flex items-center justify-between border-b pb-2"
+              >
+                <label className="mr-2">Color {index + 1}</label>
+                <input
+                  type="color"
+                  value={`#${color.toString(16).padStart(6, "0")}`}
+                  onChange={(e) => handleColorChange(index, e.target.value)}
+                  className="w-16 h-10"
+                />
+                <span className="ml-2">{color}</span>
+              </div>
+            ))}
+
+            <button
+              onClick={() => updatePalette(localPalette)}
+              className="mt-4 bg-primary text-white px-4 py-2 rounded hover:bg-primary-hover transition"
+            >
+              Save Palette
             </button>
           </div>
         </div>

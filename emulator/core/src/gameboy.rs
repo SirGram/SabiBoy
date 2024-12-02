@@ -19,11 +19,11 @@ pub struct Gameboy {
 }
 
 impl Gameboy {
-    pub fn new() -> Self {
+    pub fn new(palette: [u32; 4]) -> Self {
         let bus = Rc::new(RefCell::new(Bus::new()));
         let timer = Timer::new(Rc::clone(&bus));
         let cpu = CPU::new(Rc::clone(&bus));
-        let ppu = PPU::new(Rc::clone(&bus));
+        let ppu = PPU::new(Rc::clone(&bus), palette);
 
         Self {
             cpu,

@@ -15,7 +15,6 @@ use std::{
     vec,
 };
 
-pub const COLORS: [u32; 5] = [0xA8D08D, 0x6A8E3C, 0x3A5D1D, 0x1F3C06, 0xFF0000];
 
 const SCREEN_WIDTH: u8 = 160;
 const SCREEN_HEIGHT: u8 = 144;
@@ -32,6 +31,7 @@ pub enum PPUMode {
     DRAWING = 3,
 }
 pub struct PPU {
+    pub palette:[u32; 4],
     pub mode: PPUMode,
     pub mode_cycles: usize,
 
@@ -72,8 +72,9 @@ impl Sprite {
 impl PPU {
     /* https://hacktix.github.io/GBEDG/ppu/
      */
-    pub fn new(bus: Rc<RefCell<Bus>>) -> Self {
+    pub fn new(bus: Rc<RefCell<Bus>>, palette: [u32; 4]) -> Self {
         Self {
+            palette: palette,
             buffer: vec![0; SCREEN_WIDTH as usize * SCREEN_HEIGHT as usize],
             bus: bus,
             mode: PPUMode::OAM_SCAN,
@@ -250,7 +251,7 @@ impl PPU {
                     let buffer_index =
                         ly as usize * SCREEN_WIDTH as usize + self.x_render_counter as usize;
 
-                    let color = COLORS[color as usize];
+                    let color = self.palette[color as usize];
                     self.buffer[buffer_index] = color;
                 }
                 self.fetcher.x_pos_counter += 1;

@@ -10,17 +10,17 @@ pub struct GameboyWasm {
 #[wasm_bindgen]
 impl GameboyWasm {
     #[wasm_bindgen(constructor)]
-    pub fn new() -> Self {
+    pub fn new(palette: Vec<u32>) -> Self {
+        let palette_array: [u32; 4] = match palette.len() {
+            4 => [palette[0], palette[1], palette[2], palette[3]],
+            _ => [0xA8D08D, 0x6A8E3C, 0x3A5D1D, 0x1F3C06], // Default green palette
+        };
         Self {
-            gameboy: GameboyCore::gameboy::Gameboy::new(),
+            gameboy: GameboyCore::gameboy::Gameboy::new(palette_array),
             is_paused: false,
         }
     }
 
-    /*  pub fn load_rom(&mut self, rom_data: &[u8]) {
-        self.gameboy.load_rom(rom_data);
-        self.gameboy.set_power_up_sequence();
-    } */
     pub fn init(&mut self, rom: &[u8]) -> Result<(), String> {   
         self.gameboy.set_power_up_sequence();
         self.gameboy.load_rom(rom);
