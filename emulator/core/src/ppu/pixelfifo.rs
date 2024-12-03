@@ -1,9 +1,11 @@
 use std::{cell::RefCell, collections::VecDeque, rc::Rc};
 
+use serde::{Deserialize, Serialize};
+
 use crate::bus::{io_address::IoRegister, Bus};
 
 use super::{fetcher_sprites::SpriteFetcher, Sprite};
-
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Pixel {
     color: u8,
     sprite_priority: bool, // CGB relevant
@@ -28,7 +30,7 @@ impl Pixel {
         }
     }
 }
-
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PixelFifo {
     pub bg_fifo: VecDeque<Pixel>,
     pub sprite_fifo: VecDeque<Pixel>,

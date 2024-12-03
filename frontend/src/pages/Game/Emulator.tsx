@@ -37,13 +37,36 @@ export default function Emulator() {
   });
   const [isGameboyPaused, setIsGameboyPaused] = useState(false);
 
-  const { gameboy } = useGameboy();
+  const { gameboy} = useGameboy();
   const [pressedKeys, setPressedKeys] = useState(0xff);
 
   const { options } = useOptions();
+  const handleSaveButton = async (event: KeyboardEvent) => {
+    try {
+      const stateData = gameboy!.save_state();
+      const blob = new Blob([stateData], { type: "application/octet-stream" });
+      const url = URL.createObjectURL(blob);
+
+      // Trigger download
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `rom.gb.state`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      console.log("State saved successfully.");
+    } catch (error) {
+      console.error("Failed to save state:", error);
+    }
+  }
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
       if (!gameboy) return;
+      // save button
+      if (event.key.toLowerCase() === "1") {
+        handleSaveButton(event);
+        return;
+      }
 
       // Find the button that corresponds to the pressed key
       const button = Object.entries(options.keys).find(

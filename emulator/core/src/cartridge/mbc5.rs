@@ -1,7 +1,19 @@
+
+use serde::{Deserialize, Serialize};
+#[derive(Clone, Debug)]
 pub struct Mbc5 {
     current_rom_bank: u16,
     current_ram_bank: u8,
     rom: Vec<u8>,
+    ram: Vec<u8>,
+    external_ram_enabled: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Mbc5State { 
+     current_rom_bank: u16,
+    current_ram_bank: u8,
+ 
     ram: Vec<u8>,
     external_ram_enabled: bool,
 }
@@ -20,6 +32,21 @@ impl Mbc5 {
             ram: vec![0; ram_size],
             external_ram_enabled: false,
         }
+    }
+
+    pub fn save_state(&self) -> Mbc5State {
+        Mbc5State {
+            current_rom_bank: self.current_rom_bank,
+            current_ram_bank: self.current_ram_bank,
+            ram: self.ram.clone(),
+            external_ram_enabled: self.external_ram_enabled,
+        }
+    }
+    pub fn load_state(&mut self, state: Mbc5State) {
+        self.current_rom_bank = state.current_rom_bank;
+        self.current_ram_bank = state.current_ram_bank;
+        self.ram = state.ram;
+        self.external_ram_enabled = state.external_ram_enabled;
     }
     pub fn read_byte(&self, address: u16) -> u8 {
         match address {

@@ -1,22 +1,52 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{
-    cartridge::{mbc0::Mbc0, mbc1::Mbc1, mbc3::Mbc3, mbc5::Mbc5, MbcType},
+    cartridge::{mbc0::Mbc0, mbc1::Mbc1, mbc3::Mbc3, mbc5::Mbc5, MbcType, MbcTypeState},
     joyp::Joypad,
 };
 
 pub mod io_address;
+#[derive(Clone, Debug)]
 pub struct Bus {
-    pub joypad: Joypad,
-    oam: [u8; 0xA0], // object attribute memory
-    io_registers: [u8; 0x7F],
-    hram: [u8; 0x7F],
-    ie_register: u8,
-    vram: [u8; 0x2000],
-    ram_bank_0: [u8; 0x1000],
-    ram_bank_n: [u8; 0x1000],
-    // debug
-    debug: [u8; 0x100],
-    // cartridge
+    pub joypad: Joypad,    
+    oam: [u8; 0xA0],     
+    io_registers: [u8; 0x7F],    
+    hram: [u8; 0x7F],    
+    ie_register: u8,    
+    vram: [u8; 0x2000],    
+    ram_bank_0: [u8; 0x1000],    
+    ram_bank_n: [u8; 0x1000],    
+    debug: [u8; 0x100],    
     pub mbc: MbcType,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct BusState {
+    pub joypad: Joypad,
+    
+    #[serde(with = "serde_arrays")]
+    oam: [u8; 0xA0], 
+    
+    #[serde(with = "serde_arrays")]
+    io_registers: [u8; 0x7F],
+    
+    #[serde(with = "serde_arrays")]
+    hram: [u8; 0x7F],
+    
+    ie_register: u8,
+    
+    #[serde(with = "serde_arrays")]
+    vram: [u8; 0x2000],
+    
+    #[serde(with = "serde_arrays")]
+    ram_bank_0: [u8; 0x1000],
+    
+    #[serde(with = "serde_arrays")]
+    ram_bank_n: [u8; 0x1000],
+    
+    #[serde(with = "serde_arrays")]
+    debug: [u8; 0x100],
+    
+    pub mbc: MbcTypeState,
 }
 
 impl Bus {
@@ -33,6 +63,33 @@ impl Bus {
             debug: [0; 0x100],
             mbc: MbcType::None,
         }
+    }
+    pub fn save_state(&self) -> BusState {
+        BusState {
+            joypad: self.joypad.clone(),
+            oam: self.oam.clone(),
+            io_registers: self.io_registers.clone(),
+            hram: self.hram.clone(),
+            ie_register: self.ie_register,
+            vram: self.vram.clone(),
+            ram_bank_0: self.ram_bank_0.clone(),
+            ram_bank_n: self.ram_bank_n.clone(),
+            debug: self.debug.clone(),
+            mbc: self.mbc.save_state(),
+        }
+    }
+
+    pub fn load_state(&mut self, state: BusState) {
+        self.joypad = state.joypad;
+        self.oam = state.oam;
+        self.io_registers = state.io_registers;
+        self.hram = state.hram;
+        self.ie_register = state.ie_register;
+        self.vram = state.vram;
+        self.ram_bank_0 = state.ram_bank_0;
+        self.ram_bank_n = state.ram_bank_n;
+        self.debug = state.debug;
+        self.mbc.load_state(state.mbc);
     }
 
     pub fn load_rom(&mut self, rom: &[u8]) {

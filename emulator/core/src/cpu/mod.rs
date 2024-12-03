@@ -11,10 +11,31 @@ use std::{
 };
 
 use flags::Flags;
+use serde::{Deserialize, Serialize};
 
 use crate::bus::Bus;
 pub use execute::*;
 
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CPUState {
+    pub a: u8,
+    pub b: u8,
+    pub c: u8,
+    pub d: u8,
+    pub e: u8,
+    pub h: u8,
+    pub l: u8,
+    pub f: Flags,
+    pub sp: u16,
+    pub pc: u16,
+    pub ime: bool,
+    ime_scheduled: bool,
+    pub halt: bool,
+    halt_bug: bool,
+    pub cycles: usize,
+}
+#[derive(Clone, Debug)]
 pub struct CPU {
     // Registers
     pub a: u8,
@@ -61,6 +82,43 @@ impl CPU {
             cycles: 0,
             ime_scheduled: false,
         }
+    }
+    pub fn save_state(&self) -> CPUState {
+        CPUState {
+            a: self.a,
+            b: self.b,
+            c: self.c,
+            d: self.d,
+            e: self.e,
+            h: self.h,
+            l: self.l,
+            f: self.f.clone(),
+            sp: self.sp,
+            pc: self.pc,
+            ime: self.ime,
+            ime_scheduled: self.ime_scheduled,
+            halt: self.halt,
+            halt_bug: self.halt_bug,
+            cycles: self.cycles,
+        }
+    }
+    pub fn load_state(&mut self, state: CPUState, bus: Rc<RefCell<Bus>>) {
+        self.a = state.a;
+        self.b = state.b;
+        self.c = state.c;
+        self.d = state.d;
+        self.e = state.e;
+        self.h = state.h;
+        self.l = state.l;
+        self.f = state.f;
+        self.sp = state.sp;
+        self.pc = state.pc;
+        self.ime = state.ime;
+        self.ime_scheduled = state.ime_scheduled;
+        self.halt = state.halt;
+        self.halt_bug = state.halt_bug;
+        self.cycles = state.cycles;
+        self.bus = bus;
     }
 
     pub fn tick(&mut self) {

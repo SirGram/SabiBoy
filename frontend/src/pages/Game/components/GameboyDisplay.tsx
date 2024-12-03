@@ -108,23 +108,54 @@ const GameboyDisplay = ({
   }, [gameboy, isGameboyPaused]);
 
   useEffect(() => {
-    const loadRom = async () => {
-      const response = await fetch(currentGame?.romPath!);
-      const romArrayBuffer = await response.arrayBuffer();
-      const romData = new Uint8Array(romArrayBuffer);
+    const loadEmulator = async () => {
+      if (!currentGame?.romPath) return;
 
-      if (romData.length > 0) {
-        try {
-          initGameboy(romData, options.palette);
-          console.log("initializing gameboy");
-        } catch (e) {
-          console.error("Error initializing GameBoy emulator:", e);
+      try {
+        // Fetch the ROM file
+        console.log(`Fetching ROM from: ${currentGame.romPath}`);
+        const romResponse = await fetch(currentGame.romPath);
+        if (!romResponse.ok) {
+          console.error(`Failed to fetch ROM: ${romResponse.statusText}`);
+          return;
         }
+        const romArrayBuffer = await romResponse.arrayBuffer();
+        const romData = new Uint8Array(romArrayBuffer);
+
+        // Fetch the save state file, if available
+        let stateData: Uint8Array | undefined = undefined;
+        try {
+          const stateResponse = await fetch(`${currentGame.romPath}.state`);
+          if (stateResponse.ok) {
+            const stateArrayBuffer = await stateResponse.arrayBuffer();
+            stateData = new Uint8Array(stateArrayBuffer);
+            console.log("State file loaded successfully.");
+          } else {
+            console.warn(
+              `State file not found for ${currentGame.romPath}. Skipping state load.`
+            );
+          }
+        } catch (stateError) {
+          console.error("Error fetching state file:", stateError);
+        }
+
+        // Initialize the GameBoy emulator with the ROM and optional state data
+        if (romData.length > 0) {
+          try {
+            console.log("Initializing GameBoy emulator...");
+            initGameboy(romData, options.palette, stateData);
+            console.log("GameBoy emulator initialized successfully.");
+          } catch (initError) {
+            console.error("Error initializing GameBoy emulator:", initError);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading the emulator:", error);
       }
     };
-    loadRom();
-    console.log(currentGame);
-  }, [currentGame]);
+
+    loadEmulator();
+  }, [currentGame, options.palette, initGameboy]);
 
   return (
     <canvas

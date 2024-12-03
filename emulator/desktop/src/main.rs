@@ -17,10 +17,14 @@ fn main() {
     };
 
     // Initialize GameBoy
-    let mut gameboy = gameboy_core::gameboy::Gameboy::new();
+    let palette:[u32;4] = [0x9bbc0f, 0x8bac0f, 0x306230, 0x0f380f];
+    let mut gameboy = gameboy_core::gameboy::Gameboy::new(palette);
     gameboy.set_power_up_sequence();
-    gameboy.load_rom(include_bytes!("../../../test/games/Tetris/rom.gb"));
+    gameboy.load_rom(include_bytes!("../../../test/games/pokemon-red-version/rom.gb"));
 
+    let save_state = std::fs::read("rom.gb.state").expect("Failed to read state from file");
+    gameboy.load_state(save_state).expect("Failed to load state"); 
+    
     run(&mut window, &mut gameboy, &mut debug_window);
 }
 
@@ -118,4 +122,10 @@ fn handle_input(window: &mut Window, gameboy: &mut gameboy_core::gameboy::Gamebo
         }
     }
     gameboy.bus.borrow_mut().joypad.update_keys(new_keys);
+
+    // Handle additional input: Save state
+    if window.is_key_down(Key::Key1) {
+        let save = gameboy.save_state().expect("Failed to save state");
+        std::fs::write("rom.gb.state", save).expect("Failed to write state to file");
+    }
 }

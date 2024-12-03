@@ -1,5 +1,17 @@
+
+use serde::{Deserialize, Serialize};
+#[derive(Clone, Debug )]
 pub struct Mbc1 {
     rom: Vec<u8>,
+    ram: Vec<u8>,
+    current_rom_bank: u8,
+    current_ram_bank: u8,
+    mode: bool,
+    ram_enabled: bool,
+    is_multicart: bool,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Mbc1State {
     ram: Vec<u8>,
     current_rom_bank: u8,
     current_ram_bank: u8,
@@ -25,6 +37,24 @@ impl Mbc1 {
             mode: false,
             is_multicart: false,
         }
+    }
+    pub fn save_state(&self) -> Mbc1State {
+        Mbc1State {
+            ram: self.ram.clone(),
+            current_rom_bank: self.current_rom_bank,
+            current_ram_bank: self.current_ram_bank,
+            mode: self.mode,
+            ram_enabled: self.ram_enabled,
+            is_multicart: self.is_multicart,
+        }
+    }
+    pub fn load_state(&mut self, state: Mbc1State) {
+        self.ram = state.ram;
+        self.current_rom_bank = state.current_rom_bank;
+        self.current_ram_bank = state.current_ram_bank;
+        self.mode = state.mode;
+        self.ram_enabled = state.ram_enabled;
+        self.is_multicart = state.is_multicart;
     }
     pub fn read_byte(&self, address: u16) -> u8 {
         match address {

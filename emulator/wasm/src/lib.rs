@@ -1,4 +1,7 @@
-use gameboy_core::{self as GameboyCore, cartridge::{self, }};
+use gameboy_core::{
+    self as GameboyCore,
+    cartridge::{self},
+};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -21,10 +24,31 @@ impl GameboyWasm {
         }
     }
 
-    pub fn init(&mut self, rom: &[u8]) -> Result<(), String> {   
+    pub fn init(&mut self, rom: &[u8], state:Option<Vec<u8>>) -> Result<(), String> {
         self.gameboy.set_power_up_sequence();
         self.gameboy.load_rom(rom);
+        if let Some(state) = state {
+            let result = self.gameboy.load_state(state);
+            if let Err(err) = result {
+                return Err(format!("Failed to load state: {:?}", err));
+            }
+        }
         Ok(())
+    }
+    pub fn save_state(&self) -> Vec<u8> {
+        match self.gameboy.save_state() {
+            Ok(state) => state,
+            Err(_) => {
+                // Return an empty vector on error
+                vec![]
+            }
+        }
+    }
+
+    pub fn load_state(&mut self, state: Vec<u8>) -> Result<(), String> {
+        self.gameboy
+            .load_state(state)
+            .map_err(|_| "Failed to load state".to_string())
     }
 
     pub fn tick(&mut self) {
@@ -61,7 +85,7 @@ impl GameboyWasm {
     pub fn handle_keys(&mut self, keys: u8) {
         self.gameboy.bus.borrow_mut().joypad.update_keys(keys);
     }
-   
+
     pub fn get_cartridge_info(&self) -> CartridgeHeaderState {
         let cartridge_data = self.gameboy.bus.borrow().read_cartridge_header();
         let title = cartridge::cartridge_header::get_title(&cartridge_data);
@@ -83,7 +107,6 @@ impl GameboyWasm {
             rom_version,
             licensee_code,
         }
-        
     }
 }
 

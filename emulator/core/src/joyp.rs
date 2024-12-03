@@ -1,6 +1,4 @@
-use std::{cell::RefCell, io, rc::Rc};
-
-use crate::bus::{io_address::IoRegister, Bus};
+use serde::{Deserialize, Serialize};
 
 pub enum JoyPadKey {
     Right,
@@ -26,7 +24,7 @@ impl JoyPadKey {
         }
     }
 }
-
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Joypad {
     keys: u8,
     register: u8,

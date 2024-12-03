@@ -1,7 +1,22 @@
+
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug , Serialize, Deserialize)]
 pub struct Mbc3 {
     current_rom_bank: u8,
     current_ram_bank: u8,
     rom: Vec<u8>,
+    ram: Vec<u8>,
+    external_ram_enabled: bool,
+    previous_latch_value: u8,
+    pub rtc: Option<Rtc>,
+    current_rtc_register: Option<u8>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Mbc3State { 
+    current_rom_bank: u8,
+    current_ram_bank: u8,
     ram: Vec<u8>,
     external_ram_enabled: bool,
     previous_latch_value: u8,
@@ -26,6 +41,26 @@ impl Mbc3 {
             rtc: if has_rtc { Some(Rtc::new()) } else { None },
             current_rtc_register: None,
         }
+    }
+    pub fn save_state(&self) -> Mbc3State {
+        Mbc3State {
+            current_rom_bank: self.current_rom_bank,
+            current_ram_bank: self.current_ram_bank,
+            ram: self.ram.clone(),
+            external_ram_enabled: self.external_ram_enabled,
+            previous_latch_value: self.previous_latch_value,
+            rtc: self.rtc.clone(),
+            current_rtc_register: self.current_rtc_register,
+        }
+    }
+    pub fn load_state(&mut self, state: Mbc3State) {
+        self.current_rom_bank = state.current_rom_bank;
+        self.current_ram_bank = state.current_ram_bank;
+        self.ram = state.ram;
+        self.external_ram_enabled = state.external_ram_enabled;
+        self.previous_latch_value = state.previous_latch_value;
+        self.rtc = state.rtc;
+        self.current_rtc_register = state.current_rtc_register;
     }
     pub fn read_byte(&self, address: u16) -> u8 {
         match address {
@@ -105,6 +140,7 @@ impl Mbc3 {
         }
     }
 }
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Rtc {
     s_reg: u8,  // seconds
     m_reg: u8,  // minutes

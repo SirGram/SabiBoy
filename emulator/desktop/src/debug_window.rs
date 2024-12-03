@@ -7,11 +7,12 @@ use gameboy_core as GameboyCore;
 use GameboyCore::bus::io_address::IoRegister;
 use GameboyCore::cartridge::cartridge_header;
 use GameboyCore::cpu::CPU;
-use GameboyCore::ppu::{PPUMode, COLORS};
+use GameboyCore::ppu::{PPUMode};
 use GameboyCore::{bus, ppu};
 
 const WINDOW_WIDTH: usize = 800;
 const WINDOW_HEIGHT: usize = 600;
+const COLORS: [u32; 4] = [0x9bbc0f, 0x8bac0f, 0x306230, 0x0f380f];
 
 struct CartridgeHeaderState {
     title: String,

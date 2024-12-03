@@ -8,6 +8,7 @@ use fetcher::Fetcher;
 use fetcher_sprites::SpriteFetcher;
 use helper::{should_add_sprite, should_fetch_sprite};
 use pixelfifo::PixelFifo;
+use serde::{Deserialize, Serialize};
 use std::{
     cell::{Ref, RefCell},
     cmp::Ordering,
@@ -23,13 +24,15 @@ const X_POSITION_COUNTER_MAX: u16 = 160;
 const SCANLINE_Y_COUNTER_MAX: u8 = 153;
 const VBLANK_START_SCANLINE: u8 = 144;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum PPUMode {
     HBLANK = 0,
     VBLANK = 1,
     OAM_SCAN = 2,
     DRAWING = 3,
 }
+
+#[derive(Clone, Debug)]
 pub struct PPU {
     pub palette:[u32; 4],
     pub mode: PPUMode,
@@ -51,7 +54,22 @@ pub struct PPU {
     new_frame: bool,
 }
 
-#[derive(Clone)]
+#[derive(Clone,Serialize, Deserialize)]
+pub struct PPUState {
+    mode: PPUMode,
+    mode_cycles: usize,
+    sprite_buffer: Vec<Sprite>,
+    fetcher: Fetcher,
+    sprite_fetcher: SpriteFetcher,
+    pixel_fifo: PixelFifo,
+    window_triggered_this_frame: bool,
+    previous_stat_conditions: u8,
+    x_render_counter: i16,
+    window_line_counter_incremented_this_scanline: bool,
+    new_frame: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 struct Sprite {
     y_pos: u8,
     x_pos: u8,
@@ -89,6 +107,37 @@ impl PPU {
             window_line_counter_incremented_this_scanline: false,
             new_frame: false,
         }
+    }
+    pub fn save_state(&self) -> PPUState {
+        PPUState {
+          
+            mode: self.mode,
+            mode_cycles: self.mode_cycles,
+            sprite_buffer: self.sprite_buffer.clone(),
+            fetcher: self.fetcher.clone(),
+            sprite_fetcher: self.sprite_fetcher.clone(),
+            pixel_fifo: self.pixel_fifo.clone(),
+            window_triggered_this_frame: self.window_triggered_this_frame,
+            previous_stat_conditions: self.previous_stat_conditions,
+            x_render_counter: self.x_render_counter,
+            window_line_counter_incremented_this_scanline: self.window_line_counter_incremented_this_scanline,
+            new_frame: self.new_frame,
+        }
+    }
+    pub fn load_state(&mut self, state: PPUState, bus: Rc<RefCell<Bus>>) {
+       
+        self.mode = state.mode;
+        self.mode_cycles = state.mode_cycles;
+        self.sprite_buffer = state.sprite_buffer;
+        self.fetcher = state.fetcher;
+        self.sprite_fetcher = state.sprite_fetcher;
+        self.pixel_fifo = state.pixel_fifo;
+        self.window_triggered_this_frame = state.window_triggered_this_frame;
+        self.previous_stat_conditions = state.previous_stat_conditions;
+        self.x_render_counter = state.x_render_counter;
+        self.window_line_counter_incremented_this_scanline = state.window_line_counter_incremented_this_scanline;
+        self.new_frame = state.new_frame;
+        self.bus = bus;
     }
 
     fn check_window(&mut self) -> bool {

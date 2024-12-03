@@ -1,7 +1,9 @@
 use crate::cpu::CPU;
 use bitflags::bitflags;
+use serde::{Deserialize, Serialize, Serializer, Deserializer};
 
 bitflags! {
+    #[derive(Clone, Debug, )]
     pub struct Flags: u8 {
         const Z = 0b10000000; // zero
         const N = 0b01000000; // subtraction
@@ -9,7 +11,23 @@ bitflags! {
         const C = 0b00010000; // carry
     }
 }
-
+impl Serialize for Flags {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_u8(self.bits())
+    }
+}
+impl<'de> Deserialize<'de> for Flags {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let bits = u8::deserialize(deserializer)?;
+        Ok(Flags::from_bits_truncate(bits))
+    }
+}
 impl From<u8> for Flags {
     fn from(value: u8) -> Self {
         Flags::from_bits_truncate(value)

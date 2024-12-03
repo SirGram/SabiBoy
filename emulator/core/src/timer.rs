@@ -1,12 +1,20 @@
+use serde::{Deserialize, Serialize};
+
 use crate::bus::{io_address::IoRegister, Bus};
 use std::{cell::RefCell, rc::Rc};
 
+#[derive(Clone, Debug)]
 pub struct Timer {
     bus: Rc<RefCell<Bus>>,
     div_counter: usize,
     tima_counter: usize,
 }
 
+#[derive(Clone,Serialize, Deserialize)]
+pub struct TimerState {
+    div_counter: usize,
+    tima_counter: usize,
+}
 impl Timer {
     pub fn new(bus: Rc<RefCell<Bus>>) -> Self {
         Self {
@@ -14,6 +22,17 @@ impl Timer {
             div_counter: 0,
             tima_counter: 0,
         }
+    }
+    pub fn save_state(&self) -> TimerState {
+        TimerState {
+            div_counter: self.div_counter,
+            tima_counter: self.tima_counter,
+        }
+    }
+    pub fn load_state(&mut self, state: TimerState, bus: Rc<RefCell<Bus>>) {
+        self.div_counter = state.div_counter;
+        self.tima_counter = state.tima_counter;
+        self.bus = bus;
     }
 
     // Read timer registers from bus

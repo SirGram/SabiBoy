@@ -1,9 +1,11 @@
 use std::{cell::RefCell, rc::Rc};
 
+use serde::{Deserialize, Serialize};
+
 use crate::bus::{self, io_address::IoRegister, Bus};
 
 use super::pixelfifo::PixelFifo;
-
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Fetcher {
     pub step: u8,
     pub tile_number: u8,
