@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::{ pixelfifo::PixelFifo, Sprite};
+use super::{pixelfifo::PixelFifo, Sprite};
 use crate::bus::{self, io_address::IoRegister};
 use std::{cell::RefCell, rc::Rc};
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -83,9 +83,8 @@ impl SpriteFetcher {
         };
 
         let actual_tile = if sprite_size == 16 {
-                // For 8x16 sprites, the top tile is the tile number with bit 0 cleared
-                self.tile_number & !1
-          
+            // For 8x16 sprites, the top tile is the tile number with bit 0 cleared
+            self.tile_number & !1
         } else {
             self.tile_number
         };

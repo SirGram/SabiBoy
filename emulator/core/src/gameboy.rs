@@ -1,17 +1,18 @@
 use crate::{
+    apu::APU,
     bus::{io_address::IoRegister, Bus, BusState},
     cpu::{flags::Flags, CPUState, CPU},
     ppu::{self, PPUState, PPU},
     timer::{Timer, TimerState},
 };
+use bincode;
+use serde::{Deserialize, Serialize};
 use std::io::{self, Write};
 use std::{
     cell::RefCell,
     rc::Rc,
     time::{Duration, Instant},
 };
-use bincode;
-use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
 struct SerializableGameboy {
@@ -20,12 +21,13 @@ struct SerializableGameboy {
     ppu_state: PPUState,
     bus_data: BusState,
 }
-#[derive(Clone, Debug )]
+#[derive(Clone, Debug)]
 pub struct Gameboy {
     pub cpu: CPU,
     pub timer: Timer,
-    pub ppu: PPU,  
+    pub ppu: PPU,
     pub bus: Rc<RefCell<Bus>>,
+    pub apu: APU,
 }
 
 impl Gameboy {
@@ -34,37 +36,46 @@ impl Gameboy {
         let timer = Timer::new(Rc::clone(&bus));
         let cpu = CPU::new(Rc::clone(&bus));
         let ppu = PPU::new(Rc::clone(&bus), palette);
+        let apu = APU::new(Rc::clone(&bus));
 
         Self {
             cpu,
             timer,
             bus,
             ppu,
+            apu,
         }
     }
-        pub fn save_state(&self) -> Result<Vec<u8>, std::io::Error> {
-            let serializable_state = SerializableGameboy {
-                cpu_state: self.cpu.save_state(),
-                timer_state: self.timer.save_state(),
-                ppu_state: self.ppu.save_state(),
-                bus_data: self.bus.borrow().save_state(),
-            };
-    
-            bincode::serialize(&serializable_state)
-                .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Serialization failed"))
-        }
-    
-        pub fn load_state(&mut self, state: Vec<u8>) -> Result<(), std::io::Error> {
-            let serializable_state: SerializableGameboy = bincode::deserialize(&state)
-                .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Deserialization failed"))?;
-    
-            self.bus.borrow_mut().load_state(serializable_state.bus_data);
-            self.cpu.load_state(serializable_state.cpu_state, Rc::clone(&self.bus));
-            self.timer.load_state(serializable_state.timer_state, Rc::clone(&self.bus));
-            self.ppu.load_state(serializable_state.ppu_state, Rc::clone(&self.bus));
-    
-            Ok(())
-        }
+    pub fn save_state(&self) -> Result<Vec<u8>, std::io::Error> {
+        let serializable_state = SerializableGameboy {
+            cpu_state: self.cpu.save_state(),
+            timer_state: self.timer.save_state(),
+            ppu_state: self.ppu.save_state(),
+            bus_data: self.bus.borrow().save_state(),
+        };
+
+        bincode::serialize(&serializable_state)
+            .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Serialization failed"))
+    }
+
+    pub fn load_state(&mut self, state: Vec<u8>) -> Result<(), std::io::Error> {
+        let serializable_state: SerializableGameboy =
+            bincode::deserialize(&state).map_err(|_| {
+                std::io::Error::new(std::io::ErrorKind::Other, "Deserialization failed")
+            })?;
+
+        self.bus
+            .borrow_mut()
+            .load_state(serializable_state.bus_data);
+        self.cpu
+            .load_state(serializable_state.cpu_state, Rc::clone(&self.bus));
+        self.timer
+            .load_state(serializable_state.timer_state, Rc::clone(&self.bus));
+        self.ppu
+            .load_state(serializable_state.ppu_state, Rc::clone(&self.bus));
+
+        Ok(())
+    }
     pub fn reset(&mut self) {}
 
     pub fn tick(&mut self) {
@@ -73,6 +84,7 @@ impl Gameboy {
             self.timer.tick();
             self.ppu.tick();
             self.bus.borrow_mut().mbc.tick();
+            self.apu.tick();
         }
     }
     pub fn run_frame(&mut self) {

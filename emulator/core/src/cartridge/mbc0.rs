@@ -37,7 +37,7 @@ impl Mbc0 {
                 if !self.ram.is_empty() {
                     self.ram[(address - 0xA000) as usize]
                 } else {
-                    0xFF  // Return 0xFF if no RAM
+                    0xFF // Return 0xFF if no RAM
                 }
             }
             _ => 0xFF,
@@ -45,7 +45,7 @@ impl Mbc0 {
     }
     pub fn write_byte(&mut self, address: u16, value: u8) {
         match address {
-            0x0000..=0x7FFF => {},
+            0x0000..=0x7FFF => {}
             0xA000..=0xBFFF => {
                 if !self.ram.is_empty() {
                     self.ram[(address - 0xA000) as usize] = value

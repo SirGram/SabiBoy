@@ -1,4 +1,3 @@
-
 use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug)]
 pub struct Mbc5 {
@@ -10,10 +9,10 @@ pub struct Mbc5 {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Mbc5State { 
-     current_rom_bank: u16,
+pub struct Mbc5State {
+    current_rom_bank: u16,
     current_ram_bank: u8,
- 
+
     ram: Vec<u8>,
     external_ram_enabled: bool,
 }

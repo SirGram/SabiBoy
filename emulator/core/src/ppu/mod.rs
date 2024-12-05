@@ -16,7 +16,6 @@ use std::{
     vec,
 };
 
-
 const SCREEN_WIDTH: u8 = 160;
 const SCREEN_HEIGHT: u8 = 144;
 const CYCLES_PER_SCANLINE: usize = 456;
@@ -34,7 +33,7 @@ pub enum PPUMode {
 
 #[derive(Clone, Debug)]
 pub struct PPU {
-    pub palette:[u32; 4],
+    pub palette: [u32; 4],
     pub mode: PPUMode,
     pub mode_cycles: usize,
 
@@ -54,7 +53,7 @@ pub struct PPU {
     new_frame: bool,
 }
 
-#[derive(Clone,Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct PPUState {
     mode: PPUMode,
     mode_cycles: usize,
@@ -110,7 +109,6 @@ impl PPU {
     }
     pub fn save_state(&self) -> PPUState {
         PPUState {
-          
             mode: self.mode,
             mode_cycles: self.mode_cycles,
             sprite_buffer: self.sprite_buffer.clone(),
@@ -120,12 +118,12 @@ impl PPU {
             window_triggered_this_frame: self.window_triggered_this_frame,
             previous_stat_conditions: self.previous_stat_conditions,
             x_render_counter: self.x_render_counter,
-            window_line_counter_incremented_this_scanline: self.window_line_counter_incremented_this_scanline,
+            window_line_counter_incremented_this_scanline: self
+                .window_line_counter_incremented_this_scanline,
             new_frame: self.new_frame,
         }
     }
     pub fn load_state(&mut self, state: PPUState, bus: Rc<RefCell<Bus>>) {
-       
         self.mode = state.mode;
         self.mode_cycles = state.mode_cycles;
         self.sprite_buffer = state.sprite_buffer;
@@ -135,7 +133,8 @@ impl PPU {
         self.window_triggered_this_frame = state.window_triggered_this_frame;
         self.previous_stat_conditions = state.previous_stat_conditions;
         self.x_render_counter = state.x_render_counter;
-        self.window_line_counter_incremented_this_scanline = state.window_line_counter_incremented_this_scanline;
+        self.window_line_counter_incremented_this_scanline =
+            state.window_line_counter_incremented_this_scanline;
         self.new_frame = state.new_frame;
         self.bus = bus;
     }
@@ -239,7 +238,6 @@ impl PPU {
             }
         }
 
-
         self.mode_cycles += 1;
     }
 
@@ -308,7 +306,7 @@ impl PPU {
             }
         }
 
-         // Check sprites
+        // Check sprites
         if !self.sprite_fetcher.active && self.pixel_fifo.sprite_pixel_count() == 0 {
             /*  println!("sprite fetch "); */
 
@@ -319,7 +317,7 @@ impl PPU {
                 self.sprite_fetcher.start_fetch(&sprite);
                 /* println!("sprite found x {}", sprite.x_pos); */
             }
-        } 
+        }
         /* if a bg fetch is in progress and you run into the start of a sprite;
             immediately stop popping off pixels and finish up that bg fetch (and save the fetched data),
             perform the sprite fetch and load up the sprite data into the sprite fifo,
@@ -338,15 +336,15 @@ impl PPU {
             self.fetcher.unpause();
         }
 
-         // Window check
-         if !self.fetcher.is_window_fetch {
+        // Window check
+        if !self.fetcher.is_window_fetch {
             if self.check_window() {
                 self.fetcher.window_trigger(&mut self.pixel_fifo);
                 if !self.window_line_counter_incremented_this_scanline {
                     self.window_line_counter_incremented_this_scanline = true;
                 }
             }
-        }  
+        }
     }
 
     fn handle_hblank(&mut self) {

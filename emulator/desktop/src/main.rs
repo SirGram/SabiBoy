@@ -1,5 +1,8 @@
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::{Device, SampleRate, Stream, StreamConfig};
 use gameboy_core::{self, gameboy, joyp::JoyPadKey};
 use minifb::{Key, Window, WindowOptions};
+use std::sync::{Arc, Mutex};
 use std::{
     env::Args,
     time::{Duration, Instant},
@@ -17,15 +20,22 @@ fn main() {
     };
 
     // Initialize GameBoy
-    let palette:[u32;4] = [0x9bbc0f, 0x8bac0f, 0x306230, 0x0f380f];
+    let palette: [u32; 4] = [0x9bbc0f, 0x8bac0f, 0x306230, 0x0f380f];
     let mut gameboy = gameboy_core::gameboy::Gameboy::new(palette);
     gameboy.set_power_up_sequence();
-    gameboy.load_rom(include_bytes!("../../../test/games/pokemon-red-version/rom.gb"));
+    gameboy.load_rom(include_bytes!(
+        "../../../test/games/pokemon-red-version/rom.gb"
+    ));
 
-    let save_state = std::fs::read("rom.gb.state").expect("Failed to read state from file");
-    gameboy.load_state(save_state).expect("Failed to load state"); 
-    
-    run(&mut window, &mut gameboy, &mut debug_window);
+    let save_state = std::fs::read("./rom.gb.state").expect("Failed to read state from file");
+    /* gameboy
+    .load_state(save_state)
+    .expect("Failed to load state");   */
+
+    // Setup audio
+    let audio_output = AudioOutput::new().expect("Failed to initialize audio");
+
+    run(&mut window, &mut gameboy, &mut debug_window, &audio_output);
 }
 
 fn set_up_window() -> Window {
@@ -48,6 +58,7 @@ fn run(
     window: &mut Window,
     gameboy: &mut gameboy_core::gameboy::Gameboy,
     debug_window: &mut Option<debug_window::DebugWindow>,
+    audio_output: &AudioOutput,
 ) {
     let target_frame_time = Duration::from_micros(16_667); // 60 fps
     let mut last_fps_check = Instant::now();
@@ -100,6 +111,10 @@ fn run(
             debug_window.update(&gameboy.cpu, &gameboy.bus, &gameboy.ppu, current_fps);
             debug_window.render();
         }
+        // update audio per frame? 48000 samples / 60fps? plz help
+        let samples = gameboy.apu.get_samples();
+        println!("sample length: {}", samples.len());
+        audio_output.add_samples(&samples);
     }
 }
 
@@ -127,5 +142,66 @@ fn handle_input(window: &mut Window, gameboy: &mut gameboy_core::gameboy::Gamebo
     if window.is_key_down(Key::Key1) {
         let save = gameboy.save_state().expect("Failed to save state");
         std::fs::write("rom.gb.state", save).expect("Failed to write state to file");
+    }
+}
+
+pub struct AudioOutput {
+    stream: cpal::Stream,
+    samples: Arc<Mutex<Vec<f32>>>,
+}
+
+impl AudioOutput {
+    pub fn new() -> Result<Self, anyhow::Error> {
+        let host = cpal::default_host();
+        let device = host
+            .default_output_device()
+            .expect("No output device available");
+
+        // Configure stream parameters
+        let sample_rate = 48_000;
+        let buffer_size = 800;
+
+        // Create thread-safe sample buffer
+        let samples = Arc::new(Mutex::new(Vec::new()));
+        let samples_clone = Arc::clone(&samples);
+
+        // Configure stream
+        let stream_config = StreamConfig {
+            channels: 2,
+            sample_rate: SampleRate(sample_rate),
+            buffer_size: cpal::BufferSize::Fixed(buffer_size),
+        };
+
+        let stream = device.build_output_stream(
+            &stream_config,
+            move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+                let mut samples_lock = samples_clone.lock().unwrap();
+
+                // Fill buffer with available samples or silence
+                let fill_len = data.len().min(samples_lock.len());
+                data[..fill_len].copy_from_slice(&samples_lock[..fill_len]);
+
+                // Fill remaining with silence if needed
+                if fill_len < data.len() {
+                    data[fill_len..].fill(0.0);
+                }
+
+                // Remove used samples
+                samples_lock.drain(0..fill_len);
+            },
+            |err| eprintln!("Audio stream error: {:?}", err),
+            None,
+        )?;
+
+        // Start the stream
+        stream.play()?;
+
+        Ok(Self { stream, samples })
+    }
+
+    // Method to add samples from APU
+    pub fn add_samples(&self, new_samples: &[f32]) {
+        let mut samples_lock = self.samples.lock().unwrap();
+        samples_lock.extend_from_slice(new_samples);
     }
 }

@@ -16,7 +16,6 @@ use serde::{Deserialize, Serialize};
 use crate::bus::Bus;
 pub use execute::*;
 
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CPUState {
     pub a: u8,

@@ -1,6 +1,5 @@
-
 use serde::{Deserialize, Serialize};
-#[derive(Clone, Debug )]
+#[derive(Clone, Debug)]
 pub struct Mbc1 {
     rom: Vec<u8>,
     ram: Vec<u8>,

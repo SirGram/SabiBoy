@@ -1,6 +1,6 @@
 use crate::cpu::CPU;
 use bitflags::bitflags;
-use serde::{Deserialize, Serialize, Serializer, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 bitflags! {
     #[derive(Clone, Debug, )]

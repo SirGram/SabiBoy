@@ -1,7 +1,6 @@
-
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug , Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Mbc3 {
     current_rom_bank: u8,
     current_ram_bank: u8,
@@ -14,7 +13,7 @@ pub struct Mbc3 {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Mbc3State { 
+pub struct Mbc3State {
     current_rom_bank: u8,
     current_ram_bank: u8,
     ram: Vec<u8>,
@@ -100,7 +99,7 @@ impl Mbc3 {
             0x4000..=0x5FFF => {
                 // RAM bank switching
                 if value <= 0x03 {
-                    self.current_ram_bank = value;                    
+                    self.current_ram_bank = value;
                     self.current_rtc_register = None;
                 } else if (0x08..=0x0C).contains(&value) {
                     // select rtc register
@@ -111,7 +110,7 @@ impl Mbc3 {
                 if self.rtc.is_none() {
                     return;
                 }
-                
+
                 // RTC Latch mechanism
                 if self.previous_latch_value == 0x00 && value == 0x01 {
                     // Latch RTC registers
@@ -125,7 +124,7 @@ impl Mbc3 {
                 if !self.external_ram_enabled {
                     return;
                 }
-                
+
                 // Check if we're writing to RTC register
                 if let Some(rtc_register) = self.current_rtc_register {
                     if let Some(rtc) = &mut self.rtc {
@@ -133,7 +132,9 @@ impl Mbc3 {
                     }
                 } else {
                     // Write to RAM
-                    self.ram[0x2000 * self.current_ram_bank as usize + (address - 0xA000) as usize] = value;
+                    self.ram
+                        [0x2000 * self.current_ram_bank as usize + (address - 0xA000) as usize] =
+                        value;
                 }
             }
             _ => {}
@@ -210,16 +211,16 @@ impl Rtc {
     }
 
     pub fn read(&self, address: u8) -> u8 {
-        if !self.is_latched{
+        if !self.is_latched {
             return 0xFF;
         }
         match address {
             // Upper bits need to read as 1
-            0x08 => self.s_reg_latched| 0xC0,
-            0x09 => self.m_reg_latched| 0xC0,
-            0x0A => self.h_reg_latched| 0xE0,
+            0x08 => self.s_reg_latched | 0xC0,
+            0x09 => self.m_reg_latched | 0xC0,
+            0x0A => self.h_reg_latched | 0xE0,
             0x0B => self.dl_reg_latched,
-            0x0C => self.dh_reg_latched| 0x3E,
+            0x0C => self.dh_reg_latched | 0x3E,
             _ => 0xFF,
         }
     }

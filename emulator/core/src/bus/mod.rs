@@ -1,3 +1,4 @@
+use io_address::IoRegister;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -8,44 +9,44 @@ use crate::{
 pub mod io_address;
 #[derive(Clone, Debug)]
 pub struct Bus {
-    pub joypad: Joypad,    
-    oam: [u8; 0xA0],     
-    io_registers: [u8; 0x7F],    
-    hram: [u8; 0x7F],    
-    ie_register: u8,    
-    vram: [u8; 0x2000],    
-    ram_bank_0: [u8; 0x1000],    
-    ram_bank_n: [u8; 0x1000],    
-    debug: [u8; 0x100],    
+    pub joypad: Joypad,
+    oam: [u8; 0xA0],
+    io_registers: [u8; 0x7F],
+    hram: [u8; 0x7F],
+    ie_register: u8,
+    vram: [u8; 0x2000],
+    ram_bank_0: [u8; 0x1000],
+    ram_bank_n: [u8; 0x1000],
+    debug: [u8; 0x100],
     pub mbc: MbcType,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BusState {
     pub joypad: Joypad,
-    
+
     #[serde(with = "serde_arrays")]
-    oam: [u8; 0xA0], 
-    
+    oam: [u8; 0xA0],
+
     #[serde(with = "serde_arrays")]
     io_registers: [u8; 0x7F],
-    
+
     #[serde(with = "serde_arrays")]
     hram: [u8; 0x7F],
-    
+
     ie_register: u8,
-    
+
     #[serde(with = "serde_arrays")]
     vram: [u8; 0x2000],
-    
+
     #[serde(with = "serde_arrays")]
     ram_bank_0: [u8; 0x1000],
-    
+
     #[serde(with = "serde_arrays")]
     ram_bank_n: [u8; 0x1000],
-    
+
     #[serde(with = "serde_arrays")]
     debug: [u8; 0x100],
-    
+
     pub mbc: MbcTypeState,
 }
 
@@ -185,5 +186,13 @@ impl Bus {
             header[i] = self.read_byte(0x0100 + i as u16);
         }
         header
+    }
+    pub fn read_wave_ram(&mut self) -> [u8; 16] {
+        let mut wave_ram = [0; 16];
+        let start_address = IoRegister::WaveRamStart.address();
+        for i in 0..16 {
+            wave_ram[i] = self.read_byte(start_address + i as u16);
+        }
+        wave_ram
     }
 }

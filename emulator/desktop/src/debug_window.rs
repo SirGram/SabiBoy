@@ -7,7 +7,7 @@ use gameboy_core as GameboyCore;
 use GameboyCore::bus::io_address::IoRegister;
 use GameboyCore::cartridge::cartridge_header;
 use GameboyCore::cpu::CPU;
-use GameboyCore::ppu::{PPUMode};
+use GameboyCore::ppu::PPUMode;
 use GameboyCore::{bus, ppu};
 
 const WINDOW_WIDTH: usize = 800;

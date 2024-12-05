@@ -10,7 +10,7 @@ pub struct Timer {
     tima_counter: usize,
 }
 
-#[derive(Clone,Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct TimerState {
     div_counter: usize,
     tima_counter: usize,
