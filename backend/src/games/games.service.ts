@@ -10,7 +10,7 @@ import * as fs from 'fs/promises';
 export class GamesService {
   private readonly logger = new Logger(GamesService.name);
 
-  private readonly gamesPath = path.join(process.cwd(), '..', 'test', 'games');
+  private readonly gamesPath = path.join(process.cwd(), '..',  'games');
 
   async getAllGames(): Promise<Game[]> {
     this.logger.log('Getting all games');

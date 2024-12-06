@@ -6,7 +6,6 @@ import {
   MaximizeIcon,
   PauseIcon,
   PlayIcon,
-  SpeakerIcon,
   Volume2,
   VolumeOff,
 } from "lucide-react";
@@ -45,7 +44,7 @@ export default function Emulator() {
   const [pressedKeys, setPressedKeys] = useState(0xff);
 
   const { options } = useOptions();
-  const handleSaveButton = async (event: KeyboardEvent) => {
+  const handleSaveButton = async () => {
     try {
       const stateData = gameboy!.save_state();
       const blob = new Blob([stateData], { type: "application/octet-stream" });
@@ -68,7 +67,7 @@ export default function Emulator() {
       if (!gameboy) return;
       // save button
       if (event.key.toLowerCase() === "1") {
-        handleSaveButton(event);
+        handleSaveButton();
         return;
       }
 
@@ -167,7 +166,7 @@ export default function Emulator() {
   );
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4">
+    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-base-background">
       <BackButton />
 
       <div className=" mb-4">
@@ -197,7 +196,10 @@ export default function Emulator() {
         </GameboyFrame>
       </div>
       <CartridgeInfo info={cartridgeInfo} />
-      <ApuInfo isGameboyPaused={isGameboyPaused} />
+      <ApuInfo
+        isGameboyPaused={isGameboyPaused}
+        isAudioEnabled={isAudioEnabled}
+      />
     </div>
   );
 }
@@ -251,7 +253,13 @@ function CartridgeInfo({ info }: { info: CartridgeHeaderState }) {
   );
 }
 
-function ApuInfo({ isGameboyPaused }: { isGameboyPaused: boolean }) {
+function ApuInfo({
+  isGameboyPaused,
+  isAudioEnabled,
+}: {
+  isGameboyPaused: boolean;
+  isAudioEnabled: boolean;
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [apuChannels, setApuChannels] = useState<{
     ch1: number;
@@ -280,11 +288,12 @@ function ApuInfo({ isGameboyPaused }: { isGameboyPaused: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    if (isGameboyPaused) {
+    if (!isAudioEnabled) {
       setCh1History(Array(historyLength).fill(0));
       setCh2History(Array(historyLength).fill(0));
       setCh3History(Array(historyLength).fill(0));
       setCh4History(Array(historyLength).fill(0));
+      return;
     }
     if (!gameboy || isGameboyPaused) return;
 
@@ -300,7 +309,7 @@ function ApuInfo({ isGameboyPaused }: { isGameboyPaused: boolean }) {
 
     const interval = setInterval(updateApuChannels, 100); // Update every 100ms
     return () => clearInterval(interval);
-  }, [gameboy, isGameboyPaused]);
+  }, [gameboy, isGameboyPaused, isAudioEnabled]);
 
   // Update histories with new values
   useEffect(() => {
@@ -315,18 +324,17 @@ function ApuInfo({ isGameboyPaused }: { isGameboyPaused: boolean }) {
     const height = ctx.canvas.height;
     const midY = height / 2; // Midpoint of the canvas height (this represents the 0 point)
 
-    // Clear the canvas before redrawing
     ctx.clearRect(0, 0, width, height);
+    ctx.lineWidth = 3;
 
     // Function to draw the channel graph from history
     const drawChannel = (history: number[], color: string) => {
       ctx.strokeStyle = color; // Set color for the channel
       ctx.beginPath();
 
-      // Draw a line connecting the points in the history
       history.forEach((amplitude, index) => {
-        const x = (index / history.length) * width; // Scale the x-axis to the width of the canvas
-        const y = midY - amplitude * midY; // Scale the amplitude to fit within the height
+        const x = (index / history.length) * width;
+        const y = midY - amplitude * midY;
         if (index === 0) {
           ctx.moveTo(x, y);
         } else {

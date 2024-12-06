@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { CartridgeHeaderState } from "../Emulator";
 import { useGameboy } from "../../../context/GameboyContext";
 import { useOptions } from "../../../context/OptionsContext";
@@ -20,7 +20,6 @@ const GameboyDisplay = ({
   handleKeyDown,
   handleKeyUp,
   canvasRef,
-  isAudioEnabled,
   playAudioFrame,
 }: GameboyDisplayProps) => {
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);

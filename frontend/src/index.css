@@ -6,3 +6,24 @@ html {
   background-color: black;
   color: whitesmoke;
 }
+
+@layer base {
+  h1 {
+    @apply text-4xl font-extrabold text-gray-200 tracking-tight;
+  }
+  h2 {
+    @apply text-3xl font-bold text-gray-300 tracking-tight;
+  }
+  h3 {
+    @apply text-2xl font-semibold text-gray-400 tracking-tight;
+  }
+  h4 {
+    @apply text-xl font-medium text-gray-500 tracking-normal;
+  }
+  h5 {
+    @apply text-lg font-medium text-gray-600 tracking-normal;
+  }
+  h6 {
+    @apply text-base font-medium text-gray-700 tracking-normal;
+  }
+}

@@ -8,8 +8,8 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
   // Folder from which files are served
-  app.useStaticAssets(join(__dirname, '..', '..', 'test'), {
-    prefix: '/api',
+  app.useStaticAssets(join(__dirname, '..', '..', 'games'), {
+    prefix: '/api/games',
   });
 
   const corsOptions = {};

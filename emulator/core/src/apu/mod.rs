@@ -130,7 +130,7 @@ impl APU {
         }
         if nr51 & 0b00000100 != 0 {
             right_amplitude += ch3_sample;
-        }
+        } 
         if nr51 & 0b10000000 != 0 {
             left_amplitude += ch4_sample;
         }
@@ -151,10 +151,10 @@ impl APU {
         self.samples.push(right_sample);
 
         // debug
-        self.current_ch1_output = ch1_sample ;
+       /*  self.current_ch1_output = ch1_sample ;
         self.current_ch2_output = ch2_sample ;
         self.current_ch3_output = ch3_sample ;
-        self.current_ch4_output = ch4_sample ;
+        self.current_ch4_output = ch4_sample ; */
     }
     fn update_lengths(&mut self) {
         self.channel1.update_length(&self.bus.borrow());
@@ -166,6 +166,7 @@ impl APU {
         self.channel2.update_sweep(&mut self.bus.borrow_mut());
     }
     fn update_envelopes(&mut self) {
+        self.channel1.update_envelope(&mut self.bus.borrow_mut());
         self.channel2.update_envelope(&mut self.bus.borrow_mut());
         self.channel4.update_envelope(&mut self.bus.borrow_mut());
     }

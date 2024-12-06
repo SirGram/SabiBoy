@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import GameCard from "./components/GameCard";
 import Layout from "../../components/Layout";
-import GameInfoCard from "./components/GameInfo";
 import { SearchIcon } from "lucide-react";
+import GameInfo from "./components/GameInfo";
+import { useGameboy } from "../../context/GameboyContext";
 
 export type TGame = {
   id: string;
@@ -29,20 +30,30 @@ export default function Library() {
     };
 
     loadGames();
+    setCurrentGame(null)
   }, []);
+
+  const {currentGame, setCurrentGame} = useGameboy()
 
   return (
     <Layout>
       <div className="flex w-full">
-        <div className="flex flex-col py-10 px-5">
-          <SearchBar />
-          <div className="flex flex-wrap gap-4  pt-10 justify-center w-full">
-            {games.map((game) => (
-              <GameCard key={String(game.id)} game={game} />
-            ))}
+        {!currentGame ? (
+          <div className="flex flex-col py-10 px-5 w-full">
+            <SearchBar />
+            <div className="flex flex-wrap gap-4 pt-10 justify-center w-full">
+              {games.map((game) => (
+                <GameCard 
+                  key={String(game.id)} 
+                  game={game} 
+                />
+              ))}
+            </div>
           </div>
-        </div>
-        <GameInfoCard />
+        ) : (
+          <GameInfo 
+          />
+        )}
       </div>
     </Layout>
   );

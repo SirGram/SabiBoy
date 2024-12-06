@@ -3,6 +3,7 @@ import { useGameboy } from "../../../context/GameboyContext";
 import { TGame } from "../Library";
 type GameCardProps = {
   game: TGame;
+  
 };
 export default function GameCard({ game }: GameCardProps) {
   const { setCurrentGame } = useGameboy();

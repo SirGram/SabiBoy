@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { ChevronDown, ChevronRight, ChevronUp } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, ChevronRight} from "lucide-react";
 import GameCard from "../../Library/components/GameCard";
 import { TGame } from "../Board";
 
