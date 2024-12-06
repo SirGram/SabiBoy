@@ -113,7 +113,6 @@ fn run(
         }
         // update audio per frame? 48000 samples / 60fps? plz help
         let samples = gameboy.apu.get_samples();
-        println!("sample length: {}", samples.len());
         audio_output.add_samples(&samples);
     }
 }

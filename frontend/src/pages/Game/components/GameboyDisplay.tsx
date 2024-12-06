@@ -10,6 +10,8 @@ type GameboyDisplayProps = {
   handleKeyDown: (event: KeyboardEvent) => void;
   handleKeyUp: (event: KeyboardEvent) => void;
   canvasRef: React.RefObject<HTMLCanvasElement>;
+  isAudioEnabled: boolean;
+  playAudioFrame: (audioContext: AudioContext) => void;
 };
 const GameboyDisplay = ({
   setFps,
@@ -18,6 +20,8 @@ const GameboyDisplay = ({
   handleKeyDown,
   handleKeyUp,
   canvasRef,
+  isAudioEnabled,
+  playAudioFrame,
 }: GameboyDisplayProps) => {
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
   const imageDataRef = useRef<ImageData | null>(null);
@@ -48,6 +52,8 @@ const GameboyDisplay = ({
   useEffect(() => {
     if (!gameboy) return;
 
+    const audioContext = new AudioContext();
+
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext("2d")!;
 
@@ -66,6 +72,7 @@ const GameboyDisplay = ({
       if (!gameboy || !ctx || !imageDataRef.current) return;
 
       gameboy.run_frame();
+      playAudioFrame(audioContext);
 
       const frameBuffer = gameboy.get_frame_buffer();
       imageDataRef.current.data.set(frameBuffer);
@@ -93,6 +100,7 @@ const GameboyDisplay = ({
       }
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
+      audioContext.close();
     };
   }, [gameboy, handleKeyDown, handleKeyUp, handleCartridgeInfo, setFps]);
 
@@ -143,7 +151,7 @@ const GameboyDisplay = ({
         if (romData.length > 0) {
           try {
             console.log("Initializing GameBoy emulator...");
-            initGameboy(romData, options.palette, stateData);
+            await initGameboy(romData, options.palette, stateData);
             console.log("GameBoy emulator initialized successfully.");
           } catch (initError) {
             console.error("Error initializing GameBoy emulator:", initError);

@@ -85,6 +85,21 @@ impl GameboyWasm {
     pub fn handle_keys(&mut self, keys: u8) {
         self.gameboy.bus.borrow_mut().joypad.update_keys(keys);
     }
+    pub fn get_audio_buffer(&mut self) -> Vec<f32> {
+        self.gameboy.apu.get_samples()
+    }
+    pub fn toggle_audio(&mut self) {
+        self.gameboy.apu.toggle_audio();
+    }
+
+    pub fn get_apu_channels(&self) -> Vec<f32> {
+        vec![
+            self.gameboy.apu.current_ch1_output,
+            self.gameboy.apu.current_ch2_output,
+            self.gameboy.apu.current_ch3_output,
+            self.gameboy.apu.current_ch4_output,
+        ]
+    }
 
     pub fn get_cartridge_info(&self) -> CartridgeHeaderState {
         let cartridge_data = self.gameboy.bus.borrow().read_cartridge_header();

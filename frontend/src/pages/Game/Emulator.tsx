@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ChevronDown,
   ChevronLeft,
@@ -6,6 +6,9 @@ import {
   MaximizeIcon,
   PauseIcon,
   PlayIcon,
+  SpeakerIcon,
+  Volume2,
+  VolumeOff,
 } from "lucide-react";
 import { GameboyFrame } from "./components/Frame/GameboyFrame";
 import GameboyDisplay from "./components/GameboyDisplay";
@@ -36,8 +39,9 @@ export default function Emulator() {
     licensee_code: "",
   });
   const [isGameboyPaused, setIsGameboyPaused] = useState(false);
+  const [isAudioEnabled, setIsAudioEnabled] = useState(true);
 
-  const { gameboy} = useGameboy();
+  const { gameboy } = useGameboy();
   const [pressedKeys, setPressedKeys] = useState(0xff);
 
   const { options } = useOptions();
@@ -58,7 +62,7 @@ export default function Emulator() {
     } catch (error) {
       console.error("Failed to save state:", error);
     }
-  }
+  };
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
       if (!gameboy) return;
@@ -116,6 +120,51 @@ export default function Emulator() {
       }
     }
   };
+  const toggleAudio = useCallback(() => {
+    if (!gameboy) return;
+    gameboy.toggle_audio();
+
+    setIsAudioEnabled(!isAudioEnabled);
+  }, [gameboy, isAudioEnabled]);
+
+  const playAudioFrame = useCallback(
+    (audioContext: AudioContext) => {
+      if (!isAudioEnabled) return;
+      const audioSamples = gameboy!.get_audio_buffer();
+      if (audioSamples.length > 0) {
+        // Ensure consistent buffer creation
+        const numSamples = audioSamples.length / 2;
+        const buffer = audioContext.createBuffer(2, numSamples, 48000);
+
+        const leftChannel = buffer.getChannelData(0);
+        const rightChannel = buffer.getChannelData(1);
+
+        for (let i = 0; i < numSamples; i++) {
+          leftChannel[i] = audioSamples[i * 2];
+          rightChannel[i] = audioSamples[i * 2 + 1];
+        }
+
+        const source = audioContext.createBufferSource();
+        const gainNode = audioContext.createGain();
+
+        source.buffer = buffer;
+        source.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        // Set a reasonable gain to prevent potential clipping
+        gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
+
+        source.start();
+
+        // Add error handling for audio
+        source.onended = () => {
+          source.disconnect();
+          gainNode.disconnect();
+        };
+      }
+    },
+    [gameboy]
+  );
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4">
@@ -133,17 +182,22 @@ export default function Emulator() {
                 handleKeyDown={handleKeyDown}
                 handleKeyUp={handleKeyUp}
                 canvasRef={canvasRef}
+                isAudioEnabled={isAudioEnabled}
+                playAudioFrame={playAudioFrame}
               />
             </div>
             <GameboyOptions
               isGameboyPaused={isGameboyPaused}
               setIsGameboyPaused={setIsGameboyPaused}
               toggleFullScreen={toggleFullscreen}
+              isAudioEnabled={isAudioEnabled}
+              toggleAudio={toggleAudio}
             />
           </div>
         </GameboyFrame>
       </div>
       <CartridgeInfo info={cartridgeInfo} />
+      <ApuInfo isGameboyPaused={isGameboyPaused} />
     </div>
   );
 }
@@ -197,6 +251,139 @@ function CartridgeInfo({ info }: { info: CartridgeHeaderState }) {
   );
 }
 
+function ApuInfo({ isGameboyPaused }: { isGameboyPaused: boolean }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [apuChannels, setApuChannels] = useState<{
+    ch1: number;
+    ch2: number;
+    ch3: number;
+    ch4: number;
+  }>({ ch1: 0.0, ch2: 0.0, ch3: 0.0, ch4: 0.0 });
+
+  const { gameboy } = useGameboy();
+
+  // Arrays to store previous values for smooth transition
+  const historyLength = 10;
+  const [ch1History, setCh1History] = useState<number[]>(
+    Array(historyLength).fill(0)
+  );
+  const [ch2History, setCh2History] = useState<number[]>(
+    Array(historyLength).fill(0)
+  );
+  const [ch3History, setCh3History] = useState<number[]>(
+    Array(historyLength).fill(0)
+  );
+  const [ch4History, setCh4History] = useState<number[]>(
+    Array(historyLength).fill(0)
+  );
+
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    if (isGameboyPaused) {
+      setCh1History(Array(historyLength).fill(0));
+      setCh2History(Array(historyLength).fill(0));
+      setCh3History(Array(historyLength).fill(0));
+      setCh4History(Array(historyLength).fill(0));
+    }
+    if (!gameboy || isGameboyPaused) return;
+
+    const updateApuChannels = () => {
+      try {
+        // Replace this with the actual method to fetch APU channel states
+        const [ch1, ch2, ch3, ch4] = gameboy.get_apu_channels();
+        setApuChannels({ ch1, ch2, ch3, ch4 });
+      } catch (error) {
+        console.error("Failed to fetch APU channels:", error);
+      }
+    };
+
+    const interval = setInterval(updateApuChannels, 100); // Update every 100ms
+    return () => clearInterval(interval);
+  }, [gameboy, isGameboyPaused]);
+
+  // Update histories with new values
+  useEffect(() => {
+    setCh1History((prevHistory) => [...prevHistory.slice(1), apuChannels.ch1]);
+    setCh2History((prevHistory) => [...prevHistory.slice(1), apuChannels.ch2]);
+    setCh3History((prevHistory) => [...prevHistory.slice(1), apuChannels.ch3]);
+    setCh4History((prevHistory) => [...prevHistory.slice(1), apuChannels.ch4]);
+  }, [apuChannels]);
+
+  const drawGraph = (ctx: CanvasRenderingContext2D) => {
+    const width = ctx.canvas.width;
+    const height = ctx.canvas.height;
+    const midY = height / 2; // Midpoint of the canvas height (this represents the 0 point)
+
+    // Clear the canvas before redrawing
+    ctx.clearRect(0, 0, width, height);
+
+    // Function to draw the channel graph from history
+    const drawChannel = (history: number[], color: string) => {
+      ctx.strokeStyle = color; // Set color for the channel
+      ctx.beginPath();
+
+      // Draw a line connecting the points in the history
+      history.forEach((amplitude, index) => {
+        const x = (index / history.length) * width; // Scale the x-axis to the width of the canvas
+        const y = midY - amplitude * midY; // Scale the amplitude to fit within the height
+        if (index === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+
+      ctx.stroke();
+    };
+
+    // Draw all channels with their respective histories
+    drawChannel(ch1History, "red");
+    drawChannel(ch2History, "blue");
+    drawChannel(ch3History, "green");
+    drawChannel(ch4History, "purple");
+  };
+
+  useEffect(() => {
+    if (canvasRef.current) {
+      const ctx = canvasRef.current.getContext("2d");
+      if (ctx) {
+        drawGraph(ctx);
+      }
+    }
+  }, [ch1History, ch2History, ch3History, ch4History]);
+
+  return (
+    <div className="w-full mx-auto rounded-lg shadow-lg overflow-hidden">
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex justify-between items-center p-4 cursor-pointer hover:bg-base-border transition-colors"
+      >
+        <h2 className="text-xl font-semibold text-white">APU Information</h2>
+        {isOpen ? (
+          <ChevronUp className="text-white" />
+        ) : (
+          <ChevronDown className="text-white" />
+        )}
+      </div>
+
+      {isOpen && (
+        <div className="flex items-center gap-6 justify-center p-4 space-y-2">
+          <div className="font-extrabold">
+            <p className="text-[red] ">Channel 1</p>
+            <p className="text-[blue]">Channel 2</p>
+            <p className="text-[green]">Channel 3</p>
+            <p className="text-[purple]">Channel 4</p>
+          </div>
+          <div>
+            <canvas ref={canvasRef} width={300} height={100}></canvas>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BackButton() {
   //use navigate
   const navigate = useNavigate();
@@ -216,20 +403,32 @@ function GameboyOptions({
   isGameboyPaused,
   setIsGameboyPaused,
   toggleFullScreen,
+  isAudioEnabled,
+  toggleAudio,
 }: {
   isGameboyPaused: boolean;
   setIsGameboyPaused: React.Dispatch<React.SetStateAction<boolean>>;
   toggleFullScreen: () => void;
+  isAudioEnabled: boolean;
+  toggleAudio: () => void;
 }) {
   return (
     <div className="absolute inset-0 z-10 hidden group-hover:block ">
       <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center text-sm text-white font-bold">
-        <button
-          className=" p-1 rounded hover:bg-primary"
-          onClick={() => setIsGameboyPaused(!isGameboyPaused)}
-        >
-          {isGameboyPaused ? <PlayIcon /> : <PauseIcon />}
-        </button>
+        <div>
+          <button
+            className=" p-1 rounded hover:bg-primary"
+            onClick={() => setIsGameboyPaused(!isGameboyPaused)}
+          >
+            {isGameboyPaused ? <PlayIcon /> : <PauseIcon />}
+          </button>
+          <button
+            className=" p-1 rounded hover:bg-primary"
+            onClick={() => toggleAudio()}
+          >
+            {isAudioEnabled ? <Volume2 /> : <VolumeOff />}
+          </button>
+        </div>
         <button
           className=" p-1 rounded hover:bg-primary"
           onClick={toggleFullScreen}

@@ -6,17 +6,16 @@ export default {
       colors: {
         // Base Colors
         base: {
-          DEFAULT: "#000000",
           foreground: "#FFFFFF",
-          background: "#000000",
+          background: "#0c0c15",
           border: "#262626",
         },
 
         // Primary Colors (for main actions, highlights)
         primary: {
-          DEFAULT: "#3B82F6", // Blue
+          DEFAULT: "#9f3bf6", // Blue
           foreground: "#FFFFFF",
-          hover: "#2563EB",
+          hover: "#ac25eb",
         },
 
         // Secondary Colors (for secondary actions)

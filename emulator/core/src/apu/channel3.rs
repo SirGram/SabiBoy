@@ -59,19 +59,13 @@ impl Channel3 {
         }
     }
     pub fn sample(&self, bus: &mut Bus) -> f32 {
+        if self.disabled {return 0.0;}
         let raw_samle = self.get_sample(bus);
         let volume_shift = self.get_volume_shift(bus);
         let dac_input = raw_samle >> volume_shift;
 
         let dac_output = (dac_input as f32 / 7.5) - 1.0;
-        /*
-        println!(
-            "Wave Duty: {:#b}, Position: {},  Volume: {} Frequency_Timer: {}",
-            wave_duty,
-            self.wave_position,
-            self.current_volume,
-            self.frequency_timer
-        ); */
+       
         dac_output
     }
     pub fn update_length(&mut self, bus: &Bus) {

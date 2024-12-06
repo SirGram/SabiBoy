@@ -30,6 +30,13 @@ pub struct APU {
 
     cycle_sample_counter: usize,
     samples: Vec<f32>,
+    enabled: bool,
+
+    pub current_ch1_output: f32,
+    pub current_ch2_output: f32,
+    pub current_ch3_output: f32,
+    pub  current_ch4_output: f32,
+
 }
 impl APU {
     pub fn new(bus: Rc<RefCell<Bus>>) -> Self {
@@ -43,9 +50,20 @@ impl APU {
             frame_sequencer_step: 0,
             cycle_sample_counter: 0,
             samples: Vec::new(),
+            enabled: true,
+            current_ch1_output: 0.0,
+            current_ch2_output: 0.0,
+            current_ch3_output: 0.0,
+            current_ch4_output: 0.0,
         }
     }
+    pub fn toggle_audio(&mut self) {
+        self.enabled = !self.enabled;
+    }
     pub fn tick(&mut self) {
+        if !self.enabled {
+            return;
+        }
         self.frame_sequencer_timer += 1;
         if self.frame_sequencer_timer >= 8192 {
             self.frame_sequencer_timer = 0;
@@ -62,17 +80,15 @@ impl APU {
         }
         self.cycle_sample_counter += 1;
     }
+    // Example of a more efficient sample retrieval
     pub fn get_samples(&mut self) -> Vec<f32> {
-        // Limit samples to max buffer size
-        println!("sample total length: {}", self.samples.len());
-        let sample_size = 1600;
-        let samples_to_return = self
+        const SAMPLE_BUFFER_SIZE: usize = 1600;
+        let samples = self
             .samples
-            .drain(..self.samples.len().min(sample_size))
+            .drain(..self.samples.len().min(SAMPLE_BUFFER_SIZE))
             .collect();
-        println!("sample total length: {}", self.samples.len());
         self.samples.clear();
-        samples_to_return
+        samples
     }
     fn generate_sample(&mut self) {
         let bus = &mut self.bus.borrow_mut();
@@ -133,8 +149,12 @@ impl APU {
 
         self.samples.push(left_sample);
         self.samples.push(right_sample);
-        /*
-        println!("left {}, right {}", left_sample, right_sample);   */
+
+        // debug
+        self.current_ch1_output = ch1_sample ;
+        self.current_ch2_output = ch2_sample ;
+        self.current_ch3_output = ch3_sample ;
+        self.current_ch4_output = ch4_sample ;
     }
     fn update_lengths(&mut self) {
         self.channel1.update_length(&self.bus.borrow());

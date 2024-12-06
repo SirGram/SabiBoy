@@ -70,18 +70,12 @@ impl Channel1 {
         }
     }
     pub fn sample(&self, bus: &mut Bus) -> f32 {
+        if self.disabled {return 0.0;}
         let wave_duty = self.get_wave_duty(bus);
         let duty_cycle_bit = (wave_duty >> self.wave_position) & 1;
         let dac_input = self.current_volume * duty_cycle_bit;
         let dac_output = (dac_input as f32 / 7.5) - 1.0;
-        /*
-        println!(
-            "Wave Duty: {:#b}, Position: {},  Volume: {} Frequency_Timer: {}",
-            wave_duty,
-            self.wave_position,
-            self.current_volume,
-            self.frequency_timer
-        ); */
+      
         dac_output
     }
     pub fn update_envelope(&mut self, bus: &mut Bus) {
