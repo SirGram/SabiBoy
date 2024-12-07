@@ -1,23 +1,36 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight} from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import GameCard from "../../Library/components/GameCard";
 import { TGame } from "../Board";
+import { useNavigate } from "react-router-dom";
+import { useGameboy } from "../../../context/GameboyContext";
+import { WithContextMenu } from "./WithContextMenu";
 
 type CollapsibleListProps = {
   title: string;
   games: TGame[];
   defaultOpen?: boolean;
+  openMenuId: string | null;
+  updateOpenMenuId: (id: string) => void;
 };
 
 export default function CollapsibleList({
   title,
   games,
-  defaultOpen = true,
+  defaultOpen = true,  
+  openMenuId,
+  updateOpenMenuId,
 }: CollapsibleListProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   const toggleCollapse = () => {
     setIsOpen(!isOpen);
+  };
+  const { setCurrentGame } = useGameboy();
+  const navigate = useNavigate();
+  const onClick = (game: TGame) => {
+    setCurrentGame(game);
+    navigate("/emulator");
   };
 
   return (
@@ -33,7 +46,21 @@ export default function CollapsibleList({
       {isOpen && (
         <div className="flex flex-wrap gap-4 py-2 px-5 justify-start w-full">
           {games.length > 0 ? (
-            games.map((game) => <GameCard key={String(game.id)} game={game} />)
+            games.map((game) => (
+              <WithContextMenu
+              key={String(game.id)}
+              menuId={game.id}
+              openMenuId={openMenuId}
+              setOpenMenuId={updateOpenMenuId}
+              game={game}
+              >
+                <GameCard
+                 
+                  game={game}
+                  onClick={() => onClick(game)}
+                />
+              </WithContextMenu>
+            ))
           ) : (
             <p className="text-gray-500">No games in this category</p>
           )}

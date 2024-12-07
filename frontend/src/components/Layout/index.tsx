@@ -16,7 +16,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         menuItems={[
           { label: "Board", to: "/", icon: HomeIcon },
           { label: "Library", to: "/library", icon: LibraryIcon },
-          { label: "Offline Emulator", to: "/offline-emulator", icon: Gamepad },
+          { label: "Offline", to: "/offline-emulator", icon: Gamepad },
           { label: "Options", to: "/options", icon: SettingsIcon },
         ]}
         footer={{
@@ -46,7 +46,7 @@ type NavbarProps = {
 function Navbar({ menuItems, footer }: NavbarProps) {
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 bg-base-background/75 
+      className="fixed bottom-0 left-0 right-0 bg-base-background/90 
       md:static md:w-24 md:h-full 
       flex flex-row md:flex-col 
       justify-between items-center 

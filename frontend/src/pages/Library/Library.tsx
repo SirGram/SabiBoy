@@ -46,6 +46,7 @@ export default function Library() {
                 <GameCard 
                   key={String(game.id)} 
                   game={game} 
+                  onClick={() => setCurrentGame(game)}
                 />
               ))}
             </div>

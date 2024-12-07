@@ -166,7 +166,7 @@ export default function Emulator() {
   );
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-base-background">
+    <div className="flex flex-col items-center justify-center min-h-screen md:p-4 bg-base-background">
       <BackButton />
 
       <div className=" mb-4">
@@ -393,13 +393,15 @@ function ApuInfo({
 }
 
 function BackButton() {
-  //use navigate
   const navigate = useNavigate();
+  const { setCurrentGame } = useGameboy();
   return (
     <div className="absolute top-0 left-0 p-6">
       <button
         className=" text-xl text-white font-bold "
-        onClick={() => navigate("/")}
+        onClick={() =>{ 
+          setCurrentGame(null);
+          navigate("/")}}
       >
         <ChevronLeft />
       </button>

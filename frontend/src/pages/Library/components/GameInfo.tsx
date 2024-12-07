@@ -106,13 +106,20 @@ export default function GameInfo() {
                     ))}
                 </div>
               )}
-            <button
-              onClick={handleClick}
-              className="mb-4 py-2 px-4 rounded-md bg-primary hover:bg-primary-hover transition-colors"
-            >
-              Play Game
-            </button>
-
+            <div className="flex gap-4">
+              <button
+                onClick={handleClick}
+                className="mb-4 py-2 px-4 rounded-md bg-primary hover:bg-primary-hover transition-colors"
+              >
+                Play Game
+              </button>
+              <button
+                onClick={handleClick}
+                className="mb-4 py-2 px-4 rounded-md bg-primary hover:bg-primary-hover transition-colors"
+              >
+                Add to Board
+              </button>
+            </div>
             <div className="mb-4">
               <h3 className="text-xl font-semibold mb-2 flex items-center">
                 <Book className="mr-2 text-blue-600" size={20} /> Description

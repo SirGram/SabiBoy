@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useContext, createContext } from "react";
 
-export 
-const PREDEFINED_PALETTES = [
+export const PREDEFINED_PALETTES = [
   {
     name: "Classic Green",
     colors: [0x9bbc0f, 0x8bac0f, 0x306230, 0x0f380f],
@@ -70,8 +69,8 @@ const DEFAULT_KEY_MAPPING: KeyMapping = {
   [Buttons.LEFT]: { mapped: "ArrowLeft", mask: 0xfd, bit: 1 },
   [Buttons.UP]: { mapped: "ArrowUp", mask: 0xfb, bit: 2 },
   [Buttons.DOWN]: { mapped: "ArrowDown", mask: 0xf7, bit: 3 },
-  [Buttons.B]: { mapped: "z", mask: 0xdf, bit: 5 },
-  [Buttons.A]: { mapped: "x", mask: 0xef, bit: 4 },
+  [Buttons.B]: { mapped: "x", mask: 0xef, bit: 4 },
+  [Buttons.A]: { mapped: "z", mask: 0xdf, bit: 5 },
   [Buttons.SELECT]: { mapped: "Backspace", mask: 0xbf, bit: 6 },
   [Buttons.START]: { mapped: "Enter", mask: 0x7f, bit: 7 },
 };
@@ -82,7 +81,7 @@ type Options = {
   palette: number[];
 };
 
-const DEFAULT_PALETTE = PREDEFINED_PALETTES[0].colors ;
+const DEFAULT_PALETTE = PREDEFINED_PALETTES[0].colors;
 
 const defaultOptions: Options = {
   showFrame: true,
@@ -173,7 +172,7 @@ export const OptionsProvider: React.FC<{ children: React.ReactNode }> = ({
       updateKeyMapping,
       resetToDefaultKeys,
       updatePalette,
-      resetPalette
+      resetPalette,
     }),
     [options]
   );
