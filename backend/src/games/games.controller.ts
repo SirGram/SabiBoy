@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Logger } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Logger,
+  Query,
+} from '@nestjs/common';
 import { GamesService } from './games.service';
 import path from 'path';
 
@@ -15,21 +25,8 @@ export class GamesController {
 
   private readonly logger = new Logger(GamesController.name);
 
-
   @Get()
-  async getAllGames() : Promise<Game[]>{
-    try{
-
-      return await this.gamesService.getAllGames();
-    }catch(err){
-      this.logger.error('Failed to get games:', err);
-      return [];
-   
-    }
+  async getGames(@Query('page') page = 1, @Query('limit') limit = 10, @Query("search")search="") {
+    return this.gamesService.getGamesByPage(Number(page), Number(limit), search);
   }
-  /* @Get(':gameName/rom')
-  async getRom() : {
-
-  } */
-
 }

@@ -3,6 +3,7 @@ import Layout from "../../components/Layout";
 import CollapsibleList from "./components/CollapsibleList";
 import { useGameboy } from "../../context/GameboyContext";
 import GameInfo from "../Library/components/GameInfo";
+import { TPaginatedResponse } from "../Library/Library";
 
 export type TGame = {
   id: string;
@@ -20,9 +21,9 @@ export default function Board() {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const data: TGame[] = await response.json();
+        const data: TPaginatedResponse = await response.json();
         console.log(data);
-        setGames(data);
+        setGames(data.games);
       } catch (error) {
         console.error("Failed to load ROM:", error);
       }

@@ -24,7 +24,7 @@ fn main() {
     let mut gameboy = gameboy_core::gameboy::Gameboy::new(palette);
     gameboy.set_power_up_sequence();
     gameboy.load_rom(include_bytes!(
-        "../../../test/games/the-legend-of-zelda-links-awakening/rom.gb"
+        "../../../games/tennis--1/rom.gb"
     ));
 
    /*  let save_state = std::fs::read("./rom.gb.state").expect("Failed to read state from file");

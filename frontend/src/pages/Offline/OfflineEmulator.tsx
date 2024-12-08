@@ -3,7 +3,6 @@ import Layout from "../../components/Layout";
 import { useGameboy } from "../../context/GameboyContext";
 import Emulator from "../Game/Emulator";
 import { TGame } from "../Library/Library";
-import { useOptions } from "../../context/OptionsContext";
 
 export default function OfflineEmulator() {
   const { currentGame, setCurrentGame } = useGameboy();
@@ -12,7 +11,6 @@ export default function OfflineEmulator() {
   const romInputRef = useRef<HTMLInputElement>(null);
   const stateInputRef = useRef<HTMLInputElement>(null);
   const [gameToLoad, setGameToLoad] = useState<TGame | null>(null);
-  const [stateData, setStateData] = useState<Uint8Array | undefined>(undefined);
 
   const handleRomUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -51,10 +49,7 @@ export default function OfflineEmulator() {
       const arrayBuffer = e.target?.result as ArrayBuffer;
       if (arrayBuffer) {
         try {
-          const loadedStateData = new Uint8Array(arrayBuffer);
-
           setSaveFileName(file.name);
-          setStateData(loadedStateData);
         } catch (error) {
           console.error("Failed to load save state:", error);
           alert(
@@ -71,7 +66,7 @@ export default function OfflineEmulator() {
       setCurrentGame(gameToLoad);
     }
   };
-  useEffect(() => { 
+  useEffect(() => {
     setCurrentGame(null);
   }, []);
 
@@ -108,7 +103,7 @@ export default function OfflineEmulator() {
                   className="bg-secondary hover:bg-secondary text-white font-bold py-2 px-4 rounded"
                   disabled={!romFileName}
                 >
-                  Upload Save State
+                  Upload Save State (.gb.state)
                 </button>
                 <input
                   type="file"

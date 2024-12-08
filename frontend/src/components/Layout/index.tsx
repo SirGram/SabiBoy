@@ -8,6 +8,7 @@ import {
   Gamepad,
   LucideProps,
 } from "lucide-react";
+import packageJson from "../../../package.json";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -21,7 +22,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         ]}
         footer={{
           githubLink: "https://github.com/SirGram/SabiBoy",
-          version: "v0.0",
+          version: packageJson.version,
         }}
       />
       <div className="w-full h-full bg-base-background">{children}</div>

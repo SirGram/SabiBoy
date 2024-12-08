@@ -1,20 +1,15 @@
 services:
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
     ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    environment:
-      - VITE_API_URL=http://backend:3000
+      - "80:80" # Serve on port 80 for production
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
     ports:
-      - "3000:3000"
+      - "3000:3000" # API exposed on port 3000
     volumes:
       - ./backend:/app
-      - ./games:/games
-    environment:
-      - PORT=3000
+      - ./games:/games 

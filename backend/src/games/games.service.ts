@@ -10,14 +10,36 @@ import * as fs from 'fs/promises';
 export class GamesService {
   private readonly logger = new Logger(GamesService.name);
 
-  private readonly gamesPath = path.join(process.cwd(), '..',  'games');
+  private readonly gamesPath = path.join(process.cwd(), '..', 'games');
 
-  async getAllGames(): Promise<Game[]> {
+  async getGamesByPage(
+    page = 1,
+    limit = 10,
+    searchTerm = '',
+  ): Promise<{
+    games: Game[];
+    total: number;
+    page: number;
+    totalPages: number;
+  }> {
     this.logger.log('Getting all games');
     try {
+      const sanitizedLimit = Math.min(Math.max(1, limit), 50);
+      const normalizedSearchTerm = searchTerm.toLowerCase().replace(/\s+/g, '');
+      let allGameFolders = await fs.readdir(this.gamesPath);
+      if (searchTerm) {
+        allGameFolders = allGameFolders.filter((folder) =>
+          folder
+            .toLowerCase()
+            .replace(/\s+/g, '')
+            .includes(normalizedSearchTerm),
+        );
+      }
+      const startIndex = (page - 1) * sanitizedLimit;
+      const endIndex = startIndex + sanitizedLimit;
+      const paginatedGameFolders = allGameFolders.slice(startIndex, endIndex);
       const games: Game[] = [];
-      const gameFolders = await fs.readdir(this.gamesPath);
-      for (const gameFolder of gameFolders) {
+      for (const gameFolder of paginatedGameFolders) {
         const gameFolderPath = path.join(this.gamesPath, gameFolder);
         try {
           const files = await fs.readdir(gameFolderPath);
@@ -27,9 +49,7 @@ export class GamesService {
           const coverPath = coverFile
             ? `api/games/${gameFolder}/${coverFile}`
             : undefined;
-            const romFile = files.find(
-            (file) => file.endsWith('.gb'),
-          );
+          const romFile = files.find((file) => file.endsWith('.gb'));
           const romPath = romFile
             ? `api/games/${gameFolder}/${romFile}`
             : undefined;
@@ -45,10 +65,20 @@ export class GamesService {
         }
       }
 
-      return games;
+      return {
+        games,
+        total: allGameFolders.length,
+        page,
+        totalPages: Math.ceil(allGameFolders.length / sanitizedLimit),
+      };
     } catch (err) {
       this.logger.error('Error reading games directory:', err);
-      return [];
+      return {
+        games: [],
+        total: 0,
+        page: 1,
+        totalPages: 0,
+      };
     }
   }
 }

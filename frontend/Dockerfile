@@ -1,8 +1,12 @@
-FROM node:20-slim
+# Build stage
+FROM node:20-alpine as builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm cache clean --force
-RUN npm install --force
+RUN npm install
 COPY . .
-EXPOSE 5173
-CMD ["npm", "run", "dev"]
+RUN npm run build
+
+# Production stage
+FROM nginx:alpine
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/dist /usr/share/nginx/html

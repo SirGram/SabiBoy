@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { MoreVertical } from "lucide-react"; // Three-dot icon
 import { useClickOutside } from "../../../hooks/hooks";
 import { useGameboy } from "../../../context/GameboyContext";

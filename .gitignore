@@ -5,3 +5,4 @@ output.log
 pkg/
 *.gb
 *.state
+fly.toml
