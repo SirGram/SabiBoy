@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::bus::{io_address::IoRegister, Bus};
 
-use super::{fetcher_sprites::SpriteFetcher, Sprite};
+use super::{fetcher::Fetcher, fetcher_sprites::SpriteFetcher, Sprite};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Pixel {
     color: u8,
@@ -34,6 +34,8 @@ impl Pixel {
 pub struct PixelFifo {
     pub bg_fifo: VecDeque<Pixel>,
     pub sprite_fifo: VecDeque<Pixel>,
+
+    fine_scroll_applied: bool,
 }
 
 impl PixelFifo {
@@ -41,11 +43,14 @@ impl PixelFifo {
         Self {
             bg_fifo: VecDeque::new(),
             sprite_fifo: VecDeque::new(),
+
+            fine_scroll_applied: false,
         }
     }
     pub fn reset(&mut self) {
         self.bg_fifo.clear();
         self.sprite_fifo.clear();
+        self.fine_scroll_applied = false;
     }
     pub fn push_bg_pixels(&mut self, tile_data: [u8; 2]) {
         // Decode 2bpp tile data into 8 pixels
@@ -73,10 +78,24 @@ impl PixelFifo {
             }
         }
     }
-    pub fn pop_pixel(&mut self, bus: &Rc<RefCell<Bus>>) -> Option<u8> {
+    pub fn apply_fine_scroll(&mut self, scx: u8, fetcher: &mut Fetcher) {
+        if !self.fine_scroll_applied {
+            let fine_scroll_offset = (scx & 0x07) as usize;
+
+            for _ in 0..fine_scroll_offset {
+                if !self.bg_fifo.is_empty() {
+                    self.bg_fifo.pop_front();
+                    fetcher.x_pos_counter += 1;
+                }
+            }
+            self.fine_scroll_applied = true; 
+        }
+    }
+    pub fn pop_pixel(&mut self, bus: &Rc<RefCell<Bus>>, fetcher: &mut Fetcher) -> Option<u8> {
         /* if self.bg_fifo.is_empty() {
             return None;
         } */
+       self.apply_fine_scroll(bus.borrow().read_byte(IoRegister::Scx.address()), fetcher);
         let mut bg_pixel = self.bg_fifo.pop_front().unwrap();
         let mut sprite_pixel = self.sprite_fifo.pop_front();
 

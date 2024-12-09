@@ -76,7 +76,7 @@ impl SpriteFetcher {
 
         // Calculate the actual Y line within the tile, handling Y-flip
         let relative_y = ly.wrapping_sub(self.sprite.y_pos);
-        let mut y_line = if y_flip {
+        let y_line = if y_flip {
             (sprite_size as u8 - 1).wrapping_sub(relative_y)
         } else {
             relative_y
@@ -84,11 +84,11 @@ impl SpriteFetcher {
 
         let actual_tile = if sprite_size == 16 {
             // For 8x16 sprites, the top tile is the tile number with bit 0 cleared
-            self.tile_number & !1
+            self.tile_number & 0b11111110
         } else {
             self.tile_number
         };
-        let y_offset = (y_line as u16 & 7) * 2;
+        let y_offset = 2 * (y_line % sprite_size) as u16;
 
         // only 8000 method for sprites
         let base_address = 0x8000 + (actual_tile as u16 * 16);

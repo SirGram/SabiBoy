@@ -27,7 +27,7 @@ pub fn should_add_sprite(sprite: &Sprite, ly: u8, lcdc: u8, buffer_count: usize)
 pub fn should_fetch_sprite(pixel_x_position: i16, buffer: &mut Vec<Sprite>) -> Option<Sprite> {
     if let Some(index) = buffer
         .iter()
-        .position(|sprite| sprite.x_pos as i16 <= (pixel_x_position + 8))
+        .position(|sprite| sprite.x_pos  as i16<= (pixel_x_position + 8) )
     {
         return Some(buffer.remove(index));
     }

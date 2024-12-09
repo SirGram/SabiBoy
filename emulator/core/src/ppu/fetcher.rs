@@ -17,6 +17,7 @@ pub struct Fetcher {
     pub window_line_counter: u16,
     pub pause: bool,
     pub delay: usize,
+    
 }
 impl Fetcher {
     pub fn new() -> Self {
@@ -41,7 +42,7 @@ impl Fetcher {
     pub fn window_trigger(&mut self, pixel_fifo: &mut PixelFifo) {
         self.step = 0;
         self.is_window_fetch = true;
-        self.x_pos_counter = 7; // make up for the -8 offset
+        self.x_pos_counter = 7; 
 
         pixel_fifo.bg_fifo.clear();
     }
@@ -101,7 +102,7 @@ impl Fetcher {
         let tile_x = if self.is_window_fetch {
             self.x_pos_counter / 8
         } else {
-            ((scx as u16 / 8) + (self.x_pos_counter / 8)) & 0x1F
+            ((scx as u16 /8)+ (self.x_pos_counter )/ 8) & 0x1F
         };
 
         // Calculate the address of the tile number in VRAM
@@ -124,9 +125,9 @@ impl Fetcher {
 
         // Calculate the offset within the tile (0-7)
         let y_offset = if self.is_window_fetch {
-            (self.window_line_counter & 7) * 2
+            (self.window_line_counter % 8) * 2
         } else {
-            ((ly as u16 + scy as u16) & 7) * 2
+            ((ly as u16 + scy as u16) % 8) * 2
         };
 
         // LCDC Bit4 selects Tile Data method
@@ -135,7 +136,7 @@ impl Fetcher {
             0x8000 + (tile_number as u16 * 16)
         } else {
             // 8800 method: signed addressing
-            0x9000u16.wrapping_add((tile_number as i8 as i16 * 16) as u16)
+            0x9000u16.wrapping_add((tile_number  as i8 as i16 * 16) as u16)
         };
 
         // Get the correct byte of tile data
