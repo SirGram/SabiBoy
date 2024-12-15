@@ -12,12 +12,12 @@ pub struct Channel4 {
 }
 impl Channel4 {
     /*
-      FF1F ---- ---- Not used
-NR41 FF20 --LL LLLL Length load (64-L)
-NR42 FF21 VVVV APPP Starting volume, Envelope add mode, period
-NR43 FF22 SSSS WDDD Clock shift, Width mode of LFSR, Divisor code
-NR44 FF23 TL-- ---- Trigger, Length enable
-    */
+          FF1F ---- ---- Not used
+    NR41 FF20 --LL LLLL Length load (64-L)
+    NR42 FF21 VVVV APPP Starting volume, Envelope add mode, period
+    NR43 FF22 SSSS WDDD Clock shift, Width mode of LFSR, Divisor code
+    NR44 FF23 TL-- ---- Trigger, Length enable
+        */
     pub fn new() -> Self {
         Self {
             frequency_timer: 0,
@@ -45,12 +45,12 @@ NR44 FF23 TL-- ---- Trigger, Length enable
             let width_mode = nr43 & 0b1000 != 0;
 
             let xor_result = (self.lfsr & 0b01) ^ ((self.lfsr & 0b10) >> 1);
-if width_mode {
-    self.lfsr = (self.lfsr >> 1) & 0x7F;
-    self.lfsr |= (xor_result << 6);
-} else {
-    self.lfsr = (self.lfsr >> 1) | (xor_result << 14);
-}
+            if width_mode {
+                self.lfsr = (self.lfsr >> 1) & 0x7F;
+                self.lfsr |= (xor_result << 6);
+            } else {
+                self.lfsr = (self.lfsr >> 1) | (xor_result << 14);
+            }
         }
     }
     fn calculate_frequency_timer(&self, bus: &mut Bus) -> usize {
@@ -74,13 +74,13 @@ if width_mode {
     pub fn trigger(&mut self, bus: &Bus) {
         // Set LFSR to all 1s
         self.lfsr = 0x7FFF;
-    
+
         let nr42 = bus.read_byte(IoRegister::Nr42.address());
         self.current_volume = (nr42 & 0xF0) >> 4;
-        self.period_timer = nr42 & 0x07;        
+        self.period_timer = nr42 & 0x07;
         if bus.read_byte(IoRegister::Nr44.address()) & 0x40 != 0 {
             self.length_timer = 64 - (bus.read_byte(IoRegister::Nr41.address()) & 0x3F);
-        }    
+        }
         self.disabled = false;
     }
     pub fn sample(&self) -> f32 {

@@ -1,7 +1,7 @@
-mod fetcher;
-mod fetcher_sprites;
+pub mod fetcher;
+pub mod fetcher_sprites;
 mod helper;
-mod pixelfifo;
+pub mod pixelfifo;
 
 use crate::bus::{io_address::IoRegister, Bus};
 use fetcher::Fetcher;
@@ -51,29 +51,37 @@ pub struct PPU {
     x_render_counter: i16,
     window_line_counter_incremented_this_scanline: bool,
     new_frame: bool,
+    debug_config: DebugConfig,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct PPUState {
-    mode: PPUMode,
-    mode_cycles: usize,
-    sprite_buffer: Vec<Sprite>,
-    fetcher: Fetcher,
-    sprite_fetcher: SpriteFetcher,
-    pixel_fifo: PixelFifo,
-    window_triggered_this_frame: bool,
-    previous_stat_conditions: u8,
-    x_render_counter: i16,
-    window_line_counter_incremented_this_scanline: bool,
-    new_frame: bool,
+    pub mode: PPUMode,
+    pub mode_cycles: usize,
+    pub sprite_buffer: Vec<Sprite>,
+    pub fetcher: Fetcher,
+    pub sprite_fetcher: SpriteFetcher,
+    pub pixel_fifo: PixelFifo,
+    pub window_triggered_this_frame: bool,
+    pub previous_stat_conditions: u8,
+    pub x_render_counter: i16,
+    pub window_line_counter_incremented_this_scanline: bool,
+    pub new_frame: bool,
+    pub debug_config: DebugConfig,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Copy)]
+pub struct DebugConfig {
+    pub sprite_debug_enabled: bool,
+    pub window_debug_enabled: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-struct Sprite {
-    y_pos: u8,
-    x_pos: u8,
-    tile_number: u8,
-    flags: u8,
+pub struct Sprite {
+    pub y_pos: u8,
+    pub x_pos: u8,
+    pub tile_number: u8,
+    pub flags: u8,
 }
 impl Sprite {
     pub fn new() -> Self {
@@ -90,6 +98,10 @@ impl PPU {
     /* https://hacktix.github.io/GBEDG/ppu/
      */
     pub fn new(bus: Rc<RefCell<Bus>>, palette: [u32; 4]) -> Self {
+        let debug_config = DebugConfig {
+            sprite_debug_enabled: true,
+            window_debug_enabled: true,
+        };
         Self {
             palette: palette,
             buffer: vec![0; SCREEN_WIDTH as usize * SCREEN_HEIGHT as usize],
@@ -105,6 +117,8 @@ impl PPU {
             x_render_counter: -8,
             window_line_counter_incremented_this_scanline: false,
             new_frame: false,
+            debug_config: debug_config,
+
         }
     }
     pub fn save_state(&self) -> PPUState {
@@ -121,6 +135,7 @@ impl PPU {
             window_line_counter_incremented_this_scanline: self
                 .window_line_counter_incremented_this_scanline,
             new_frame: self.new_frame,
+            debug_config: self.debug_config,
         }
     }
     pub fn load_state(&mut self, state: PPUState, bus: Rc<RefCell<Bus>>) {
@@ -138,8 +153,17 @@ impl PPU {
         self.new_frame = state.new_frame;
         self.bus = bus;
     }
+    pub fn toggle_sprite_debug_mode(&mut self, enabled: bool) {
+        self.debug_config.sprite_debug_enabled = enabled;
+    }
+
+    // New method to enable/disable window debug mode
+    pub fn toggle_window_debug_mode(&mut self, enabled: bool) {
+        self.debug_config.window_debug_enabled = enabled;
+    }
 
     fn check_window(&mut self) -> bool {
+        if !self.debug_config.window_debug_enabled {return false;}
         /*
         Bit 5 of the LCDC register is set to 1
         The condition WY = LY has been true at any point in the currently rendered frame.
@@ -328,7 +352,7 @@ impl PPU {
         }
 
         // Check sprites
-        if !self.sprite_fetcher.active {
+        if !self.sprite_fetcher.active && self.debug_config.sprite_debug_enabled {
             /*  println!("sprite fetch "); */
 
             if let Some(sprite) =

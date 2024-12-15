@@ -108,7 +108,7 @@ function NavItem({ label, to, Icon }: NavItemProps) {
       <Icon
         className={`w-6 h-6 md:w-7 md:h-7 transition-all duration-300 transform group-hover:scale-110 ${
           isActive
-            ? "text-blue-500"
+            ? "text-primary"
             : "text-base-foreground group-hover:text-primary"
         }`}
       />

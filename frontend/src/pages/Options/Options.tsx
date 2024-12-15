@@ -12,6 +12,7 @@ export default function Options() {
     toggleShowFrame,
     updatePalette,
     resetPalette,
+    toggleDebug,
   } = useOptions();
   const [editingButton, setEditingButton] = useState<Buttons | null>(null);
   const [newKey, setNewKey] = useState("");
@@ -82,17 +83,29 @@ export default function Options() {
 
   return (
     <Layout>
-      <div className="flex flex-col gap-4 h-full items-center py-20 max-w-md mx-auto">
+      <div className="flex flex-col gap-4 h-full items-center py-20 max-w-md mx-auto ">
         <h1 className="text-2xl font-bold mb-6">Emulator Settings</h1>
 
         {/* Frame Toggle */}
-        <div className="w-full flex justify-between items-center border-b pb-4 mb-4">
+        <div className="w-full flex justify-between items-center border-base-border border-b   pb-4 mb-4">
           <label className="flex justify-between space-x-2 w-full">
             <span>Show Gameboy Frame</span>
             <input
               type="checkbox"
               checked={options.showFrame}
               onChange={toggleShowFrame}
+              className="size-6"
+            />
+          </label>
+        </div>
+        {/* Debug */}
+        <div className="w-full flex justify-between items-center border-base-border border-b pb-4 mb-4">
+          <label className="flex justify-between space-x-2 w-full">
+            <span>Debug Mode</span>
+            <input
+              type="checkbox"
+              checked={options.debug}
+              onChange={toggleDebug}
               className="size-6"
             />
           </label>
@@ -104,7 +117,7 @@ export default function Options() {
           {Object.entries(options.keys).map(([button, mapping]) => (
             <div
               key={button}
-              className="flex justify-between items-center border-b py-2 h-12"
+              className="flex justify-between items-center border-base-border border-b py-2 h-12"
             >
               <span className="font-medium">{button}</span>
               {editingButton === button ? (
@@ -135,7 +148,7 @@ export default function Options() {
                   <span>{mapping.mapped.toUpperCase()}</span>
                   <button
                     onClick={() => handleKeyEdit(button as Buttons)}
-                    className="text-gray-500 hover:bg-gray-100 p-1 rounded"
+                    className="text-muted hover:bg-muted p-1 rounded"
                   >
                     <EditIcon size={16} />
                   </button>
@@ -171,7 +184,7 @@ export default function Options() {
                     type="color"
                     value={`#${color.toString(16).padStart(6, "0")}`}
                     onChange={(e) => handleColorChange(index, e.target.value)}
-                    className="w-16 h-10"
+                    className="w-16 h-10 bg-transparent"
                   />
                   <span className="">{`#${color
                     .toString(16)
@@ -182,13 +195,13 @@ export default function Options() {
             <div className="flex justify-between flex-col gap-2">
               <button
                 onClick={() => updatePalette(localPalette)}
-                className=" bg-primary text-white px-4 py-2 rounded hover:bg-primary-hover transition"
+                className=" bg-primary  px-4 py-2 rounded hover:bg-primary-hover transition"
               >
                 Save Palette
               </button>
               <button
                 onClick={() => resetPalette()}
-                className=" bg-destructive text-white px-4 py-2 rounded hover:bg-destructive-hover transition"
+                className=" bg-destructive  px-4 py-2 rounded hover:bg-destructive-hover transition"
               >
                 Reset Palette
               </button>
@@ -197,7 +210,7 @@ export default function Options() {
         </div>
         {/* Predefined Palettes Section */}
         <div className="w-full">
-          <h3 className="text-lg font-semibold mb-3">Predefined Palettes</h3>
+          <h2 className="text-xl font-semibold mb-3">Predefined Palettes</h2>
           <div className="grid grid-cols-5 w-full  gap-2">
             {PREDEFINED_PALETTES.map((palette) => (
               <button
@@ -212,7 +225,7 @@ export default function Options() {
                   {palette.colors.map((color, index) => (
                     <div
                       key={index}
-                      className="w-4 h-4 border border-white"
+                      className="w-4 h-4 "
                       style={{
                         backgroundColor: `#${color
                           .toString(16)

@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <style>
+    :root {
+      --favicon-stroke: #8f2525;
+      --favicon-background: #ffffff00;
+    }
+  </style>
+  
+  <!-- Device body outline -->
+  <rect x="10" y="10" width="80" height="120" rx="15" ry="15" 
+        fill="var(--favicon-background)" 
+        stroke="var(--favicon-stroke)" 
+        stroke-width="4"/>
+  
+  <!-- Screen area outline -->
+  <rect x="20" y="25" width="60" height="50" rx="5" ry="5" 
+        fill="var(--favicon-background)" 
+        stroke="var(--favicon-stroke)" 
+        stroke-width="4"/>
+  
+  <!-- D-pad outline -->
+  <rect x="25" y="85" width="20" height="20" 
+        fill="var(--favicon-background)" 
+        stroke="var(--favicon-stroke)" 
+        stroke-width="4"/>
+  
+  <!-- Single A/B button as a circle -->
+  <circle cx="65" cy="95" r="10" 
+          fill="var(--favicon-background)" 
+          stroke="var(--favicon-stroke)" 
+          stroke-width="4"/>
+</svg>

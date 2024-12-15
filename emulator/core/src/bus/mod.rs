@@ -25,27 +25,27 @@ pub struct BusState {
     pub joypad: Joypad,
 
     #[serde(with = "serde_arrays")]
-    oam: [u8; 0xA0],
+    pub oam: [u8; 0xA0],
 
     #[serde(with = "serde_arrays")]
-    io_registers: [u8; 0x7F],
+    pub io_registers: [u8; 0x7F],
 
     #[serde(with = "serde_arrays")]
-    hram: [u8; 0x7F],
+    pub hram: [u8; 0x7F],
 
-    ie_register: u8,
-
-    #[serde(with = "serde_arrays")]
-    vram: [u8; 0x2000],
+    pub ie_register: u8,
 
     #[serde(with = "serde_arrays")]
-    ram_bank_0: [u8; 0x1000],
+    pub vram: [u8; 0x2000],
 
     #[serde(with = "serde_arrays")]
-    ram_bank_n: [u8; 0x1000],
+    pub ram_bank_0: [u8; 0x1000],
 
     #[serde(with = "serde_arrays")]
-    debug: [u8; 0x100],
+    pub ram_bank_n: [u8; 0x1000],
+
+    #[serde(with = "serde_arrays")]
+    pub debug: [u8; 0x100],
 
     pub mbc: MbcTypeState,
 }

@@ -12,8 +12,8 @@ pub struct Timer {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TimerState {
-    div_counter: usize,
-    tima_counter: usize,
+    pub div_counter: usize,
+    pub tima_counter: usize,
 }
 impl Timer {
     pub fn new(bus: Rc<RefCell<Bus>>) -> Self {

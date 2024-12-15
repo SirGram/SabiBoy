@@ -17,3 +17,16 @@ export function useClickOutside(
     };
   }, [ref, onClose]);
 }
+
+export function usePreventDefaultTouch() {
+  useEffect(() => {
+    // Prevent default touch behavior on mobile devices
+    const preventDefaultTouch = (e: TouchEvent) => e.preventDefault();
+    window.addEventListener("touchmove", preventDefaultTouch, {
+      passive: false,
+    });
+    return () => {
+      window.removeEventListener("touchmove", preventDefaultTouch);
+    };
+  }, []);
+}

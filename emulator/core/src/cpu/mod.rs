@@ -25,7 +25,7 @@ pub struct CPUState {
     pub e: u8,
     pub h: u8,
     pub l: u8,
-    pub f: Flags,
+    pub f: u8,
     pub sp: u16,
     pub pc: u16,
     pub ime: bool,
@@ -91,7 +91,7 @@ impl CPU {
             e: self.e,
             h: self.h,
             l: self.l,
-            f: self.f.clone(),
+            f: self.f.bits(),
             sp: self.sp,
             pc: self.pc,
             ime: self.ime,
@@ -109,7 +109,7 @@ impl CPU {
         self.e = state.e;
         self.h = state.h;
         self.l = state.l;
-        self.f = state.f;
+        self.f = Flags::from(state.f);
         self.sp = state.sp;
         self.pc = state.pc;
         self.ime = state.ime;

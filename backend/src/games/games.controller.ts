@@ -11,13 +11,9 @@ import {
 } from '@nestjs/common';
 import { GamesService } from './games.service';
 import path from 'path';
+import { CreateGameDto } from './dto/create-game.dto';
 
-export interface Game {
-  id: string;
-  name: string;
-  coverPath?: string;
-  romPath?: string;
-}
+
 
 @Controller('games')
 export class GamesController {
@@ -26,7 +22,21 @@ export class GamesController {
   private readonly logger = new Logger(GamesController.name);
 
   @Get()
-  async getGames(@Query('page') page = 1, @Query('limit') limit = 10, @Query("search")search="") {
-    return this.gamesService.getGamesByPage(Number(page), Number(limit), search);
+  async getGamesList(
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+    @Query('search') search = ''
+  ) {
+    return this.gamesService.getGamesList(page, limit, search);
+  }
+
+  @Get(':slug')
+  async getGameDetails(@Param('slug') slug: string) {
+    return this.gamesService.getGameDetails(slug);
+  }
+
+  @Post()
+  create(@Body() createGameDto: CreateGameDto) {
+    return this.gamesService.create(createGameDto);
   }
 }

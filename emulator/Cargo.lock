@@ -367,6 +367,7 @@ name = "gameboy_wasm"
 version = "0.1.0"
 dependencies = [
  "gameboy_core",
+ "serde",
  "wasm-bindgen",
  "web-sys",
 ]

@@ -167,7 +167,7 @@ const GameboyDisplay = ({
   return (
     <canvas
       ref={canvasRef}
-      className=" h-full w-full "
+      className="w-full h-full"
       style={{
         imageRendering: "pixelated",
         backgroundColor: "#000000",

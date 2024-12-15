@@ -6,13 +6,14 @@ import {
   useState,
 } from "react";
 import { GameboyWasm } from "../wasm/pkg/gameboy_wasm";
-import { TGame } from "../pages/Library/Library";
+import { TGame, TGameDetails } from "../pages/Library/Library";
+
 
 const GameboyContext = createContext<{
   gameboy: GameboyWasm | null;
   initGameboy: (romData: Uint8Array, palette: number[], saveStateData?: Uint8Array) => void;
-  currentGame: TGame | null;
-  setCurrentGame: (game: TGame | null) => void;
+  currentGame: TGameDetails | null;
+  setCurrentGame: (game: TGameDetails | null) => void;
 }>({
   gameboy: null,
   initGameboy: () => {},
@@ -23,7 +24,7 @@ export const GameboyProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [gameboy, setGameboy] = useState<GameboyWasm | null>(null);
-  const [currentGame, setCurrentGame] = useState<TGame | null>(null);
+  const [currentGame, setCurrentGame] = useState<TGameDetails | null>(null);
 
   const initGameboy = useCallback((romData: Uint8Array, palette: number[], saveStateData?: Uint8Array) => {
     // Create new gameboy instance

@@ -30,13 +30,16 @@ pub struct APU {
 
     cycle_sample_counter: usize,
     samples: Vec<f32>,
-    enabled: bool,
+    pub enabled: bool,
 
     pub current_ch1_output: f32,
     pub current_ch2_output: f32,
     pub current_ch3_output: f32,
-    pub  current_ch4_output: f32,
-
+    pub current_ch4_output: f32,
+    pub ch1_enabled: bool,
+    pub ch2_enabled: bool,
+    pub ch3_enabled: bool,
+    pub ch4_enabled: bool,
 }
 impl APU {
     pub fn new(bus: Rc<RefCell<Bus>>) -> Self {
@@ -51,6 +54,10 @@ impl APU {
             cycle_sample_counter: 0,
             samples: Vec::new(),
             enabled: true,
+            ch1_enabled: true,
+            ch2_enabled: true,
+            ch3_enabled: true,
+            ch4_enabled: true,
             current_ch1_output: 0.0,
             current_ch2_output: 0.0,
             current_ch3_output: 0.0,
@@ -59,6 +66,15 @@ impl APU {
     }
     pub fn toggle_audio(&mut self) {
         self.enabled = !self.enabled;
+    }
+    pub fn toggle_channel(&mut self, channel: u8) {
+        match channel {
+            1 => self.ch1_enabled = !self.ch1_enabled,
+            2 => self.ch2_enabled = !self.ch2_enabled,
+            3 => self.ch3_enabled = !self.ch3_enabled,
+            4 => self.ch4_enabled = !self.ch4_enabled,
+            _ => {}
+        }
     }
     pub fn tick(&mut self) {
         if !self.enabled {
@@ -80,14 +96,24 @@ impl APU {
         }
         self.cycle_sample_counter += 1;
     }
-    // Example of a more efficient sample retrieval
     pub fn get_samples(&mut self) -> Vec<f32> {
         const SAMPLE_BUFFER_SIZE: usize = 1600;
-        let samples = self
-            .samples
-            .drain(..self.samples.len().min(SAMPLE_BUFFER_SIZE))
-            .collect();
-        self.samples.clear();
+        
+        // Preallocate to avoid repeated allocations
+        let mut samples = Vec::with_capacity(SAMPLE_BUFFER_SIZE);
+        
+        // Drain samples more efficiently
+        samples.extend(
+            self.samples
+                .drain(..)
+                .take(SAMPLE_BUFFER_SIZE)
+        );
+        
+        // Pad with silence if needed
+        if samples.len() < SAMPLE_BUFFER_SIZE {
+            samples.resize(SAMPLE_BUFFER_SIZE, 0.0);
+        }
+        
         samples
     }
     fn generate_sample(&mut self) {
@@ -105,10 +131,10 @@ impl APU {
             return;
         }
 
-        let ch1_sample = self.channel1.sample(bus);
-        let ch2_sample = self.channel2.sample(bus);
-        let ch3_sample = self.channel3.sample(bus);
-        let ch4_sample = self.channel4.sample();
+        let ch1_sample = if self.ch1_enabled { self.channel1.sample(bus) } else { 0.0 };
+        let ch2_sample = if self.ch2_enabled { self.channel2.sample(bus) } else { 0.0 };
+        let ch3_sample = if self.ch3_enabled { self.channel3.sample(bus) } else { 0.0 };
+        let ch4_sample = if self.ch4_enabled { self.channel4.sample() } else { 0.0 };
 
         // Panning for left and right channels
         let mut left_amplitude = 0.0;
@@ -130,7 +156,7 @@ impl APU {
         }
         if nr51 & 0b00000100 != 0 {
             right_amplitude += ch3_sample;
-        } 
+        }
         if nr51 & 0b10000000 != 0 {
             left_amplitude += ch4_sample;
         }
@@ -151,10 +177,10 @@ impl APU {
         self.samples.push(right_sample);
 
         // debug
-       /*  self.current_ch1_output = ch1_sample ;
+        self.current_ch1_output = ch1_sample ;
         self.current_ch2_output = ch2_sample ;
         self.current_ch3_output = ch3_sample ;
-        self.current_ch4_output = ch4_sample ; */
+        self.current_ch4_output = ch4_sample ; 
     }
     fn update_lengths(&mut self) {
         self.channel1.update_length(&self.bus.borrow());

@@ -10,6 +10,7 @@ crate-type = ["cdylib", "lib"]
 gameboy_core = { path = "../core" }
 wasm-bindgen = { version = "0.2" }
 web-sys = { version = "0.3", features = ["ImageData"] }
+serde = { version = "1.0", features = ["derive"] }
 
 [profile.release]
 lto = true

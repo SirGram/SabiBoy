@@ -24,10 +24,10 @@ impl JoyPadKey {
         }
     }
 }
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Copy)]
 pub struct Joypad {
-    keys: u8,
-    register: u8,
+    pub keys: u8,
+    pub register: u8,
 }
 
 impl Joypad {

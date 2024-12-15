@@ -1,4 +1,10 @@
-import React, { useState, useMemo, useContext, createContext } from "react";
+import React, {
+  useState,
+  useMemo,
+  useContext,
+  createContext,
+  useEffect,
+} from "react";
 
 export const PREDEFINED_PALETTES = [
   {
@@ -79,6 +85,7 @@ type Options = {
   showFrame: boolean;
   keys: KeyMapping;
   palette: number[];
+  debug: boolean;
 };
 
 const DEFAULT_PALETTE = PREDEFINED_PALETTES[0].colors;
@@ -87,12 +94,14 @@ const defaultOptions: Options = {
   showFrame: true,
   keys: DEFAULT_KEY_MAPPING,
   palette: DEFAULT_PALETTE,
+  debug: false,
 };
 
 const OptionsContext = createContext<{
   options: Options;
   setOptions: React.Dispatch<React.SetStateAction<Options>>;
   toggleShowFrame: () => void;
+  toggleDebug: () => void;
   updateKeyMapping: (button: Buttons, newKey: string) => void;
   resetToDefaultKeys: () => void;
   updatePalette: (newPalette: number[]) => void;
@@ -101,21 +110,54 @@ const OptionsContext = createContext<{
   options: defaultOptions,
   setOptions: () => {},
   toggleShowFrame: () => {},
+  toggleDebug: () => {},
   updateKeyMapping: () => {},
   resetToDefaultKeys: () => {},
   updatePalette: () => {},
   resetPalette: () => {},
 });
 
+const LOCAL_STORAGE_KEY = "sabiboy-options";
+
 export const OptionsProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [options, setOptions] = useState<Options>(defaultOptions);
+  const loadOptions = (): Options => {
+    try {
+      const storedOptions = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (storedOptions) {
+        return JSON.parse(storedOptions);
+      }
+    } catch (error) {
+      console.error("Failed to load options from localStorage:", error);
+    }
+    return defaultOptions;
+  };
+  const [options, setOptions] = useState<Options>(loadOptions);
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(options));
+    } catch (error) {
+      console.error("Failed to save options to localStorage:", error);
+    }
+  }, [options]);
 
   const toggleShowFrame = () => {
+    let newShowFrameValue = options.debug
+      ? options.showFrame
+      : !options.showFrame;
+
     setOptions((prev) => ({
       ...prev,
-      showFrame: !prev.showFrame,
+      showFrame: newShowFrameValue,
+    }));
+  };
+  const toggleDebug = () => {
+    let newShowFrameValue = options.debug ? true : false;
+    setOptions((prev) => ({
+      ...prev,
+      debug: !prev.debug,
+      showFrame: newShowFrameValue,
     }));
   };
 
@@ -169,6 +211,7 @@ export const OptionsProvider: React.FC<{ children: React.ReactNode }> = ({
       options,
       setOptions,
       toggleShowFrame,
+      toggleDebug,
       updateKeyMapping,
       resetToDefaultKeys,
       updatePalette,

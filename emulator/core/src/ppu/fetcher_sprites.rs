@@ -5,12 +5,12 @@ use crate::bus::{self, io_address::IoRegister};
 use std::{cell::RefCell, rc::Rc};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SpriteFetcher {
-    step: u8,
+    pub step: u8,
     tile_number: u8,
     tile_data_low: u8,
     tile_data_high: u8,
     pub active: bool,
-    remaining_pixels: u8,
+    pub remaining_pixels: u8,
     pub sprite: Sprite,
 }
 impl SpriteFetcher {

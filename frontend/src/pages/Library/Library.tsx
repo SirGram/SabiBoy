@@ -1,19 +1,25 @@
 import { useEffect, useState } from "react";
 import GameCard from "./components/GameCard";
 import Layout from "../../components/Layout";
-import {
-  ChevronRight,
-  SearchIcon,
-} from "lucide-react";
+import { ChevronRight, SearchIcon } from "lucide-react";
 import GameInfo from "./components/GameInfo";
 import { useGameboy } from "../../context/GameboyContext";
 import Pagination from "./components/Pagination";
 
 export type TGame = {
-  id: string;
+  slug: string;
   name: string;
   coverPath?: string;
+};
+export type TGameDetails = TGame & {
   romPath?: string;
+  screenshotPaths: string[];
+  description?: string;
+  originalTitle?: string;
+  rating?: number;
+  releaseDate?: string; // Use string to handle date from JSON
+  developers?: string[];
+  genres?: string[];
 };
 export type TPaginatedResponse = {
   games: TGame[];
@@ -78,6 +84,20 @@ export default function Library() {
     setLimit(newLimit);
     loadGames(1, searchTerm, newLimit);
   };
+  const handleGameSelect = async (slug: string) => {
+    try {
+      const response = await fetch(`/api/games/${slug}`);
+      console.log("Response:", response);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const gameDetails: TGameDetails = await response.json();
+
+      setCurrentGame(gameDetails);
+    } catch (error) {
+      console.error("Failed to load game details:", error);
+    }
+  };
 
   return (
     <Layout>
@@ -110,9 +130,9 @@ export default function Library() {
             <div className="flex flex-wrap gap-4 pt-10 justify-center w-full">
               {games.map((game) => (
                 <GameCard
-                  key={String(game.id)}
+                  key={String(game.slug)}
                   game={game}
-                  onClick={() => setCurrentGame(game)}
+                  onClick={() => handleGameSelect(game.slug)}
                 />
               ))}
             </div>
@@ -125,7 +145,7 @@ export default function Library() {
             )}
           </div>
         ) : (
-          <GameInfo />
+          <GameInfo  />
         )}
       </div>
     </Layout>

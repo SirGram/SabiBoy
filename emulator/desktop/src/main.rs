@@ -27,10 +27,10 @@ fn main() {
         "../../../games/tennis--1/rom.gb"
     ));
 
-   /*  let save_state = std::fs::read("./rom.gb.state").expect("Failed to read state from file");
+    /*   let save_state = std::fs::read("./rom.gb.state").expect("Failed to read state from file");
      gameboy
     .load_state(save_state)
-    .expect("Failed to load state");  */
+    .expect("Failed to load state");   */
 
     // Setup audio
     let audio_output = AudioOutput::new().expect("Failed to initialize audio");
@@ -158,7 +158,7 @@ impl AudioOutput {
 
         // Configure stream parameters
         let sample_rate = 48_000;
-        let buffer_size = 800;
+        let buffer_size = 1600;
 
         // Create thread-safe sample buffer
         let samples = Arc::new(Mutex::new(Vec::new()));

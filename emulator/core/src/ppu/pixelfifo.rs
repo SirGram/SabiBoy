@@ -5,12 +5,12 @@ use serde::{Deserialize, Serialize};
 use crate::bus::{io_address::IoRegister, Bus};
 
 use super::{fetcher::Fetcher, fetcher_sprites::SpriteFetcher, Sprite};
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Copy)]
 pub struct Pixel {
-    color: u8,
-    sprite_priority: bool, // CGB relevant
-    bg_priority: bool,
-    palette: bool, // CGB: 0-7 | DMG: false = OBP0, true = OBP1
+    pub color: u8,
+    pub sprite_priority: bool, // CGB relevant
+    pub bg_priority: bool,
+    pub palette: bool, // CGB: 0-7 | DMG: false = OBP0, true = OBP1
 }
 impl Pixel {
     pub fn new_bg_sprite(color: u8) -> Self {
