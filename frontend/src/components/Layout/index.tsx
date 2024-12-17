@@ -25,7 +25,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           version: packageJson.version,
         }}
       />
-      <div className="w-full h-full bg-base-background">{children}</div>
+      <div className="w-full h-full bg-base-background overflow-y-auto">{children}</div>
     </div>
   );
 }
@@ -47,7 +47,7 @@ type NavbarProps = {
 function Navbar({ menuItems, footer }: NavbarProps) {
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 bg-base-background/90 
+      className="fixed h-screen bottom-0 left-0 right-0 bg-base-background/90 
       md:static md:w-24 md:h-full 
       flex flex-row md:flex-col 
       justify-between items-center 

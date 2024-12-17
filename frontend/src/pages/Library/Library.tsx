@@ -1,10 +1,13 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import GameCard from "./components/GameCard";
 import Layout from "../../components/Layout";
 import { ChevronRight, SearchIcon } from "lucide-react";
 import GameInfo from "./components/GameInfo";
 import { useGameboy } from "../../context/GameboyContext";
 import Pagination from "./components/Pagination";
+import { useOptions } from "../../context/OptionsContext";
+import { debounce } from "../../utils/utils";
+import { useAuth } from "../../context/AuthContext";
 
 export type TGame = {
   slug: string;
@@ -17,7 +20,7 @@ export type TGameDetails = TGame & {
   description?: string;
   originalTitle?: string;
   rating?: number;
-  releaseDate?: string; // Use string to handle date from JSON
+  releaseDate?: string;
   developers?: string[];
   genres?: string[];
 };
@@ -31,7 +34,7 @@ export type TPaginatedResponse = {
 export default function Library() {
   const [games, setGames] = useState<TGame[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [limit, setLimit] = useState(10);
+  const { options, cycleLimitOptions } = useOptions();
   const [pagination, setPagination] = useState<{
     page: number;
     total: number;
@@ -41,15 +44,21 @@ export default function Library() {
     total: 0,
     totalPages: 0,
   });
+  const { fetchWithAuth } = useAuth();
 
-  const loadGames = async (page = 1, search = "", limit = 10) => {
+  const loadGames = async (
+    page = 1,
+    search = "",
+    limit = options.limitOptions
+  ) => {
     try {
       const url = new URL("/api/games", window.location.origin);
       url.searchParams.set("page", page.toString());
       url.searchParams.set("search", search);
       url.searchParams.set("limit", limit.toString());
 
-      const response = await fetch(url.toString());
+      const response = await fetchWithAuth(url.toString());
+      console.log(response);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -65,28 +74,41 @@ export default function Library() {
     }
   };
 
+  const debouncedLoadGames = useCallback(
+    debounce(() => {
+      loadGames(pagination.page, searchTerm, options.limitOptions);
+      setCurrentGame(null);
+    }, 300), // to avoid spamming the server
+    [options.limitOptions, searchTerm, pagination.page]
+  );
   useEffect(() => {
-    loadGames();
-    setCurrentGame(null);
-  }, []);
+    if (pagination.page > 0 && options.limitOptions > 0) {
+      debouncedLoadGames();
+    }
+  }, [options.limitOptions, searchTerm, pagination.page, debouncedLoadGames]);
 
   const { currentGame, setCurrentGame } = useGameboy();
+
   const handlePageChange = (newPage: number) => {
-    loadGames(newPage, searchTerm);
+    if (newPage > 0 && newPage <= pagination.totalPages) {
+      setPagination((prevPagination) => ({
+        ...prevPagination,
+        page: newPage,
+      }));
+    }
   };
+
   const handleSearch = (term: string) => {
     setSearchTerm(term);
-    loadGames(1, term);
   };
-  const limitOptions = [10, 20, 50];
+
   const handleLimitChange = () => {
-    const newLimit = limitOptions[(limitOptions.indexOf(limit) + 1) % 3];
-    setLimit(newLimit);
-    loadGames(1, searchTerm, newLimit);
+    cycleLimitOptions();
   };
+
   const handleGameSelect = async (slug: string) => {
     try {
-      const response = await fetch(`/api/games/${slug}`);
+      const response = await fetchWithAuth(`/api/games/${slug}`);
       console.log("Response:", response);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -98,6 +120,7 @@ export default function Library() {
       console.error("Failed to load game details:", error);
     }
   };
+  console.log(options.limitOptions);
 
   return (
     <Layout>
@@ -115,9 +138,9 @@ export default function Library() {
                            cursor-pointer group"
                 onClick={handleLimitChange}
               >
-                <div className="flex  items-center text-cente gap-1">
+                <div className="flex items-center text-center gap-1">
                   <span className="text-sm font-medium " title="Limit">
-                    {limit}
+                    {options.limitOptions}
                   </span>
                   <ChevronRight
                     size={16}
@@ -145,7 +168,7 @@ export default function Library() {
             )}
           </div>
         ) : (
-          <GameInfo  />
+          <GameInfo />
         )}
       </div>
     </Layout>

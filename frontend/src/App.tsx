@@ -6,22 +6,27 @@ import Options from "./pages/Options/Options";
 import { OptionsProvider } from "./context/OptionsContext";
 import Board from "./pages/Board/Board";
 import OfflineEmulator from "./pages/Offline/OfflineEmulator";
+import Login from "./pages/Login/Login";
+import { AuthProvider } from "./context/AuthContext";
 
 function App() {
   return (
-    <OptionsProvider>
-      <GameboyProvider>
-        <Router>
-          <Routes>
-            <Route path="/" element={<Board />} />
-            <Route path="/library" element={<Library />} />
-            <Route path="/options" element={<Options />} />
-            <Route path="/emulator" element={<Emulator />} />
-            <Route path="/offline-emulator" element={<OfflineEmulator />} />
-          </Routes>
-        </Router>
-      </GameboyProvider>
-    </OptionsProvider>
+    <AuthProvider>
+      <OptionsProvider>
+        <GameboyProvider>
+          <Router>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/" element={<Board />} />
+              <Route path="/library" element={<Library />} />
+              <Route path="/options" element={<Options />} />
+              <Route path="/emulator" element={<Emulator />} />
+              <Route path="/offline-emulator" element={<OfflineEmulator />} />
+            </Routes>
+          </Router>
+        </GameboyProvider>
+      </OptionsProvider>
+    </AuthProvider>
   );
 }
 

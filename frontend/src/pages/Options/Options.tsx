@@ -3,6 +3,8 @@ import { EditIcon, SaveIcon, XIcon } from "lucide-react";
 import Layout from "../../components/Layout";
 import { PREDEFINED_PALETTES, useOptions } from "../../context/OptionsContext";
 import { Buttons } from "../../context/OptionsContext"; // Adjust import path
+import { useAuth } from "../../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 export default function Options() {
   const {
@@ -13,7 +15,9 @@ export default function Options() {
     updatePalette,
     resetPalette,
     toggleDebug,
+
   } = useOptions();
+  const { logout } = useAuth();
   const [editingButton, setEditingButton] = useState<Buttons | null>(null);
   const [newKey, setNewKey] = useState("");
 
@@ -79,6 +83,12 @@ export default function Options() {
   const handlePredefinedPaletteSelect = (palette: number[]) => {
     setLocalPalette(palette);
     updatePalette(palette);
+  };
+  
+  const navigate = useNavigate();
+  const handleLogOut = () => {
+    logout();
+    navigate("/login");
   };
 
   return (
@@ -236,6 +246,18 @@ export default function Options() {
                 </div>
               </button>
             ))}
+          </div>
+        </div>
+        {/* Account Management */}
+        <div className="w-full">
+          <h2 className="text-xl font-semibold mb-3">Account Management</h2>
+          <div className="flex flex-col gap-4 w-full">
+            <button
+              onClick={() => handleLogOut()}
+              className="bg-destructive text-white px-4 py-2 rounded hover:bg-destructive-hover transition"
+            >
+              Log Out
+            </button>
           </div>
         </div>
       </div>

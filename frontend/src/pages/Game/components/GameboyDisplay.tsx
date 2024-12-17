@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { CartridgeHeaderState } from "../Emulator";
 import { useGameboy } from "../../../context/GameboyContext";
 import { useOptions } from "../../../context/OptionsContext";
+import { useAuth } from "../../../context/AuthContext";
 
 type GameboyDisplayProps = {
   setFps: React.Dispatch<React.SetStateAction<number>>;
@@ -113,6 +114,7 @@ const GameboyDisplay = ({
       }
     }
   }, [gameboy, isGameboyPaused]);
+  const { fetchWithAuth } = useAuth();
 
   useEffect(() => {
     const loadEmulator = async () => {
@@ -121,7 +123,7 @@ const GameboyDisplay = ({
       try {
         // Fetch the ROM file
         console.log(`Fetching ROM from: ${currentGame.romPath}`);
-        const romResponse = await fetch(currentGame.romPath);
+        const romResponse = await fetchWithAuth(currentGame.romPath);
         if (!romResponse.ok) {
           console.error(`Failed to fetch ROM: ${romResponse.statusText}`);
           return;

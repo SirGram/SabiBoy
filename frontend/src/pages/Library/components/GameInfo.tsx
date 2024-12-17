@@ -1,19 +1,19 @@
 import { ArrowLeft, Book, Calendar, Star, Tag, Users } from "lucide-react";
 import { useGameboy } from "../../../context/GameboyContext";
 import { useNavigate } from "react-router-dom";
+import { useImageLoader } from "../../../hooks/hooks";
 
 export default function GameInfo() {
   const { currentGame, setCurrentGame } = useGameboy();
-
   const navigate = useNavigate();
+
   const handlePlayGame = () => {
     navigate(`/emulator`);
     console.log("Launching game:", currentGame?.name);
   };
 
-  if (!currentGame) {
-    return;
-  }
+  if (!currentGame) return null;
+
   const formatDate = (date: string | undefined) => {
     if (!date) return "Unknown";
     try {
@@ -21,12 +21,14 @@ export default function GameInfo() {
         year: "numeric",
         month: "long",
         day: "numeric",
-
       }).format(new Date(date));
     } catch {
       return "Unknown";
     }
   };
+
+  const placeholder = "/placeholder-image.png"
+  const coverImageURL = useImageLoader(currentGame.coverPath) || placeholder;
 
   return (
     <div className="flex flex-col items-start p-6 md:min-w-[400px] bg-base-background overflow-y-auto shadow-lg border-t md:border-t-0 md:border-l border-base-border">
@@ -39,19 +41,17 @@ export default function GameInfo() {
 
       <div className="flex w-full mb-6 gap-10">
         <img
-          src={currentGame.coverPath ?? "/placeholder-image.png"}
+          src={coverImageURL}
           alt={`${currentGame.name ?? "Unknown Game"} cover`}
           className="h-80 object-cover rounded-lg shadow-md"
         />
         <div>
           <h1 className="mb-1">{currentGame.name ?? "Untitled Game"}</h1>
-
           {currentGame.originalTitle && (
             <p className="text-base-foreground/60 mb-4">
               Original: {currentGame.originalTitle}
             </p>
           )}
-
           <div className="flex gap-4">
             <button
               onClick={handlePlayGame}
@@ -102,22 +102,25 @@ export default function GameInfo() {
         </div>
       </div>
 
-      {currentGame.screenshotPaths &&
-        currentGame.screenshotPaths.length > 0 && (
-          <div className="mb-4">
-            <h3 className="text-xl font-semibold mb-2">Screenshots</h3>
-            <div className="flex flex-wrap gap-4">
-              {currentGame.screenshotPaths.map((screenshot, index) => (
+      {/* Screenshots Section */}
+      {currentGame.screenshotPaths && currentGame.screenshotPaths.length > 0 && (
+        <div className="mb-4">
+          <h3 className="text-xl font-semibold mb-2">Screenshots</h3>
+          <div className="flex flex-wrap gap-4">
+            {currentGame.screenshotPaths.map((screenshot, index) => {
+              const screenshotURL = useImageLoader(screenshot) || placeholder;
+              return (
                 <img
                   key={index}
-                  src={screenshot ?? "/placeholder-screenshot.png"}
+                  src={screenshotURL}
                   alt={`Screenshot ${index + 1}`}
                   className="h-36 object-cover rounded-lg shadow-md"
                 />
-              ))}
-            </div>
+              );
+            })}
           </div>
-        )}
+        </div>
+      )}
     </div>
   );
 }

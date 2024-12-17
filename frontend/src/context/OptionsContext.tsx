@@ -86,15 +86,20 @@ type Options = {
   keys: KeyMapping;
   palette: number[];
   debug: boolean;
+  limitOptions: number;
 };
 
 const DEFAULT_PALETTE = PREDEFINED_PALETTES[0].colors;
+const PREDEFINED_LIMIT_OPTIONS = [10, 20, 50];
+const DEFAULT_LIMIT_OPTIONS = PREDEFINED_LIMIT_OPTIONS[2];
 
 const defaultOptions: Options = {
   showFrame: true,
   keys: DEFAULT_KEY_MAPPING,
   palette: DEFAULT_PALETTE,
   debug: false,
+
+  limitOptions: DEFAULT_LIMIT_OPTIONS,
 };
 
 const OptionsContext = createContext<{
@@ -106,6 +111,7 @@ const OptionsContext = createContext<{
   resetToDefaultKeys: () => void;
   updatePalette: (newPalette: number[]) => void;
   resetPalette: () => void;
+  cycleLimitOptions: () => void;
 }>({
   options: defaultOptions,
   setOptions: () => {},
@@ -115,6 +121,7 @@ const OptionsContext = createContext<{
   resetToDefaultKeys: () => {},
   updatePalette: () => {},
   resetPalette: () => {},
+  cycleLimitOptions: () => {},
 });
 
 const LOCAL_STORAGE_KEY = "sabiboy-options";
@@ -205,6 +212,16 @@ export const OptionsProvider: React.FC<{ children: React.ReactNode }> = ({
       palette: DEFAULT_PALETTE,
     }));
   };
+  const cycleLimitOptions = () => {
+    setOptions((prev) => {
+      const currentIndex = PREDEFINED_LIMIT_OPTIONS.indexOf(prev.limitOptions);
+      const nextIndex = (currentIndex + 1) % PREDEFINED_LIMIT_OPTIONS.length;
+      return {
+        ...prev,
+        limitOptions: PREDEFINED_LIMIT_OPTIONS[nextIndex],
+      };
+    });
+  };
 
   const value = useMemo(
     () => ({
@@ -216,6 +233,7 @@ export const OptionsProvider: React.FC<{ children: React.ReactNode }> = ({
       resetToDefaultKeys,
       updatePalette,
       resetPalette,
+      cycleLimitOptions
     }),
     [options]
   );

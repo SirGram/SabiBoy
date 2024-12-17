@@ -1,16 +1,9 @@
 import { ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 import {
-  ChevronDown,
   ChevronLeft,
-  ChevronUp,
-  Database,
-  Layers,
   MaximizeIcon,
-  Monitor,
   PauseIcon,
   PlayIcon,
-  RadioTower,
-  SquareStack,
   Volume2,
   VolumeOff,
 } from "lucide-react";
@@ -181,7 +174,13 @@ export default function Emulator() {
       <BackButton />
 
       <div className="w-full   rounded-lg shadow-md pt-6 ">
-        <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-10 gap-6">
+        <div
+          className={
+            options.debug
+              ? "grid grid-cols-1 md:grid-cols-6 lg:grid-cols-10 gap-6"
+              : "flex w-full  justify-center"
+          }
+        >
           <div className="lg:col-span-2">
             <div className=" rounded-lg p-4 ">
               <GameboyFrame
@@ -1215,7 +1214,7 @@ function GameboyOptions({
   toggleAudio: () => void;
 }) {
   return (
-    <div className="absolute inset-0 z-10 hidden group-hover:block ">
+    <div className="absolute inset-0 z-10 hidden group-hover:block text-primary-foreground">
       <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center text-sm  font-bold">
         <div>
           <button
