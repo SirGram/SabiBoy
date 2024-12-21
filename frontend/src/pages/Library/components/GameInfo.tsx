@@ -1,11 +1,45 @@
-import { ArrowLeft, Book, Calendar, Star, Tag, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  Book,
+  Calendar,
+  Plus,
+  Star,
+  Tag,
+  Users,
+  X,
+} from "lucide-react";
 import { useGameboy } from "../../../context/GameboyContext";
 import { useNavigate } from "react-router-dom";
 import { useImageLoader } from "../../../hooks/hooks";
+import { useAuth } from "../../../context/AuthContext";
+import { useEffect, useState } from "react";
 
 export default function GameInfo() {
   const { currentGame, setCurrentGame } = useGameboy();
   const navigate = useNavigate();
+  const [isInLibrary, setIsInLibrary] = useState(false);
+  const { fetchWithAuth, user } = useAuth();
+
+  useEffect(() => {
+    const checkGameLibraryStatus = async () => {
+      if (!user || !currentGame) return;
+
+      try {
+        const response = await fetchWithAuth(
+          `/api/users/${user.id}/library/check?slug=${currentGame.slug}`
+        );
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const { inLibrary } = await response.json();
+        setIsInLibrary(inLibrary);
+      } catch (error) {
+        console.error("Failed to check library status:", error);
+      }
+    };
+
+    checkGameLibraryStatus();
+  }, [currentGame, user, fetchWithAuth]);
 
   const handlePlayGame = () => {
     navigate(`/emulator`);
@@ -27,7 +61,39 @@ export default function GameInfo() {
     }
   };
 
-  const placeholder = "/placeholder-image.png"
+  const handleToggleLibrary = async () => {
+    if (!user) return;
+
+    try {
+      const url = `/api/users/${user.id}/library`;
+      const method = isInLibrary ? "DELETE" : "POST";
+
+      const response = await fetchWithAuth(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          slug: currentGame.slug,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Toggle library status
+      setIsInLibrary(!isInLibrary);
+      console.log(isInLibrary ? "Removed from library" : "Added to library");
+    } catch (error) {
+      console.error(
+        `Failed to ${isInLibrary ? "remove" : "add"} game to library:`,
+        error
+      );
+    }
+  };
+
+  const placeholder = "/placeholder-image.png";
   const coverImageURL = useImageLoader(currentGame.coverPath) || placeholder;
 
   return (
@@ -59,8 +125,20 @@ export default function GameInfo() {
             >
               Play Game
             </button>
-            <button className="mb-4 py-2 px-4 rounded-md bg-primary hover:bg-primary-hover transition-colors">
-              Add to Board
+            <button
+              className="mb-4 py-2 px-4 rounded-md flex items-center 
+                         bg-primary hover:bg-primary-hover transition-colors"
+              onClick={handleToggleLibrary}
+            >
+              {isInLibrary ? (
+                <>
+                  <X className="mr-2" size={18} /> Remove from Board
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2" size={18} /> Add to Board
+                </>
+              )}
             </button>
           </div>
 
@@ -103,24 +181,25 @@ export default function GameInfo() {
       </div>
 
       {/* Screenshots Section */}
-      {currentGame.screenshotPaths && currentGame.screenshotPaths.length > 0 && (
-        <div className="mb-4">
-          <h3 className="text-xl font-semibold mb-2">Screenshots</h3>
-          <div className="flex flex-wrap gap-4">
-            {currentGame.screenshotPaths.map((screenshot, index) => {
-              const screenshotURL = useImageLoader(screenshot) || placeholder;
-              return (
-                <img
-                  key={index}
-                  src={screenshotURL}
-                  alt={`Screenshot ${index + 1}`}
-                  className="h-36 object-cover rounded-lg shadow-md"
-                />
-              );
-            })}
+      {currentGame.screenshotPaths &&
+        currentGame.screenshotPaths.length > 0 && (
+          <div className="mb-4">
+            <h3 className="text-xl font-semibold mb-2">Screenshots</h3>
+            <div className="flex flex-wrap gap-4">
+              {currentGame.screenshotPaths.map((screenshot, index) => {
+                const screenshotURL = useImageLoader(screenshot) || placeholder;
+                return (
+                  <img
+                    key={index}
+                    src={screenshotURL}
+                    alt={`Screenshot ${index + 1}`}
+                    className="h-36 object-cover rounded-lg shadow-md"
+                  />
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        )}
     </div>
   );
 }

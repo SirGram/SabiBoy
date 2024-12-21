@@ -39,6 +39,7 @@ export default function Emulator() {
   });
   const [isGameboyPaused, setIsGameboyPaused] = useState(false);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const { gameboy } = useGameboy();
   const [pressedKeys, setPressedKeys] = useState(0xff);
@@ -110,15 +111,30 @@ export default function Emulator() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const displayRef = useRef<HTMLDivElement | null>(null);
   const toggleFullscreen = () => {
-    const canvas = displayRef.current;
-    if (canvas) {
+    const display = displayRef.current;
+    if (display) {
       if (!document.fullscreenElement) {
-        canvas.requestFullscreen({ navigationUI: "show" });
+        display
+          .requestFullscreen({ navigationUI: "hide" })
+          .then(() => setIsFullscreen(true))
+          .catch((err) => {
+            console.error(
+              `Error attempting to enable fullscreen: ${err.message}`
+            );
+          });
       } else {
-        document.exitFullscreen();
+        document
+          .exitFullscreen()
+          .then(() => setIsFullscreen(false))
+          .catch((err) => {
+            console.error(
+              `Error attempting to exit fullscreen: ${err.message}`
+            );
+          });
       }
     }
   };
+
   const toggleAudio = useCallback(() => {
     if (!gameboy) return;
     gameboy.toggle_audio();
@@ -206,6 +222,7 @@ export default function Emulator() {
                     toggleFullScreen={toggleFullscreen}
                     isAudioEnabled={isAudioEnabled}
                     toggleAudio={toggleAudio}
+                    fps={fps}
                   />
                 </div>
               </GameboyFrame>
@@ -1201,12 +1218,14 @@ function BackButton() {
 }
 
 function GameboyOptions({
+  fps,
   isGameboyPaused,
   setIsGameboyPaused,
   toggleFullScreen,
   isAudioEnabled,
   toggleAudio,
 }: {
+  fps: number;
   isGameboyPaused: boolean;
   setIsGameboyPaused: React.Dispatch<React.SetStateAction<boolean>>;
   toggleFullScreen: () => void;
@@ -1215,6 +1234,7 @@ function GameboyOptions({
 }) {
   return (
     <div className="absolute inset-0 z-10 hidden group-hover:block text-primary-foreground">
+      <div className="absolute top-2 right-2  font-semibold">{fps}</div>
       <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center text-sm  font-bold">
         <div>
           <button

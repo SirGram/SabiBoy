@@ -26,6 +26,7 @@ const GameboyDisplay = ({
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
   const imageDataRef = useRef<ImageData | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const { gameboy, initGameboy, currentGame } = useGameboy();
   const { options } = useOptions();
@@ -165,16 +166,19 @@ const GameboyDisplay = ({
 
     loadEmulator();
   }, [currentGame, options.palette, initGameboy]);
-
+ 
   return (
-    <canvas
-      ref={canvasRef}
-      className="w-full h-full"
-      style={{
-        imageRendering: "pixelated",
-        backgroundColor: "#000000",
-      }}
-    />
+    <div ref={containerRef} className="relative w-full h-full">
+      <canvas
+        ref={canvasRef}
+        className="w-full h-full"
+        style={{
+          imageRendering: "pixelated",
+          backgroundColor: "#000000",
+          display: "block",
+        }}
+      />
+    </div>
   );
 };
 

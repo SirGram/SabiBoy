@@ -36,13 +36,12 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
-    
     const { email, password } = loginDto;
     this.logger.log(`Login attempt for email: ${email}`);
     const user = await this.userModel.findOne({ email });
 
     if (!user) {
-      this.logger.warn(`Login failed for email: ${email} - User not found`); 
+      this.logger.warn(`Login failed for email: ${email} - User not found`);
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -52,15 +51,15 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    this.logger.log(`Login successful for email: ${email}`); 
+    this.logger.log(`Login successful for email: ${email}`);
 
     return {
       access_token: this.generateToken(user),
-      user: { 
-        id: user._id, 
-        email: user.email, 
-        role: user.role 
-      }
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+      },
     };
   }
 
@@ -74,5 +73,11 @@ export class AuthService {
 
   async findById(id: string): Promise<User | null> {
     return this.userModel.findById(id).select('-password');
+  }
+  async comparePasswords(
+    plainTextPassword: string,
+    hashedPassword: string,
+  ): Promise<boolean> {
+    return bcrypt.compare(plainTextPassword, hashedPassword);
   }
 }

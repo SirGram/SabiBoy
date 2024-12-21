@@ -26,4 +26,7 @@ html {
   h6 {
     @apply text-base font-medium text-gray-700 tracking-normal;
   }
+  input, select {
+    @apply bg-base-background text-base-foreground border border-base-border rounded-md;
+  }
 }

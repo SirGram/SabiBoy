@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import { EditIcon, SaveIcon, XIcon } from "lucide-react";
-import Layout from "../../components/Layout";
+import { EditIcon, Palette, SaveIcon, XIcon } from "lucide-react";
+import Layout from "../../components/Layout/MainLayout";
 import { PREDEFINED_PALETTES, useOptions } from "../../context/OptionsContext";
 import { Buttons } from "../../context/OptionsContext"; // Adjust import path
-import { useAuth } from "../../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import PaletteEditor from "./Palette";
 
 export default function Options() {
   const {
@@ -15,9 +14,7 @@ export default function Options() {
     updatePalette,
     resetPalette,
     toggleDebug,
-
   } = useOptions();
-  const { logout } = useAuth();
   const [editingButton, setEditingButton] = useState<Buttons | null>(null);
   const [newKey, setNewKey] = useState("");
 
@@ -63,37 +60,9 @@ export default function Options() {
     setNewKey("");
   };
 
-  const [localPalette, setLocalPalette] = useState(options.palette);
-
-  const readHexColor = (color: string) => {
-    const hexColor = color.replace("#", "");
-    return parseInt(hexColor, 16);
-  };
-
-  const handleColorChange = (index: number, newColor: string) => {
-    const newPaletteColors = [...localPalette];
-    newPaletteColors[index] = readHexColor(newColor);
-    setLocalPalette(newPaletteColors);
-  };
-
-  useEffect(() => {
-    setLocalPalette(options.palette);
-  }, [options.palette]);
-
-  const handlePredefinedPaletteSelect = (palette: number[]) => {
-    setLocalPalette(palette);
-    updatePalette(palette);
-  };
-  
-  const navigate = useNavigate();
-  const handleLogOut = () => {
-    logout();
-    navigate("/login");
-  };
-
   return (
     <Layout>
-      <div className="flex flex-col gap-4 h-full items-center py-20 max-w-md mx-auto ">
+      <div className="flex flex-col gap-4 h-full items-center max-w-md mx-auto ">
         <h1 className="text-2xl font-bold mb-6">Emulator Settings</h1>
 
         {/* Frame Toggle */}
@@ -178,88 +147,11 @@ export default function Options() {
           </div>
         </div>
         {/* Palette Editor */}
-        <div className="w-full">
-          <h2 className="text-xl font-semibold mb-4 flex w-full justify-between">
-            Palette Editor
-          </h2>
-          <div className="flex  w-full justify-between">
-            <div className="flex gap-1">
-              {localPalette.map((color, index) => (
-                <div
-                  key={index}
-                  className="flex flex-col  items-center justify-between  "
-                >
-                  <label className=" ">Color {index + 1}</label>
-                  <input
-                    type="color"
-                    value={`#${color.toString(16).padStart(6, "0")}`}
-                    onChange={(e) => handleColorChange(index, e.target.value)}
-                    className="w-16 h-10 bg-transparent"
-                  />
-                  <span className="">{`#${color
-                    .toString(16)
-                    .padStart(6, "0")}`}</span>
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-between flex-col gap-2">
-              <button
-                onClick={() => updatePalette(localPalette)}
-                className=" bg-primary  px-4 py-2 rounded hover:bg-primary-hover transition"
-              >
-                Save Palette
-              </button>
-              <button
-                onClick={() => resetPalette()}
-                className=" bg-destructive  px-4 py-2 rounded hover:bg-destructive-hover transition"
-              >
-                Reset Palette
-              </button>
-            </div>
-          </div>
-        </div>
-        {/* Predefined Palettes Section */}
-        <div className="w-full">
-          <h2 className="text-xl font-semibold mb-3">Predefined Palettes</h2>
-          <div className="grid grid-cols-5 w-full  gap-2">
-            {PREDEFINED_PALETTES.map((palette) => (
-              <button
-                key={palette.name}
-                onClick={() => handlePredefinedPaletteSelect(palette.colors)}
-                className="flex flex-col items-center justify-center gap-2 bg-muted text-secondary-foreground px-3 py-2 rounded hover:bg-muted-hover transition"
-              >
-                <span className="text-sm h-full flex items-center">
-                  {palette.name}
-                </span>
-                <div className="flex ">
-                  {palette.colors.map((color, index) => (
-                    <div
-                      key={index}
-                      className="w-4 h-4 "
-                      style={{
-                        backgroundColor: `#${color
-                          .toString(16)
-                          .padStart(6, "0")}`,
-                      }}
-                    />
-                  ))}
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-        {/* Account Management */}
-        <div className="w-full">
-          <h2 className="text-xl font-semibold mb-3">Account Management</h2>
-          <div className="flex flex-col gap-4 w-full">
-            <button
-              onClick={() => handleLogOut()}
-              className="bg-destructive text-white px-4 py-2 rounded hover:bg-destructive-hover transition"
-            >
-              Log Out
-            </button>
-          </div>
-        </div>
+        <PaletteEditor
+          currentPalette={options.palette}
+          onPaletteChange={updatePalette}
+          predefinedPalettes={PREDEFINED_PALETTES}
+        />
       </div>
     </Layout>
   );

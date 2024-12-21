@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import Layout from "../../components/Layout";
+import Layout from "../../components/Layout/MainLayout";
 import { useGameboy } from "../../context/GameboyContext";
 import Emulator from "../Game/Emulator";
 import { TGame } from "../Library/Library";

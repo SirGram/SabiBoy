@@ -8,6 +8,7 @@ import Board from "./pages/Board/Board";
 import OfflineEmulator from "./pages/Offline/OfflineEmulator";
 import Login from "./pages/Login/Login";
 import { AuthProvider } from "./context/AuthContext";
+import UserManagement from "./pages/UserManagement/UserManagement";
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
               <Route path="/options" element={<Options />} />
               <Route path="/emulator" element={<Emulator />} />
               <Route path="/offline-emulator" element={<OfflineEmulator />} />
+              <Route path="/user" element={<UserManagement />} />
             </Routes>
           </Router>
         </GameboyProvider>

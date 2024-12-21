@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateGameDto } from './dto/create-game.dto';
 import { UpdateGameDto } from './dto/update-game.dto';
 import * as path from 'path';
@@ -13,8 +18,8 @@ export interface GameListItem {
   name: string;
   coverPath?: string;
 }
-export interface GameDetails extends Game{
-  coverPath?: string,
+export interface GameDetails extends Game {
+  coverPath?: string;
   romPath?: string;
   screenshotPaths?: string[];
 }
@@ -27,14 +32,17 @@ export class GamesService {
   constructor(@InjectModel(Game.name) private gameModel: Model<Game>) {}
 
   async create(createGameDto: CreateGameDto): Promise<Game> {
-    const existingGame = await this.gameModel.findOne({ slug: createGameDto.slug }).exec();
+    const existingGame = await this.gameModel
+      .findOne({ slug: createGameDto.slug })
+      .exec();
     if (existingGame) {
-        throw new ConflictException(`Game with slug ${createGameDto.slug} already exists.`);
+      throw new ConflictException(
+        `Game with slug ${createGameDto.slug} already exists.`,
+      );
     }
     const createdGame = new this.gameModel(createGameDto);
     return createdGame.save();
-}
-
+  }
 
   async getGamesList(
     page = 1,
@@ -161,6 +169,39 @@ export class GamesService {
       throw new NotFoundException(
         `Could not retrieve game details for ${slug}`,
       );
+    }
+  }
+  async getGamesByIds(gameIds: string[]): Promise<GameDetails[]> {
+    try {
+      const games = await this.gameModel.find({
+        _id: { $in: gameIds },
+      });
+
+      const processedGames: GameDetails[] = [];
+
+      for (const game of games) {
+        try {
+          const gameDetails = game.toObject() as GameDetails;
+          const gameFolderPath = path.join(this.gamesPath, game.slug);
+          const files = await fs.readdir(gameFolderPath);
+
+          const coverFile = files.find((file) =>
+            file.match(/^cover\.(png|jpg|jpeg)$/i),
+          );
+          gameDetails.coverPath = coverFile
+            ? `api/games/${game.slug}/${coverFile}`
+            : undefined;
+
+          processedGames.push(gameDetails);
+        } catch (folderErr) {
+          this.logger.warn(`Folder not found for game: ${game.slug}`);
+        }
+      }
+
+      return processedGames;
+    } catch (err) {
+      this.logger.error('Error fetching games by IDs:', err);
+      return [];
     }
   }
 }

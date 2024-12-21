@@ -3,17 +3,12 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
-  Delete,
   Logger,
   Query,
 } from '@nestjs/common';
 import { GamesService } from './games.service';
-import path from 'path';
 import { CreateGameDto } from './dto/create-game.dto';
-
-
 
 @Controller('games')
 export class GamesController {
@@ -25,7 +20,7 @@ export class GamesController {
   async getGamesList(
     @Query('page') page = 1,
     @Query('limit') limit = 10,
-    @Query('search') search = ''
+    @Query('search') search = '',
   ) {
     return this.gamesService.getGamesList(page, limit, search);
   }

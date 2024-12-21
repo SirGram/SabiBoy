@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import Layout from "../../components/Layout";
+import Layout from "../../components/Layout/MainLayout";
 import CollapsibleList from "./components/CollapsibleList";
 import { useGameboy } from "../../context/GameboyContext";
 import GameInfo from "../Library/components/GameInfo";
-import { TPaginatedResponse } from "../Library/Library";
+import { useAuth } from "../../context/AuthContext";
 
 export type TGame = {
   id: string;
@@ -13,17 +13,19 @@ export type TGame = {
 };
 export default function Board() {
   const [games, setGames] = useState<TGame[]>([]);
+  const { user, fetchWithAuth } = useAuth();
 
   useEffect(() => {
     const loadGames = async () => {
+      if (!user) return;
       try {
-        const response = await fetch("api/games");
+        const response = await fetchWithAuth(`api/users/${user.id}/library`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const data: TPaginatedResponse = await response.json();
+        const data: TGame[] = await response.json();
         console.log(data);
-        setGames(data.games);
+        setGames(data);
       } catch (error) {
         console.error("Failed to load ROM:", error);
       }
@@ -46,9 +48,8 @@ export default function Board() {
 
   return (
     <Layout>
-      <div className="flex w-full"></div>
       {!currentGame ? (
-        <div className="flex flex-col  h-full w-full py-5 px-5 ">
+        <div className="flex flex-col  h-full w-full   ">
           <CollapsibleList
             title="Recently Played"
             games={recentlyPlayedGames}

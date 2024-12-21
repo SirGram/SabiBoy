@@ -7,25 +7,29 @@ import {
   SettingsIcon,
   Gamepad,
   LucideProps,
+  UserIcon,
 } from "lucide-react";
 import packageJson from "../../../package.json";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="h-screen w-full flex flex-col md:flex-row">
+    <div className="h-screen w-full flex flex-col">
+      <div className="flex-1 overflow-y-auto bg-base-background">
+        <div className="py-5 px-4 min-h-full md:ml-24">{children}</div>
+      </div>
       <Navbar
         menuItems={[
           { label: "Board", to: "/", icon: HomeIcon },
           { label: "Library", to: "/library", icon: LibraryIcon },
           { label: "Offline", to: "/offline-emulator", icon: Gamepad },
           { label: "Options", to: "/options", icon: SettingsIcon },
+          { label: "User", to: "/user", icon: UserIcon },
         ]}
         footer={{
           githubLink: "https://github.com/SirGram/SabiBoy",
           version: packageJson.version,
         }}
       />
-      <div className="w-full h-full bg-base-background overflow-y-auto">{children}</div>
     </div>
   );
 }
@@ -46,16 +50,14 @@ type NavbarProps = {
 
 function Navbar({ menuItems, footer }: NavbarProps) {
   return (
-    <nav
-      className="fixed h-screen bottom-0 left-0 right-0 bg-base-background/90 
-      md:static md:w-24 md:h-full 
-      flex flex-row md:flex-col 
-      justify-between items-center 
-      border-t md:border-r border-base-border 
-      shadow-lg transition-all z-10"
-    >
-      {/* Top Menu Section */}
-      <div className="flex flex-row md:flex-col items-center w-full justify-around md:justify-center">
+    <nav className="md:fixed md:h-screen md:left-0 md:top-0 md:w-24 
+                    fixed bottom-0 left-0 right-0 h-16
+                    bg-base-background/90 backdrop-blur-sm
+                    flex md:flex-col items-center 
+                    border-t md:border-r md:border-t-0 border-base-border 
+                    shadow-lg z-10">
+      {/* Menu Items */}
+      <div className="flex md:flex-col items-center w-full h-full md:h-auto md:flex-1 justify-around md:justify-start md:pt-4">
         {menuItems.map((item) => (
           <NavItem
             key={item.to}
@@ -66,7 +68,7 @@ function Navbar({ menuItems, footer }: NavbarProps) {
         ))}
       </div>
 
-      {/* Footer Section */}
+      {/* Footer - Only visible on desktop */}
       <div className="hidden md:flex flex-col items-center space-y-1 mb-4 w-full">
         <a
           href={footer.githubLink}
@@ -100,7 +102,7 @@ function NavItem({ label, to, Icon }: NavItemProps) {
     <Link
       to={to}
       className={`text-center group flex flex-col relative hover:bg-muted/20 
-        py-3 md:py-5 px-3 w-full rounded-md transition-colors duration-300 
+        py-2 md:py-5 px-3 md:w-full rounded-md transition-colors duration-300 
         justify-center items-center
         ${isActive ? "pointer-events-none" : ""}
         `}
@@ -112,7 +114,7 @@ function NavItem({ label, to, Icon }: NavItemProps) {
             : "text-base-foreground group-hover:text-primary"
         }`}
       />
-      <span className="text-xs md:text-sm text-muted-foreground hidden md:block">
+      <span className="text-xs md:text-sm text-muted-foreground">
         {label}
       </span>
     </Link>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import GameCard from "./components/GameCard";
-import Layout from "../../components/Layout";
+import Layout from "../../components/Layout/MainLayout";
 import { ChevronRight, SearchIcon } from "lucide-react";
 import GameInfo from "./components/GameInfo";
 import { useGameboy } from "../../context/GameboyContext";
@@ -126,7 +126,7 @@ export default function Library() {
     <Layout>
       <div className="flex w-full">
         {!currentGame ? (
-          <div className="flex flex-col py-10 px-5 w-full">
+          <div className="flex flex-col  w-full">
             <div className="flex gap-x-4 items-center">
               <SearchBar
                 searchTerm={searchTerm}
