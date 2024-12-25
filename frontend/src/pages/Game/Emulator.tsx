@@ -138,40 +138,50 @@ export default function Emulator() {
   const toggleAudio = useCallback(() => {
     if (!gameboy) return;
     gameboy.toggle_audio();
-
     setIsAudioEnabled(!isAudioEnabled);
+    if (!isAudioEnabled) {
+      setVolume(100);
+    } else {
+      setVolume(0);
+    }
   }, [gameboy, isAudioEnabled]);
 
+  const [volume, setVolume] = useState(100);
+  const updateVolume = (newVolume: number) => {
+    console.log("Updating volume:", newVolume);
+    setVolume(newVolume);
+    if (newVolume == 0) {
+      if (isAudioEnabled) {
+        toggleAudio();
+      }
+    } else if (newVolume > 0 && !isAudioEnabled) {
+      toggleAudio();
+    }
+  };
   const playAudioFrame = useCallback(
-    (audioContext: AudioContext) => {
+    (audioContext: AudioContext, gainNode: GainNode) => {
       if (!isAudioEnabled || !gameboy) return;
 
-      // Fetch audio buffer
       const audioSamples = gameboy.get_audio_buffer();
       if (audioSamples.length === 0) return;
 
-      // Number of stereo samples
       const numSamples = audioSamples.length / 2;
-      const sampleRate = 48000; // Ensure this matches your GameBoy emulator's output rate
+      const sampleRate = 48000;
 
-      // Create an AudioBuffer with two channels
       const buffer = audioContext.createBuffer(2, numSamples, sampleRate);
-
       const leftChannel = buffer.getChannelData(0);
       const rightChannel = buffer.getChannelData(1);
 
-      // Fill the audio buffer with interleaved stereo samples
       for (let i = 0; i < numSamples; i++) {
         leftChannel[i] = audioSamples[i * 2];
         rightChannel[i] = audioSamples[i * 2 + 1];
       }
 
-      // Play the audio buffer
       const source = audioContext.createBufferSource();
       source.buffer = buffer;
 
-      // Connect source to the context's destination
-      source.connect(audioContext.destination);
+      // Connect to the persistent gain node
+      source.connect(gainNode);
 
       try {
         source.start();
@@ -214,6 +224,7 @@ export default function Emulator() {
                       canvasRef={canvasRef}
                       isAudioEnabled={isAudioEnabled}
                       playAudioFrame={playAudioFrame}
+                      volume={volume}
                     />
                   </div>
                   <GameboyOptions
@@ -223,6 +234,8 @@ export default function Emulator() {
                     isAudioEnabled={isAudioEnabled}
                     toggleAudio={toggleAudio}
                     fps={fps}
+                    updateVolume={updateVolume}
+                    volume={volume}
                   />
                 </div>
               </GameboyFrame>
@@ -1224,6 +1237,8 @@ function GameboyOptions({
   toggleFullScreen,
   isAudioEnabled,
   toggleAudio,
+  updateVolume,
+  volume,
 }: {
   fps: number;
   isGameboyPaused: boolean;
@@ -1231,12 +1246,14 @@ function GameboyOptions({
   toggleFullScreen: () => void;
   isAudioEnabled: boolean;
   toggleAudio: () => void;
+  updateVolume: (newVolume: number) => void;
+  volume: number;
 }) {
   return (
     <div className="absolute inset-0 z-10 hidden group-hover:block text-primary-foreground">
       <div className="absolute top-2 right-2  font-semibold">{fps}</div>
       <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center text-sm  font-bold">
-        <div>
+        <div className="flex gap-2 items-center">
           <button
             className=" p-1 rounded hover:bg-primary "
             onClick={() => setIsGameboyPaused(!isGameboyPaused)}
@@ -1248,7 +1265,18 @@ function GameboyOptions({
             onClick={() => toggleAudio()}
           >
             {isAudioEnabled ? <Volume2 /> : <VolumeOff />}
-          </button>
+          </button>{" "}
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={volume}
+            onChange={(e) => updateVolume(Number(e.target.value))}
+            className="w-20 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+            style={{
+              backgroundImage: `linear-gradient(to right, white ${volume}%, gray ${volume}%)`,
+            }}
+          />
         </div>
         <button
           className=" p-1 rounded hover:bg-primary"

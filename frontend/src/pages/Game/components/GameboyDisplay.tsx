@@ -12,8 +12,10 @@ type GameboyDisplayProps = {
   handleKeyUp: (event: KeyboardEvent) => void;
   canvasRef: React.RefObject<HTMLCanvasElement>;
   isAudioEnabled: boolean;
-  playAudioFrame: (audioContext: AudioContext) => void;
+  playAudioFrame: (audioContext: AudioContext, gainNode: GainNode) => void;
+  volume: number;
 };
+
 const GameboyDisplay = ({
   setFps,
   setCartridgeInfo,
@@ -21,12 +23,16 @@ const GameboyDisplay = ({
   handleKeyDown,
   handleKeyUp,
   canvasRef,
+  isAudioEnabled,
   playAudioFrame,
+  volume,
 }: GameboyDisplayProps) => {
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
   const imageDataRef = useRef<ImageData | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
 
   const { gameboy, initGameboy, currentGame } = useGameboy();
   const { options } = useOptions();
@@ -50,10 +56,28 @@ const GameboyDisplay = ({
     }
   }, [gameboy, setCartridgeInfo]);
 
+  // Initialize audio context once
+  useEffect(() => {
+    audioContextRef.current = new AudioContext();
+    gainNodeRef.current = audioContextRef.current.createGain();
+    gainNodeRef.current.connect(audioContextRef.current.destination);
+    gainNodeRef.current.gain.value = volume / 100;
+
+    return () => {
+      gainNodeRef.current?.disconnect();
+      audioContextRef.current?.close();
+    };
+  }, []); // Empty dependency array to run once
+
+  // Handle volume changes
+  useEffect(() => {
+    if (gainNodeRef.current) {
+      gainNodeRef.current.gain.value = volume / 100;
+    }
+  }, [volume]);
+
   useEffect(() => {
     if (!gameboy) return;
-
-    const audioContext = new AudioContext();
 
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext("2d")!;
@@ -73,7 +97,11 @@ const GameboyDisplay = ({
       if (!gameboy || !ctx || !imageDataRef.current) return;
 
       gameboy.run_frame();
-      playAudioFrame(audioContext);
+
+      // Only play audio if context and gain node exist and audio is enabled
+      if (audioContextRef.current && gainNodeRef.current && isAudioEnabled) {
+        playAudioFrame(audioContextRef.current, gainNodeRef.current);
+      }
 
       const frameBuffer = gameboy.get_frame_buffer();
       imageDataRef.current.data.set(frameBuffer);
@@ -101,12 +129,18 @@ const GameboyDisplay = ({
       }
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
-      audioContext.close();
     };
-  }, [gameboy, handleKeyDown, handleKeyUp, handleCartridgeInfo, setFps]);
+  }, [
+    gameboy,
+    handleKeyDown,
+    handleKeyUp,
+    handleCartridgeInfo,
+    setFps,
+    isAudioEnabled,
+    playAudioFrame,
+  ]);
 
   useEffect(() => {
-    // control buttons
     if (gameboy) {
       if (isGameboyPaused) {
         gameboy.pause();
@@ -115,6 +149,7 @@ const GameboyDisplay = ({
       }
     }
   }, [gameboy, isGameboyPaused]);
+
   const { fetchWithAuth } = useAuth();
 
   useEffect(() => {
@@ -122,7 +157,6 @@ const GameboyDisplay = ({
       if (!currentGame?.romPath) return;
 
       try {
-        // Fetch the ROM file
         console.log(`Fetching ROM from: ${currentGame.romPath}`);
         const romResponse = await fetchWithAuth(currentGame.romPath);
         if (!romResponse.ok) {
@@ -132,7 +166,6 @@ const GameboyDisplay = ({
         const romArrayBuffer = await romResponse.arrayBuffer();
         const romData = new Uint8Array(romArrayBuffer);
 
-        // Fetch the save state file, if available
         let stateData: Uint8Array | undefined = undefined;
         try {
           const stateResponse = await fetch(`${currentGame.romPath}.state`);
@@ -149,7 +182,6 @@ const GameboyDisplay = ({
           console.error("Error fetching state file:", stateError);
         }
 
-        // Initialize the GameBoy emulator with the ROM and optional state data
         if (romData.length > 0) {
           try {
             console.log("Initializing GameBoy emulator...");
@@ -165,8 +197,8 @@ const GameboyDisplay = ({
     };
 
     loadEmulator();
-  }, [currentGame, options.palette, initGameboy]);
- 
+  }, [currentGame, options.palette, initGameboy, fetchWithAuth]);
+
   return (
     <div ref={containerRef} className="relative w-full h-full">
       <canvas
