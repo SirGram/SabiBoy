@@ -280,7 +280,7 @@ impl PPU {
     }
 
     fn handle_oam(&mut self) {
-        if self.mode_cycles % 2 == 0 {
+        if self.mode_cycles % 2 != 0 {
             let current_entry = self.mode_cycles / 2;
             let sprite = self.read_sprite(0xFE00 + (current_entry as u16 * 4));
 

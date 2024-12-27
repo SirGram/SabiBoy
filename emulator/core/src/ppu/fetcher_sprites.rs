@@ -34,8 +34,8 @@ impl SpriteFetcher {
         self.step = 0;
         self.sprite = sprite.clone();
         self.active = true;
-        // Calculate how many pixels to load based on sprite's X position
-        self.remaining_pixels = if sprite.x_pos >= 8 { 8 } else { sprite.x_pos };
+        // Always fetch 8 pixels for sprites
+        self.remaining_pixels = 8;
         // Start with tile number fetch
         self.fetch_tile_number(sprite);
     }
