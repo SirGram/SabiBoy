@@ -219,7 +219,7 @@ impl PPU {
 
         let ly = self.get_io_register(IoRegister::Ly);
 
-       /*  if ly ==20 && self.get_io_register(IoRegister::Scx) & 7 != 0 && self.mode_cycles < 100 && self.mode_cycles >80 {
+         if ly ==50 && self.mode_cycles < 200 && self.mode_cycles >80 {
          
           println!(
             "ly {} cycles {} window {} wcoun {} xpos {} xposren {} scx {} bg_fifo_len {} sprite_fifo_len {} current_sprite_x {} sprftch_act {}",
@@ -236,7 +236,7 @@ impl PPU {
             self.sprite_fetcher.sprite.x_pos,
             self.sprite_fetcher.active
         );     
-    } */
+    } 
 
         match self.mode {
             PPUMode::OAM_SCAN => self.handle_oam(),
@@ -266,8 +266,8 @@ impl PPU {
         }
 
         self.update_stat();
-        
         self.mode_cycles += 1;
+        
     }
 
     fn read_sprite(&self, address: u16) -> Sprite {
@@ -302,6 +302,12 @@ impl PPU {
         }
         if self.mode_cycles >= 80 {
             self.mode = PPUMode::DRAWING;
+            self.sprite_buffer.sort_by(|a, b| {
+                match a.x_pos.cmp(&b.x_pos) {
+                    Ordering::Equal => b.flags.cmp(&a.flags), //  Higher OAM  index
+                    ordering => ordering,
+                }
+            });
            
         }
     }
@@ -314,7 +320,7 @@ impl PPU {
         }
 
         // Pixel shifting
-        if !self.pixel_fifo.is_paused(&self.sprite_fetcher) {
+        if !self.pixel_fifo.is_paused(self.sprite_fetcher.active, self.fetcher.pause) {
             if let Some(color) = self.pixel_fifo.pop_pixel(&self.bus, &mut self.fetcher) {
                 let ly = self.get_io_register(IoRegister::Ly);
                 // Fine scroll
@@ -352,7 +358,7 @@ impl PPU {
         }
 
         // Check sprites
-        if !self.sprite_fetcher.active && self.debug_config.sprite_debug_enabled {
+        if !self.sprite_fetcher.active && self.debug_config.sprite_debug_enabled{
             /*  println!("sprite fetch "); */
 
             if let Some(sprite) =

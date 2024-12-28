@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::bus::{io_address::IoRegister, Bus};
 
-use super::{fetcher::Fetcher, fetcher_sprites::SpriteFetcher, Sprite};
+use super::{fetcher::{self, Fetcher}, fetcher_sprites::SpriteFetcher, Sprite};
 #[derive(Clone, Debug, Serialize, Deserialize, Copy)]
 pub struct Pixel {
     pub color: u8,
@@ -63,17 +63,28 @@ impl PixelFifo {
         }
     }
     pub fn push_sprite_pixels(&mut self, tile_data: [u8; 2], sprite: &Sprite) {
+        // Instead of clearing, we'll overlay the new sprite pixels
+        let current_len = self.sprite_fifo.len();
+        
         for bit in 0..8 {
             let low_bit = tile_data[0] >> (7 - bit) & 0x1;
             let high_bit = tile_data[1] >> (7 - bit) & 0x1;
             let color = high_bit << 1 | low_bit;
-
+            
             let bg_priority = sprite.flags & 0x80 != 0;
             let palette = sprite.flags & 0x10 != 0;
-
+            
             let pixel = Pixel::new_sprite(color, bg_priority, palette);
-
-            if self.sprite_fifo.len() < 8 {
+            
+            if bit < current_len {
+                // Only replace existing sprite pixel if:
+                // 1. New sprite pixel is not transparent (color != 0)
+                // 2. The existing sprite pixel is transparent
+                let existing_pixel = &self.sprite_fifo[bit];
+                if color != 0 && existing_pixel.color == 0 {
+                    self.sprite_fifo[bit] = pixel;
+                }
+            } else if self.sprite_fifo.len() < 8 {
                 self.sprite_fifo.push_back(pixel);
             }
         }
@@ -92,9 +103,9 @@ impl PixelFifo {
         }
     }
     pub fn pop_pixel(&mut self, bus: &Rc<RefCell<Bus>>, fetcher: &mut Fetcher) -> Option<u8> {
-        /* if self.bg_fifo.is_empty() {
+        if self.bg_fifo.is_empty() {
             return None;
-        } */
+        } 
        self.apply_fine_scroll(bus.borrow().read_byte(IoRegister::Scx.address()), fetcher);
         let mut bg_pixel = self.bg_fifo.pop_front().unwrap();
         let mut sprite_pixel = self.sprite_fifo.pop_front();
@@ -143,7 +154,7 @@ impl PixelFifo {
     pub fn sprite_pixel_count(&self) -> usize {
         return self.sprite_fifo.len();
     }
-    pub fn is_paused(&self, sprite_fetcher: &SpriteFetcher) -> bool {
-        self.bg_fifo.len() == 0 || sprite_fetcher.active
+    pub fn is_paused(&self, sprite_fetcher_active: bool, fetcher_active: bool) -> bool {
+        self.bg_fifo.len() == 0 || sprite_fetcher_active || fetcher_active
     }
 }

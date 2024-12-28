@@ -31,11 +31,11 @@ impl SpriteFetcher {
         self.remaining_pixels = 0;
     }
     pub fn start_fetch(&mut self, sprite: &Sprite) {
+
         self.step = 0;
         self.sprite = sprite.clone();
         self.active = true;
-        // Always fetch 8 pixels for sprites
-        self.remaining_pixels = 8;
+        self.remaining_pixels = if sprite.x_pos >= 8 { 8 } else { sprite.x_pos };
         // Start with tile number fetch
         self.fetch_tile_number(sprite);
     }
