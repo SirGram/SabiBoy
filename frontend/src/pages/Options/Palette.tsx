@@ -1,12 +1,5 @@
-import React, { useState, useEffect } from "react";
-import {
-  PlusIcon,
-  EditIcon,
-  SaveIcon,
-  XIcon,
-  Trash2Icon,
-  CheckIcon,
-} from "lucide-react";
+import { useState, useEffect } from "react";
+import { PlusIcon, EditIcon, XIcon, Trash2Icon, CheckIcon } from "lucide-react";
 
 const LOCAL_STORAGE_CUSTOM_PALETTES_KEY = "sabiboy-custom-palettes";
 
@@ -20,6 +13,10 @@ export default function PaletteEditor({
   currentPalette,
   onPaletteChange,
   predefinedPalettes,
+}: {
+  currentPalette: number[];
+  onPaletteChange: (palette: number[]) => void;
+  predefinedPalettes: { name: string; colors: number[] }[];
 }) {
   const [localPalette, setLocalPalette] = useState(currentPalette);
   const [customPalettes, setCustomPalettes] = useState<CustomPalette[]>([]);

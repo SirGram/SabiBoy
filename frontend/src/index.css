@@ -7,6 +7,33 @@ html {
   color: whitesmoke;
 }
 
+/* Custom scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-primary;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-primary-hover;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: theme("colors.primary.DEFAULT") transparent;
+}
 @layer base {
   h1 {
     @apply text-4xl font-extrabold text-gray-200 tracking-tight;

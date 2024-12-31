@@ -4,40 +4,15 @@ import CollapsibleList from "./components/CollapsibleList";
 import { useGameboy } from "../../context/GameboyContext";
 import GameInfo from "../Library/components/GameInfo";
 import { useAuth } from "../../context/AuthContext";
+import { TGame } from "../../types";
+import { loadGames } from "../../api/api"; // Assuming loadGames is already implemented and reusable
+import { SortType } from "../../context/OptionsContext";
 
-export type TGame = {
-  id: string;
-  name: string;
-  coverPath?: string;
-  romPath?: string;
-};
 export default function Board() {
-  const [games, setGames] = useState<TGame[]>([]);
-  const { user, fetchWithAuth } = useAuth();
-
-  useEffect(() => {
-    const loadGames = async () => {
-      if (!user) return;
-      try {
-        const response = await fetchWithAuth(`api/users/${user.id}/library`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data: TGame[] = await response.json();
-        console.log(data);
-        setGames(data);
-      } catch (error) {
-        console.error("Failed to load ROM:", error);
-      }
-    };
-
-    loadGames();
-    setCurrentGame(null);
-  }, []);
-
-  const recentlyPlayedGames = games.slice(0, 3);
-  const playLaterGames = games.slice(3, 6);
-  const recentlyAddedGames = games.slice(6);
+  const [recentlyAddedGames, setRecentlyAddedGames] = useState<TGame[]>([]);
+  const [recentlyPlayedGames, setRecentlyPlayedGames] = useState<TGame[]>([]);
+  const [playLaterGames, setPlayLaterGames] = useState<TGame[]>([]);
+  const { fetchWithAuth, user } = useAuth();
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const updateOpenMenuId = (id: string) => {
@@ -46,28 +21,66 @@ export default function Board() {
 
   const { currentGame, setCurrentGame } = useGameboy();
 
+  useEffect(() => {
+    const fetchGames = async () => {
+      if (!user) return;
+
+      try {
+        // Recently Added
+        const result = await loadGames(
+          fetchWithAuth,
+          1,
+          "",
+          5,
+          SortType.DATE_NEW
+        );
+        if (result) {
+          setRecentlyAddedGames(result.gamesWithImages);
+        }
+
+        // User Library
+        const response = await fetchWithAuth(`/api/users/${user.id}/library`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const libraryGames: TGame[] = await response.json();
+        console.log(response, libraryGames);
+        setPlayLaterGames(libraryGames);
+
+        // Recently Played during last week
+
+      } catch (error) {
+        console.error("Failed to load games:", error);
+      }
+    };
+
+    fetchGames();
+    setCurrentGame(null);
+  }, [fetchWithAuth, user, setCurrentGame]);
+
   return (
     <Layout>
       {!currentGame ? (
-        <div className="flex flex-col  h-full w-full   ">
+        <div className="flex flex-col h-full w-full">
           <CollapsibleList
             title="Recently Played"
             games={recentlyPlayedGames}
             openMenuId={openMenuId}
             updateOpenMenuId={updateOpenMenuId}
-          ></CollapsibleList>
+          />
           <CollapsibleList
-            title="Play Later"
+            title="My Library"
             games={playLaterGames}
             openMenuId={openMenuId}
             updateOpenMenuId={updateOpenMenuId}
-          ></CollapsibleList>
+          />
           <CollapsibleList
             title="Recently Added"
             games={recentlyAddedGames}
             openMenuId={openMenuId}
             updateOpenMenuId={updateOpenMenuId}
-          ></CollapsibleList>
+          />
         </div>
       ) : (
         <GameInfo />

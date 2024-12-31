@@ -20,9 +20,19 @@ export interface GameListItem {
 }
 export interface GameDetails extends Game {
   coverPath?: string;
-  romPath?: string;
   screenshotPaths?: string[];
+  rom: TRomSource;
+  saveState?: TSaveStateSource;
 }
+interface TRomSource {
+  type: 'url';
+  path: string | undefined;
+}
+interface TSaveStateSource {
+  type: 'url';
+  path: string | undefined;
+}
+
 @Injectable()
 export class GamesService {
   private readonly logger = new Logger(GamesService.name);
@@ -48,16 +58,17 @@ export class GamesService {
     page = 1,
     limit = 10,
     searchTerm = '',
+    sortBy: 'recent_desc' | 'recent_asc' | 'name_asc' | 'name_desc' = 'recent_desc',
   ): Promise<{
     games: GameListItem[];
     total: number;
     page: number;
     totalPages: number;
   }> {
-    this.logger.log('Getting all games');
+    this.logger.log('Getting games list');
     try {
       const sanitizedLimit = Math.min(Math.max(1, limit), 50);
-
+  
       // Prepare database query
       const dbQuery = searchTerm
         ? {
@@ -68,20 +79,41 @@ export class GamesService {
             ],
           }
         : {};
-
+  
+      // Determine sort order based on the new sortBy options
+      let sortOptions = {};
+      switch (sortBy) {
+        case 'recent_desc':
+          sortOptions = { _id: -1 };  // Newest first
+          break;
+        case 'recent_asc':
+          sortOptions = { _id: 1 };   // Oldest first
+          break;
+        case 'name_asc':
+          sortOptions = { name: 1 };  // A to Z
+          break;
+        case 'name_desc':
+          sortOptions = { name: -1 }; // Z to A
+          break;
+        default:
+          sortOptions = { _id: -1 };  // Default to newest first
+      }
+  
       // Fetch games from database
       const totalGames = await this.gameModel.countDocuments(dbQuery);
       const games = await this.gameModel
         .find(dbQuery)
-        .select('name slug') // Only select necessary fields
+        .select('name slug')
+        .sort(sortOptions)
         .skip((page - 1) * sanitizedLimit)
         .limit(sanitizedLimit);
+  
       const listedGames: GameListItem[] = [];
       for (const game of games) {
         try {
           const gameFolderPath = path.join(this.gamesPath, game.slug);
           const files = await fs.readdir(gameFolderPath);
-
+  
           // Find cover
           const coverFile = files.find((file) =>
             file.match(/^cover\.(png|jpg|jpeg)$/i),
@@ -89,7 +121,7 @@ export class GamesService {
           const coverPath = coverFile
             ? `api/games/${game.slug}/${coverFile}`
             : undefined;
-
+  
           listedGames.push({
             slug: game.slug,
             name: game.name,
@@ -104,7 +136,7 @@ export class GamesService {
           this.logger.warn(`Folder not found for game: ${game.slug}`);
         }
       }
-
+  
       return {
         games: listedGames,
         total: totalGames,
@@ -124,16 +156,11 @@ export class GamesService {
 
   async getGameDetails(slug: string): Promise<GameDetails> {
     try {
-      // Fetch game from database
       const game = await this.gameModel.findOne({ slug });
       if (!game) {
         throw new NotFoundException(`Game with slug ${slug} not found`);
       }
 
-      // Convert to plain object to add additional properties
-      const gameDetails = game.toObject() as GameDetails;
-
-      // Check game folder
       const gameFolderPath = path.join(this.gamesPath, slug);
       const files = await fs.readdir(gameFolderPath);
 
@@ -141,27 +168,49 @@ export class GamesService {
       const coverFile = files.find((file) =>
         file.match(/^cover\.(png|jpg|jpeg)$/i),
       );
-      gameDetails.coverPath = coverFile
+      const coverPath = coverFile
         ? `api/games/${slug}/${coverFile}`
         : undefined;
 
       // Find ROM
       const romFile = files.find((file) => file.endsWith('.gb'));
-      gameDetails.romPath = romFile
-        ? `api/games/${slug}/${romFile}`
-        : undefined;
+      if (!romFile) {
+        throw new NotFoundException(`ROM file not found for game ${slug}`);
+      }
 
       // Find screenshots
-      const screenshotDir = path.join(gameFolderPath, 'screenshots');
+      let screenshotPaths: string[] = [];
       try {
+        const screenshotDir = path.join(gameFolderPath, 'screenshots');
         const screenshotFiles = await fs.readdir(screenshotDir);
-        gameDetails.screenshotPaths = screenshotFiles.map(
+        screenshotPaths = screenshotFiles.map(
           (file) => `api/games/${slug}/screenshots/${file}`,
         );
       } catch (screenshotErr) {
-        // No screenshots folder found
-        gameDetails.screenshotPaths = [];
+        this.logger.warn(`No screenshots found for game ${slug}`);
       }
+
+      // Transform to frontend type
+      const gameDetails: GameDetails = {
+        slug: game.slug,
+        name: game.name,
+        coverPath,
+        rom: {
+          type: 'url',
+          path: romFile ? `api/games/${slug}/${romFile}` : undefined,
+        },
+        saveState: {
+          type: 'url',
+          path: undefined,
+        },
+        screenshotPaths,
+        description: game.description,
+        originalTitle: game.originalTitle,
+        rating: game.rating,
+        releaseDate: game.releaseDate,
+        developers: game.developers,
+        genres: game.genres,
+      };
 
       return gameDetails;
     } catch (err) {
@@ -171,6 +220,7 @@ export class GamesService {
       );
     }
   }
+
   async getGamesByIds(gameIds: string[]): Promise<GameDetails[]> {
     try {
       const games = await this.gameModel.find({
@@ -181,16 +231,46 @@ export class GamesService {
 
       for (const game of games) {
         try {
-          const gameDetails = game.toObject() as GameDetails;
           const gameFolderPath = path.join(this.gamesPath, game.slug);
           const files = await fs.readdir(gameFolderPath);
 
+          // Find cover
           const coverFile = files.find((file) =>
             file.match(/^cover\.(png|jpg|jpeg)$/i),
           );
-          gameDetails.coverPath = coverFile
+          const coverPath = coverFile
             ? `api/games/${game.slug}/${coverFile}`
             : undefined;
+
+          // Find ROM
+          const romFile = files.find((file) => file.endsWith('.gb'));
+
+          // Find screenshots
+          let screenshotPaths: string[] = [];
+          try {
+            const screenshotDir = path.join(gameFolderPath, 'screenshots');
+            const screenshotFiles = await fs.readdir(screenshotDir);
+            screenshotPaths = screenshotFiles.map(
+              (file) => `api/games/${game.slug}/screenshots/${file}`,
+            );
+          } catch (screenshotErr) {
+            this.logger.warn(`No screenshots found for game ${game.slug}`);
+          }
+
+          // Construct GameDetails object with all required properties
+          const gameDetails: GameDetails = {
+            ...game.toObject(),
+            coverPath,
+            screenshotPaths,
+            rom: {
+              type: 'url',
+              path: romFile ? `api/games/${game.slug}/${romFile}` : undefined,
+            },
+            saveState: {
+              type: 'url',
+              path: undefined,
+            },
+          };
 
           processedGames.push(gameDetails);
         } catch (folderErr) {

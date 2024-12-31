@@ -45,9 +45,13 @@ export class User {
           type: Types.ObjectId,
           ref: 'Game',
         },
-        savedState: {
+        showInMainboard: {
           type: Boolean,
-          default: false,
+          default: true,
+        },
+        saveState: {
+          type: Buffer,
+          default: null,
         },
       },
     ],
@@ -55,7 +59,8 @@ export class User {
   })
   library: Array<{
     game: Types.ObjectId;
-    savedState: boolean;
+    showInMainboard: boolean;
+    saveState: Buffer | null;
   }>;
 }
 

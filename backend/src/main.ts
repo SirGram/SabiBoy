@@ -7,10 +7,14 @@ import { UsersService } from './users/users.service';
 import * as jwt from 'jsonwebtoken';
 import { ConfigService } from '@nestjs/config';
 import * as express from 'express';
+import { json, raw, urlencoded } from 'express';
+import * as getRawBody from 'raw-body';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+  });
 
   // Enable global validation pipes
   app.useGlobalPipes(new ValidationPipe());
@@ -21,6 +25,14 @@ async function bootstrap() {
   await usersService.createFirstUserIfNoneExist();
 
   app.setGlobalPrefix('api');
+
+  // Set up raw body parsing for binary data
+  app.use(
+    '/api/users/:id/library/:slug/save-state',
+    raw({ type: 'application/octet-stream', limit: '100kb' }),
+  );
+  app.use(json({ limit: '100kb' }));
+  app.use(urlencoded({ limit: '100kb', extended: true }));
 
   // Serve static assets from the "games" folder
   const gamesMiddleware = createGamesMiddleware(configService);
@@ -40,7 +52,11 @@ async function bootstrap() {
 }
 
 function createGamesMiddleware(configService: ConfigService) {
-  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  return (
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction,
+  ) => {
     const authHeader = req.headers.authorization;
 
     if (!authHeader) {

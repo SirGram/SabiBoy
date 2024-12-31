@@ -111,8 +111,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       headers.set("Content-Type", "application/json");
     }
 
-    console.log("Token:", token);
-    console.log("Headers:", Object.fromEntries(headers));
 
     return fetch(input, {
       ...init,

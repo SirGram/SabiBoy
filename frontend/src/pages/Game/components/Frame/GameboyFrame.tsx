@@ -1,7 +1,8 @@
+// https://codepen.io/brundolf/pen/beagbQ
+
 import React from "react";
 import "./style.css";
 import { useOptions } from "../../../../context/OptionsContext";
-// https://codepen.io/brundolf/pen/beagbQ
 
 export function GameboyFrame({
   handleKeyDown,

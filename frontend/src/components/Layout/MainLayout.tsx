@@ -10,21 +10,35 @@ import {
   UserIcon,
 } from "lucide-react";
 import packageJson from "../../../package.json";
+import { useAuth } from "../../context/AuthContext";
+import logo from "/icon.svg";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAuth();
+
+  const publicMenuItems = [
+    { label: "Offline", to: "/offline-emulator", icon: Gamepad },
+    { label: "Options", to: "/options", icon: SettingsIcon },
+  ];
+
+  const privateMenuItems = [
+    { label: "Board", to: "/", icon: HomeIcon },
+    { label: "Library", to: "/library", icon: LibraryIcon },
+    { label: "User", to: "/user", icon: UserIcon },
+  ];
+
+  // Combine menu items based on authentication status
+  const menuItems = isAuthenticated
+    ? [...privateMenuItems, ...publicMenuItems]
+    : publicMenuItems;
+
   return (
     <div className="h-screen w-full flex flex-col">
-      <div className="flex-1 overflow-y-auto bg-base-background">
-        <div className="py-5 px-4 min-h-full md:ml-24">{children}</div>
+      <div className="mb-16 md:mb-0 flex-1 overflow-y-auto bg-base-background">
+        <div className="py-4 px-2 min-h-full md:ml-36  mx-auto">{children}</div>
       </div>
       <Navbar
-        menuItems={[
-          { label: "Board", to: "/", icon: HomeIcon },
-          { label: "Library", to: "/library", icon: LibraryIcon },
-          { label: "Offline", to: "/offline-emulator", icon: Gamepad },
-          { label: "Options", to: "/options", icon: SettingsIcon },
-          { label: "User", to: "/user", icon: UserIcon },
-        ]}
+        menuItems={menuItems}
         footer={{
           githubLink: "https://github.com/SirGram/SabiBoy",
           version: packageJson.version,
@@ -50,14 +64,17 @@ type NavbarProps = {
 
 function Navbar({ menuItems, footer }: NavbarProps) {
   return (
-    <nav className="md:fixed md:h-screen md:left-0 md:top-0 md:w-24 
-                    fixed bottom-0 left-0 right-0 h-16
-                    bg-base-background/90 backdrop-blur-sm
-                    flex md:flex-col items-center 
-                    border-t md:border-r md:border-t-0 border-base-border 
-                    shadow-lg z-10">
+    <nav
+      className="fixed bottom-0 left-0 right-0 h-16 
+             md:my-2 md:h-screen md:left-0 md:top-0 md:max-w-36
+             bg-base-background/95 backdrop-blur-md
+             flex md:flex-col items-center 
+             border-t md:border-r md:border-t-0 border-base-border 
+             shadow-xl z-10"
+    >
+
       {/* Menu Items */}
-      <div className="flex md:flex-col items-center w-full h-full md:h-auto md:flex-1 justify-around md:justify-start md:pt-4">
+      <div className="md:px-2 flex md:flex-col items-center w-full h-full md:h-auto md:flex-1 justify-around md:justify-start md:pt-0 ">
         {menuItems.map((item) => (
           <NavItem
             key={item.to}
@@ -69,16 +86,16 @@ function Navbar({ menuItems, footer }: NavbarProps) {
       </div>
 
       {/* Footer - Only visible on desktop */}
-      <div className="hidden md:flex flex-col items-center space-y-1 mb-4 w-full">
+      <div className="hidden md:flex  items-center space-y-2 mb-6 w-full">
         <a
           href={footer.githubLink}
           target="_blank"
           rel="noopener noreferrer"
-          className="group relative hover:bg-muted/20 rounded-md py-3 px-5 transition-colors duration-300"
+          className="group relative hover:bg-muted/20 rounded-lg py-3 px-5 transition-colors duration-300 flex items-center gap-2"
         >
-          <Github className="text-base-foreground group-hover:text-primary w-7 h-7 transition-all duration-300 transform group-hover:scale-110" />
-          <span className="text-muted-foreground text-xs font-semibold">
-            {footer.version}
+          <Github className="text-lg-foreground group-hover:text-primary w-7 h-7 transition-all duration-300 transform group-hover:scale-110" />
+          <span className="text-muted-foreground text-xs md:text-lg font-medium mt-1 block">
+            v{footer.version}
           </span>
         </a>
       </div>
@@ -101,20 +118,24 @@ function NavItem({ label, to, Icon }: NavItemProps) {
   return (
     <Link
       to={to}
-      className={`text-center group flex flex-col relative hover:bg-muted/20 
-        py-2 md:py-5 px-3 md:w-full rounded-md transition-colors duration-300 
-        justify-center items-center
-        ${isActive ? "pointer-events-none" : ""}
-        `}
+      className={`text-center group flex flex-col md:flex-row md:gap-2 relative hover:bg-muted/20 
+        py-2  md:py-4 px-3 w-full rounded-lg transition-all duration-300 
+        justify-center  items-center md:justify-start 
+        ${isActive ? "pointer-events-none" : "opacity-50 hover:opacity-100"}
+        hover:shadow-md`}
     >
       <Icon
-        className={`w-6 h-6 md:w-7 md:h-7 transition-all duration-300 transform group-hover:scale-110 ${
+        className={`w-6 h-6 md:w-6 md:h-6 transition-all duration-300 transform group-hover:scale-110 ${
           isActive
             ? "text-primary"
-            : "text-base-foreground group-hover:text-primary"
+            : "text-lg-foreground group-hover:text-primary"
         }`}
       />
-      <span className="text-xs md:text-sm text-muted-foreground">
+      <span
+        className={`text-xs md:text-lg mt-1 md:mt-0 font-medium ${
+          isActive ? "text-primary" : "text-muted-foreground"
+        }`}
+      >
         {label}
       </span>
     </Link>

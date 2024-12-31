@@ -48,5 +48,16 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    require("@tailwindcss/forms"),
+    function ({ addUtilities }) {
+      // Add custom clip-path utility for the hole
+      addUtilities({
+        ".clip-hole": {
+          clipPath: "circle(50% at center)",
+          WebkitClipPath: "circle(50% at center)", // for Webkit browsers like Safari
+        },
+      }, ['responsive', 'hover']); // Optionally add responsive and hover variants if needed
+    },
+  ],
 };

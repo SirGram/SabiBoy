@@ -24,18 +24,24 @@ fn main() {
     let mut gameboy = gameboy_core::gameboy::Gameboy::new(palette);
     gameboy.set_power_up_sequence();
     gameboy.load_rom(include_bytes!(
-        "../../../games/tennis--1/rom.gb"
+        "../../../games/dmg-acid2/rom.gb"
     ));
 
-    /*   let save_state = std::fs::read("./rom.gb.state").expect("Failed to read state from file");
+       let save_state = std::fs::read("./rom.gb.state").expect("Failed to read state from file");
      gameboy
     .load_state(save_state)
-    .expect("Failed to load state");   */
+    .expect("Failed to load state");  
 
     // Setup audio
-    let audio_output = AudioOutput::new().expect("Failed to initialize audio");
+    let audio_output = match AudioOutput::new() {
+        Ok(audio) => Some(audio),
+        Err(e) => {
+            println!("Audio disabled - couldn't initialize: {}", e);
+            None
+        }
+    };
 
-    run(&mut window, &mut gameboy, &mut debug_window, &audio_output);
+    run(&mut window, &mut gameboy, &mut debug_window, audio_output.as_ref());
 }
 
 fn set_up_window() -> Window {
@@ -58,7 +64,7 @@ fn run(
     window: &mut Window,
     gameboy: &mut gameboy_core::gameboy::Gameboy,
     debug_window: &mut Option<debug_window::DebugWindow>,
-    audio_output: &AudioOutput,
+    audio_output: Option<&AudioOutput>,
 ) {
     let target_frame_time = Duration::from_micros(16_667); // 60 fps
     let mut last_fps_check = Instant::now();
@@ -113,7 +119,9 @@ fn run(
         }
         // update audio per frame? 48000 samples / 60fps? plz help
         let samples = gameboy.apu.get_samples();
-        audio_output.add_samples(&samples);
+        if let Some(audio) = audio_output {
+            audio.add_samples(&samples);
+        }
     }
 }
 

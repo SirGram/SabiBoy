@@ -30,16 +30,23 @@ export function usePreventDefaultTouch() {
     };
   }, []);
 }
-
 export const useImageLoader = (imagePath: string | undefined) => {
   const [imageURL, setImageURL] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    setIsLoading(true);
     const fetchImage = async () => {
-      if (!imagePath) return;
+      if (!imagePath) {
+        setIsLoading(false);
+        return;
+      }
 
       const token = localStorage.getItem("access_token");
-      if (!token) return;
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
 
       try {
         const response = await fetch(imagePath, {
@@ -48,14 +55,17 @@ export const useImageLoader = (imagePath: string | undefined) => {
 
         if (!response.ok) {
           console.error(`Failed to fetch image: ${response.statusText}`);
+          setIsLoading(false);
           return;
         }
 
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
         setImageURL(url);
+        setIsLoading(false);
       } catch (error) {
         console.error("Error fetching image:", error);
+        setIsLoading(false);
       }
     };
 
@@ -66,5 +76,7 @@ export const useImageLoader = (imagePath: string | undefined) => {
     };
   }, [imagePath]);
 
-  return imageURL;
+  return { imageURL, isLoading };
 };
+
+

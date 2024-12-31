@@ -22,7 +22,6 @@ export default function UserManagement() {
   const { user, logout, fetchWithAuth } = useAuth();
   const navigate = useNavigate();
 
-  // State for password change form
   const [passwordForm, setPasswordForm] = useState<UserFormData>({
     email: user?.email || "",
     currentPassword: "",
@@ -30,7 +29,6 @@ export default function UserManagement() {
     confirmPassword: "",
   });
 
-  // State for user management
   const [users, setUsers] = useState<UserListEntry[]>([]);
   const [showUserList, setShowUserList] = useState(false);
   const [newUserForm, setNewUserForm] = useState({
@@ -42,7 +40,6 @@ export default function UserManagement() {
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Basic validation
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       alert("New passwords do not match");
       return;
@@ -209,7 +206,7 @@ export default function UserManagement() {
                   currentPassword: e.target.value,
                 }))
               }
-              className="w-full px-3 py-2 border rounded"
+              className="w-full px-3 py-2 border rounded bg-transparent"
               required
             />
             <input
@@ -222,7 +219,7 @@ export default function UserManagement() {
                   newPassword: e.target.value,
                 }))
               }
-              className="w-full px-3 py-2 border rounded"
+              className="w-full px-3 py-2 border rounded bg-transparent"
               required
             />
             <input
@@ -235,7 +232,7 @@ export default function UserManagement() {
                   confirmPassword: e.target.value,
                 }))
               }
-              className="w-full px-3 py-2 border rounded"
+              className="w-full px-3 py-2 border rounded bg-transparent"
               required
             />
             <button
@@ -275,7 +272,7 @@ export default function UserManagement() {
                       email: e.target.value,
                     }))
                   }
-                  className="w-full px-3 py-2 border rounded "
+                  className="w-full px-3 py-2 border rounded bg-transparent"
                   required
                 />
                 <input
@@ -288,7 +285,7 @@ export default function UserManagement() {
                       password: e.target.value,
                     }))
                   }
-                  className="w-full px-3 py-2 border rounded"
+                  className="w-full px-3 py-2 border rounded bg-transparent"
                   required
                 />
                 <select

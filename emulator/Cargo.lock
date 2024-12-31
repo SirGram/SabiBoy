@@ -338,7 +338,7 @@ dependencies = [
 
 [[package]]
 name = "gameboy_core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bincode",
  "bitflags 2.6.0",
@@ -353,7 +353,7 @@ dependencies = [
 
 [[package]]
 name = "gameboy_desktop"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "cpal",
@@ -364,7 +364,7 @@ dependencies = [
 
 [[package]]
 name = "gameboy_wasm"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gameboy_core",
  "serde",

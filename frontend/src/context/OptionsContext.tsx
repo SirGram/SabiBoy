@@ -58,12 +58,20 @@ export enum Buttons {
   B = "B",
   SELECT = "Select",
   START = "Start",
+  SAVE = "Save",
+}
+
+export enum SortType {
+  DATE_NEW = "Date (Newest)",
+  DATE_OLD = "Date (Oldest)",
+  NAME_ASC = "Name (A-Z)",
+  NAME_DESC = "Name (Z-A)",
 }
 
 type KeyMappingEntry = {
   mapped: string;
-  mask: number;
-  bit: number;
+  mask?: number;
+  bit?: number;
 };
 
 type KeyMapping = {
@@ -79,6 +87,7 @@ const DEFAULT_KEY_MAPPING: KeyMapping = {
   [Buttons.A]: { mapped: "z", mask: 0xdf, bit: 5 },
   [Buttons.SELECT]: { mapped: "Backspace", mask: 0xbf, bit: 6 },
   [Buttons.START]: { mapped: "Enter", mask: 0x7f, bit: 7 },
+  [Buttons.SAVE]: { mapped: "1", mask: 0xff, bit: 8 },
 };
 
 type Options = {
@@ -87,6 +96,7 @@ type Options = {
   palette: number[];
   debug: boolean;
   limitOptions: number;
+  sortType: SortType;
 };
 
 const DEFAULT_PALETTE = PREDEFINED_PALETTES[0].colors;
@@ -98,8 +108,8 @@ const defaultOptions: Options = {
   keys: DEFAULT_KEY_MAPPING,
   palette: DEFAULT_PALETTE,
   debug: false,
-
   limitOptions: DEFAULT_LIMIT_OPTIONS,
+  sortType: SortType.DATE_NEW,
 };
 
 const OptionsContext = createContext<{
@@ -112,6 +122,7 @@ const OptionsContext = createContext<{
   updatePalette: (newPalette: number[]) => void;
   resetPalette: () => void;
   cycleLimitOptions: () => void;
+  updateSortType: (type: SortType) => void;
 }>({
   options: defaultOptions,
   setOptions: () => {},
@@ -122,6 +133,7 @@ const OptionsContext = createContext<{
   updatePalette: () => {},
   resetPalette: () => {},
   cycleLimitOptions: () => {},
+  updateSortType: () => {},
 });
 
 const LOCAL_STORAGE_KEY = "sabiboy-options";
@@ -223,6 +235,13 @@ export const OptionsProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   };
 
+  const updateSortType = (newSortType: SortType) => {
+    setOptions((prev) => ({
+      ...prev,
+      sortType: newSortType,
+    }));
+  };
+
   const value = useMemo(
     () => ({
       options,
@@ -233,7 +252,8 @@ export const OptionsProvider: React.FC<{ children: React.ReactNode }> = ({
       resetToDefaultKeys,
       updatePalette,
       resetPalette,
-      cycleLimitOptions
+      cycleLimitOptions,
+      updateSortType,
     }),
     [options]
   );

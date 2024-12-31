@@ -26,14 +26,12 @@ export class UsersService {
 
   async createFirstUserIfNoneExist(): Promise<void> {
     const existingUser = await this.userModel.findOne();
-
     if (!existingUser) {
       const createUserDto: CreateUserDto = {
         email: 'admin@example.com',
         password: 'supersecretpassword',
         role: UserRole.SUPERUSER,
       };
-
       const user = new this.userModel(createUserDto);
       await user.save();
       console.log('First superuser created');
@@ -72,16 +70,13 @@ export class UsersService {
     if (!Object.values(UserRole).includes(role)) {
       throw new BadRequestException('Invalid user role');
     }
-
     try {
       const updatedUser = await this.userModel
         .findByIdAndUpdate(id, { role }, { new: true, runValidators: true })
         .select('-password');
-
       if (!updatedUser) {
         throw new NotFoundException('User not found');
       }
-
       return updatedUser;
     } catch (error) {
       if (error.name === 'CastError') {
@@ -94,11 +89,9 @@ export class UsersService {
   async deleteUser(userId: string, id: string): Promise<void> {
     try {
       const result = await this.userModel.findById(id).select('-password');
-      // only delete if no superuser
       if (result.role === 'superuser') {
         throw new BadRequestException('Cannot delete superuser');
       }
-
       if (!result) {
         throw new NotFoundException('User not found');
       }
@@ -116,15 +109,12 @@ export class UsersService {
   ): Promise<User | null> {
     try {
       const { password, ...updateFields } = updateData;
-
       const updatedUser = await this.userModel
         .findByIdAndUpdate(id, updateFields, { new: true, runValidators: true })
         .select('-password');
-
       if (!updatedUser) {
         throw new NotFoundException('User not found');
       }
-
       return updatedUser;
     } catch (error) {
       if (error.name === 'CastError') {
@@ -144,7 +134,6 @@ export class UsersService {
         'You are not authorized to modify this user',
       );
     }
-
     try {
       const game = await this.gameModel.findOne({ slug });
       if (!game) throw new NotFoundException('Game not found');
@@ -152,13 +141,20 @@ export class UsersService {
       const updatedUser = await this.userModel
         .findByIdAndUpdate(
           id,
-          { $push: { library: { game: game._id, savedState: false } } },
+          {
+            $push: {
+              library: {
+                game: game._id,
+                showInMainboard: true,
+                saveState: null,
+              },
+            },
+          },
           { new: true },
         )
         .populate('library.game');
 
       if (!updatedUser) throw new NotFoundException('User not found');
-
       return updatedUser;
     } catch (error) {
       if (error.name === 'CastError') {
@@ -167,6 +163,7 @@ export class UsersService {
       throw error;
     }
   }
+
   async deleteGameFromUserLibrary(
     userId: string,
     gameSlug: string,
@@ -193,7 +190,6 @@ export class UsersService {
       if (!updatedUser) {
         throw new NotFoundException('User not found');
       }
-
       return updatedUser;
     } catch (error) {
       console.error('Error removing game from library:', error);
@@ -202,6 +198,7 @@ export class UsersService {
       );
     }
   }
+
   async getUserLibrary(userId: string): Promise<GameDetails[]> {
     try {
       const user = await this.userModel.findById(userId).select('library');
@@ -210,29 +207,16 @@ export class UsersService {
         throw new NotFoundException('User not found');
       }
 
-      const gameIds = user.library.map((libraryItem) =>
-        libraryItem.game.toString(),
-      );
+      const gameIds = user.library
+        .filter((item) => item.showInMainboard)
+        .map((item) => item.game.toString());
 
-      // Fetch games by IDs
-      const libraryGames = await this.gamesService.getGamesByIds(gameIds);
-
-      // Map saved states to games
-      /*  return libraryGames.map((game) => {
-        const libraryItem = user.library.find(
-          (item) => item.game.toString() === game._id.toString(),
-        );
-
-        return {
-          ...game,
-          savedState: libraryItem?.savedState || false,
-        };
-      }); */
-      return libraryGames;
+      return this.gamesService.getGamesByIds(gameIds);
     } catch (error) {
       throw new InternalServerErrorException('Could not retrieve user library');
     }
   }
+
   async isGameInUserLibrary(
     userId: string,
     gameSlug: string,
@@ -260,19 +244,192 @@ export class UsersService {
       );
     }
   }
+
+  async getGameSaveState(userId: string, slug: string): Promise<Buffer | null> {
+    try {
+      console.log('Getting save state for user:', userId, 'game:', slug);
+
+      const user = await this.userModel.findById(userId);
+      if (!user) throw new NotFoundException('User not found');
+
+      const game = await this.gameModel.findOne({ slug });
+      if (!game) throw new NotFoundException('Game not found');
+
+      const libraryItem = user.library.find((item) =>
+        item.game.equals(game._id),
+      );
+      if (!libraryItem) {
+        throw new NotFoundException('Game not found in user library');
+      }
+
+      console.log('Found save state size:', libraryItem.saveState?.length);
+      return libraryItem.saveState;
+    } catch (error) {
+      console.error('Error retrieving save state:', error);
+      throw error;
+    }
+  }
+
+  async updateGameSaveState(
+    userId: string,
+    slug: string,
+    saveState: Buffer,
+  ): Promise<User | null> {
+    try {
+      console.log('Received save state size:', saveState.length);
+
+      if (!Buffer.isBuffer(saveState)) {
+        console.error('Save state is not a buffer:', typeof saveState);
+        throw new BadRequestException('Save state must be a buffer');
+      }
+
+      const user = await this.userModel.findById(userId);
+      if (!user) throw new NotFoundException('User not found');
+
+      const game = await this.gameModel.findOne({ slug });
+      if (!game) throw new NotFoundException('Game not found');
+
+      const libraryItem = user.library.find((item) =>
+        item.game.equals(game._id),
+      );
+      if (!libraryItem) {
+        throw new NotFoundException('Game not found in user library');
+      }
+
+      console.log('Updating save state for user:', userId, 'game:', slug);
+
+      const updatedUser = await this.userModel
+        .findOneAndUpdate(
+          {
+            _id: userId,
+            'library.game': game._id,
+          },
+          {
+            $set: {
+              'library.$.saveState': saveState,
+            },
+          },
+          { new: true },
+        )
+        .populate('library.game');
+
+      if (!updatedUser) {
+        throw new InternalServerErrorException('Failed to update save state');
+      }
+
+      // Verify the save state was stored
+      const verifyUser = await this.userModel.findById(userId);
+      const verifyItem = verifyUser?.library.find((item) =>
+        item.game.equals(game._id),
+      );
+      console.log('Verified save state size:', verifyItem?.saveState?.length);
+
+      return updatedUser;
+    } catch (error) {
+      console.error('Save state error:', error);
+      if (error.name === 'CastError') {
+        throw new BadRequestException('Invalid ID format');
+      }
+      if (error.status) throw error;
+      throw new InternalServerErrorException('Failed to update save state');
+    }
+  }
+
+  async resetGameSaveState(userId: string, slug: string): Promise<User | null> {
+    try {
+      console.log('Resetting save state for user:', userId, 'game:', slug);
+
+      const user = await this.userModel.findById(userId);
+      if (!user) throw new NotFoundException('User not found');
+
+      const game = await this.gameModel.findOne({ slug });
+      if (!game) throw new NotFoundException('Game not found');
+
+      const libraryItem = user.library.find((item) =>
+        item.game.equals(game._id),
+      );
+      if (!libraryItem) {
+        throw new NotFoundException('Game not found in user library');
+      }
+
+      const updatedUser = await this.userModel
+        .findOneAndUpdate(
+          {
+            _id: userId,
+            'library.game': game._id,
+          },
+          {
+            $set: {
+              'library.$.saveState': null,
+            },
+          },
+          { new: true },
+        )
+        .populate('library.game');
+
+      if (!updatedUser) {
+        throw new InternalServerErrorException('Failed to reset save state');
+      }
+
+      return updatedUser;
+    } catch (error) {
+      console.error('Reset save state error:', error);
+      if (error.name === 'CastError') {
+        throw new BadRequestException('Invalid ID format');
+      }
+      if (error.status) throw error;
+      throw new InternalServerErrorException('Failed to reset save state');
+    }
+  }
+
+  async updateGameVisibility(
+    userId: string,
+    slug: string,
+    showInMainboard: boolean,
+  ): Promise<User | null> {
+    try {
+      const game = await this.gameModel.findOne({ slug });
+      if (!game) throw new NotFoundException('Game not found');
+
+      const updatedUser = await this.userModel
+        .findOneAndUpdate(
+          {
+            _id: userId,
+            'library.game': game._id,
+          },
+          {
+            $set: {
+              'library.$.showInMainboard': showInMainboard,
+            },
+          },
+          { new: true },
+        )
+        .populate('library.game');
+
+      if (!updatedUser) throw new NotFoundException('User or game not found');
+
+      return updatedUser;
+    } catch (error) {
+      if (error.name === 'CastError') {
+        throw new BadRequestException('Invalid ID format');
+      }
+      throw new InternalServerErrorException(
+        'Failed to update game visibility',
+      );
+    }
+  }
+
   async changePassword(
     userId: string,
     currentPassword: string,
     newPassword: string,
   ): Promise<void> {
-    // Find the user with the password field included
     const user = await this.userModel.findById(userId).select('+password');
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    // Verify current password
     const isPasswordValid = await this.authService.comparePasswords(
       currentPassword,
       user.password,
@@ -282,7 +439,6 @@ export class UsersService {
       throw new ForbiddenException('Current password is incorrect');
     }
 
-    // Update password
     user.password = newPassword;
     await user.save();
   }

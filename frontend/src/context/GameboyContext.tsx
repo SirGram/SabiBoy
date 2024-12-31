@@ -6,40 +6,52 @@ import {
   useState,
 } from "react";
 import { GameboyWasm } from "../wasm/pkg/gameboy_wasm";
-import { TGame, TGameDetails } from "../pages/Library/Library";
-
+import { TGameDetails, TGameDetailsWithSaveState } from "../types";
 
 const GameboyContext = createContext<{
   gameboy: GameboyWasm | null;
-  initGameboy: (romData: Uint8Array, palette: number[], saveStateData?: Uint8Array) => void;
-  currentGame: TGameDetails | null;
-  setCurrentGame: (game: TGameDetails | null) => void;
+  initGameboy: (
+    romData: Uint8Array,
+    palette: number[],
+    saveStateData?: Uint8Array
+  ) => void;
+  currentGame: TGameDetailsWithSaveState | null;
+  setCurrentGame: (game: TGameDetailsWithSaveState | null) => void;
 }>({
   gameboy: null,
   initGameboy: () => {},
   currentGame: null,
   setCurrentGame: () => {},
 });
+
 export const GameboyProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [gameboy, setGameboy] = useState<GameboyWasm | null>(null);
-  const [currentGame, setCurrentGame] = useState<TGameDetails | null>(null);
+  const [currentGame, setCurrentGame] =
+    useState<TGameDetailsWithSaveState | null>(null);
 
-  const initGameboy = useCallback((romData: Uint8Array, palette: number[], saveStateData?: Uint8Array) => {
-    // Create new gameboy instance
-    const paletteArray = new Uint32Array(palette);
-    console.log("Palette Array:", paletteArray);
-    const newGameboy = new GameboyWasm(paletteArray);
+  const initGameboy = useCallback(
+    async (
+      romData: Uint8Array,
+      palette: number[],
+      saveStateData?: Uint8Array
+    ) => {
+      const paletteArray = new Uint32Array(palette);
+      console.log("Palette Array:", paletteArray);
 
-    try {
-      newGameboy.init(romData, saveStateData);
-      console.log("Gameboy initialized successfully");
-      setGameboy(newGameboy);
-    } catch (error) {
-      console.error("Failed to initialize Gameboy:", error);
-    }
-  }, []);
+      try {
+        const newGameboy = new GameboyWasm(paletteArray);
+        await newGameboy.init(romData, saveStateData);
+        console.log("Gameboy initialized successfully");
+        setGameboy(newGameboy);
+      } catch (error) {
+        console.error("Failed to initialize Gameboy:", error);
+        throw error;
+      }
+    },
+    []
+  );
 
   const value = useMemo(
     () => ({
@@ -48,7 +60,7 @@ export const GameboyProvider: React.FC<{ children: React.ReactNode }> = ({
       currentGame,
       setCurrentGame,
     }),
-    [gameboy, initGameboy, currentGame, setCurrentGame]
+    [gameboy, initGameboy, currentGame]
   );
 
   return (

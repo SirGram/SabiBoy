@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { EditIcon, Palette, SaveIcon, XIcon } from "lucide-react";
+import { EditIcon, SaveIcon, XIcon } from "lucide-react";
 import Layout from "../../components/Layout/MainLayout";
 import { PREDEFINED_PALETTES, useOptions } from "../../context/OptionsContext";
 import { Buttons } from "../../context/OptionsContext"; // Adjust import path
@@ -12,7 +12,6 @@ export default function Options() {
     updateKeyMapping,
     toggleShowFrame,
     updatePalette,
-    resetPalette,
     toggleDebug,
   } = useOptions();
   const [editingButton, setEditingButton] = useState<Buttons | null>(null);

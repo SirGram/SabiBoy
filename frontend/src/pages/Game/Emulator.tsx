@@ -1,9 +1,12 @@
 import { ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 import {
   ChevronLeft,
+  DownloadIcon,
   MaximizeIcon,
   PauseIcon,
   PlayIcon,
+  SaveIcon,
+  SaveOff,
   Volume2,
   VolumeOff,
 } from "lucide-react";
@@ -14,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import { useOptions } from "../../context/OptionsContext";
 import { usePreventDefaultTouch } from "../../hooks/hooks";
 import { WasmPpuState } from "../../wasm/pkg/gameboy_wasm";
+import { useAuth } from "../../context/AuthContext";
 
 export interface CartridgeHeaderState {
   title: string;
@@ -39,47 +43,109 @@ export default function Emulator() {
   });
   const [isGameboyPaused, setIsGameboyPaused] = useState(false);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
-  const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const { gameboy } = useGameboy();
+  const { gameboy, currentGame } = useGameboy();
   const [pressedKeys, setPressedKeys] = useState(0xff);
 
   const { options } = useOptions();
+  const { fetchWithAuth, user } = useAuth();
+
   const handleSaveButton = async () => {
     try {
+      console.log("Starting save state process...");
       const stateData = gameboy!.save_state();
-      const blob = new Blob([stateData], { type: "application/octet-stream" });
-      const url = URL.createObjectURL(blob);
+      console.log("Save state data generated, size:", stateData.length);
 
-      // Trigger download
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `rom.gb.state`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const response = await fetchWithAuth(
+        `/api/users/${user?.id}/library/${currentGame?.slug}/save-state`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/octet-stream",
+          },
+          body: stateData,
+        }
+      );
 
-      console.log("State saved successfully.");
+      console.log("Save state response status:", response.status);
+      const responseData = await response.text();
+
+      if (!response.ok) {
+        throw new Error(
+          `Failed to save state: ${response.statusText} - ${responseData}`
+        );
+      }
+
+      return response;
     } catch (error) {
       console.error("Failed to save state:", error);
+      throw error;
     }
   };
+  const handleDownloadSaveState = async () => {
+    try {
+      if (!gameboy) return;
+      const stateData = gameboy!.save_state();
+      console.log("Save state data generated, size:", stateData.length);
+
+      // Download functionality
+      const blob = new Blob([stateData], { type: "application/octet-stream" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `rom.gb.state`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to save state:", error);
+      throw error;
+    }
+  };
+  const handleResetSaveState = async () => {
+    try {
+      const response = await fetchWithAuth(
+        `/api/users/${user?.id}/library/${currentGame?.slug}/save-state`,
+        {
+          method: "DELETE",
+        }
+      );
+  
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(
+          `Failed to reset save state: ${response.statusText} - ${errorData}`
+        );
+      }
+  
+  
+      console.log("Save state reset successfully");
+      
+      navigate("/");
+    } catch (error) {
+      console.error("Failed to reset save state:", error);
+      throw error;
+    }
+  };
+  const navigate = useNavigate();
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
       if (!gameboy) return;
-      // save button
-      if (event.key.toLowerCase() === "1") {
+      console.log(options);
+      // Handle save button first
+      if (event.key.toLowerCase() === options.keys.Save.mapped.toLowerCase()) {
         handleSaveButton();
         return;
       }
 
-      // Find the button that corresponds to the pressed key
+      // Handle other GameBoy buttons
       const button = Object.entries(options.keys).find(
-        ([_, mapping]) => mapping.mapped === event.key
+        ([buttonName, mapping]) =>
+          buttonName !== "Save" && mapping.mapped === event.key
       );
 
       if (!button) return;
       const [, { mask }] = button;
-      const newPressedKeys = pressedKeys & mask;
+      const newPressedKeys = pressedKeys & mask!;
 
       event.preventDefault();
       setPressedKeys(newPressedKeys);
@@ -99,7 +165,7 @@ export default function Emulator() {
       if (!button) return;
 
       const [, { bit }] = button;
-      const newPressedKeys = pressedKeys | (1 << bit);
+      const newPressedKeys = pressedKeys | (1 << bit!);
 
       event.preventDefault();
       setPressedKeys(newPressedKeys);
@@ -116,7 +182,7 @@ export default function Emulator() {
       if (!document.fullscreenElement) {
         display
           .requestFullscreen({ navigationUI: "hide" })
-          .then(() => setIsFullscreen(true))
+          /*   .then(() => setIsFullscreen(true)) */
           .catch((err) => {
             console.error(
               `Error attempting to enable fullscreen: ${err.message}`
@@ -125,7 +191,7 @@ export default function Emulator() {
       } else {
         document
           .exitFullscreen()
-          .then(() => setIsFullscreen(false))
+          /*  .then(() => setIsFullscreen(false)) */
           .catch((err) => {
             console.error(
               `Error attempting to exit fullscreen: ${err.message}`
@@ -196,8 +262,8 @@ export default function Emulator() {
   usePreventDefaultTouch();
 
   return (
-    <div className="flex flex-col items-center justify-center h-full md:p-4 bg-base-background">
-      <BackButton />
+    <div className="flex flex-col items-center justify-center h-full min-h-screen md:p-4 bg-base-background">
+      <BackButton handleSaveButton={handleSaveButton} />
 
       <div className="w-full   rounded-lg shadow-md pt-6 ">
         <div
@@ -208,7 +274,7 @@ export default function Emulator() {
           }
         >
           <div className="lg:col-span-2">
-            <div className=" rounded-lg p-4 ">
+            <div className="  p-4 ">
               <GameboyFrame
                 handleKeyDown={handleKeyDown}
                 handleKeyUp={handleKeyUp}
@@ -236,6 +302,9 @@ export default function Emulator() {
                     fps={fps}
                     updateVolume={updateVolume}
                     volume={volume}
+                    handleSaveButton={handleSaveButton}
+                    handleDownloadSaveState={handleDownloadSaveState}
+                    handleResetSaveState={handleResetSaveState}
                   />
                 </div>
               </GameboyFrame>
@@ -990,7 +1059,16 @@ const BusInfo = ({ isGameboyPaused }: { isGameboyPaused: boolean }) => {
 
     const updateBusState = () => {
       try {
-        const newState = gameboy.get_bus_state();
+        const wasmState = gameboy.get_bus_state();
+        const newState: BusState = {
+          joypad: [wasmState.joypad.register, wasmState.joypad.keys],
+          io_registers: Array.from(wasmState.io_registers),
+          hram: Array.from(wasmState.hram),
+          ie_register: wasmState.ie_register,
+          vram: Array.from(wasmState.vram),
+          ram_bank_0: Array.from(wasmState.ram_bank_0),
+          ram_bank_n: Array.from(wasmState.ram_bank_n),
+        };
         setBusState(newState);
       } catch (error) {
         console.error("Failed to fetch state:", error);
@@ -1212,7 +1290,7 @@ const BusInfo = ({ isGameboyPaused }: { isGameboyPaused: boolean }) => {
   );
 };
 
-function BackButton() {
+function BackButton({ handleSaveButton }: { handleSaveButton: () => void }) {
   const navigate = useNavigate();
   const { setCurrentGame } = useGameboy();
   return (
@@ -1220,6 +1298,7 @@ function BackButton() {
       <button
         className=" text-xl  font-bold hover:text-accent "
         onClick={() => {
+          handleSaveButton();
           setCurrentGame(null);
           navigate("/");
         }}
@@ -1239,6 +1318,9 @@ function GameboyOptions({
   toggleAudio,
   updateVolume,
   volume,
+  handleSaveButton,
+  handleDownloadSaveState,
+  handleResetSaveState,
 }: {
   fps: number;
   isGameboyPaused: boolean;
@@ -1248,21 +1330,61 @@ function GameboyOptions({
   toggleAudio: () => void;
   updateVolume: (newVolume: number) => void;
   volume: number;
+  handleSaveButton: () => void;
+  handleDownloadSaveState: () => void;
+  handleResetSaveState: () => void;
 }) {
+  const { isAuthenticated } = useAuth();
+  const handleResetWithConfirmation = async () => {
+    const userConfirmed = window.confirm("Are you sure you want to reset the save state? This action cannot be undone.");
+    if (userConfirmed) {
+      handleResetSaveState();
+    }
+  };
+  
   return (
     <div className="absolute inset-0 z-10 hidden group-hover:block text-primary-foreground">
       <div className="absolute top-2 right-2  font-semibold">{fps}</div>
+      <div className="absolute top-2 left-2 flex gap-2">
+        {isAuthenticated && (
+          <>
+          <button
+            className="p-2 rounded hover:bg-primary"
+            title="Save State to Cloud"
+            onClick={handleSaveButton}
+            >
+            <SaveIcon />
+          </button>
+          <button
+            className="p-2 rounded hover:bg-primary"
+            title="Reset Save State from cloud"
+            onClick={handleResetWithConfirmation}
+            >
+            <SaveOff />
+          </button>
+            </>
+        )}
+        <button
+          className="p-2 rounded hover:bg-primary"
+          title="Download Save State"
+          onClick={handleDownloadSaveState}
+        >
+          <DownloadIcon />
+        </button>
+      </div>
       <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center text-sm  font-bold">
         <div className="flex gap-2 items-center">
           <button
-            className=" p-1 rounded hover:bg-primary "
+            className=" p-2 rounded hover:bg-primary "
             onClick={() => setIsGameboyPaused(!isGameboyPaused)}
+            title={isGameboyPaused ? "Resume" : "Pause"}
           >
             {isGameboyPaused ? <PlayIcon /> : <PauseIcon />}
           </button>
           <button
-            className=" p-1 rounded hover:bg-primary"
+            className=" p-2 rounded hover:bg-primary"
             onClick={() => toggleAudio()}
+            title={isAudioEnabled ? "Disable Audio" : "Enable Audio"}
           >
             {isAudioEnabled ? <Volume2 /> : <VolumeOff />}
           </button>{" "}
@@ -1279,8 +1401,9 @@ function GameboyOptions({
           />
         </div>
         <button
-          className=" p-1 rounded hover:bg-primary"
+          className=" p-2 rounded hover:bg-primary"
           onClick={toggleFullScreen}
+          title="Toggle Fullscreen"
         >
           <MaximizeIcon size={25} />
         </button>

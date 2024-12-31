@@ -56,7 +56,6 @@ const GameboyDisplay = ({
     }
   }, [gameboy, setCartridgeInfo]);
 
-  // Initialize audio context once
   useEffect(() => {
     audioContextRef.current = new AudioContext();
     gainNodeRef.current = audioContextRef.current.createGain();
@@ -150,42 +149,69 @@ const GameboyDisplay = ({
     }
   }, [gameboy, isGameboyPaused]);
 
-  const { fetchWithAuth } = useAuth();
+  const { fetchWithAuth, user } = useAuth();
 
   useEffect(() => {
     const loadEmulator = async () => {
-      if (!currentGame?.romPath) return;
+      if (!currentGame?.rom) return;
+      console.log(currentGame);
 
       try {
-        console.log(`Fetching ROM from: ${currentGame.romPath}`);
-        const romResponse = await fetchWithAuth(currentGame.romPath);
-        if (!romResponse.ok) {
-          console.error(`Failed to fetch ROM: ${romResponse.statusText}`);
-          return;
-        }
-        const romArrayBuffer = await romResponse.arrayBuffer();
-        const romData = new Uint8Array(romArrayBuffer);
+        let romData: Uint8Array;
+        let saveStateData: Uint8Array | undefined;
 
-        let stateData: Uint8Array | undefined = undefined;
-        try {
-          const stateResponse = await fetch(`${currentGame.romPath}.state`);
-          if (stateResponse.ok) {
-            const stateArrayBuffer = await stateResponse.arrayBuffer();
-            stateData = new Uint8Array(stateArrayBuffer);
-            console.log("State file loaded successfully.");
-          } else {
-            console.warn(
-              `State file not found for ${currentGame.romPath}. Skipping state load.`
-            );
+        // Handle ROM loading
+        if (currentGame.rom.type === "blob" && currentGame.rom.data) {
+          romData = currentGame.rom.data;
+        } else {
+          console.log(`Fetching ROM from: ${currentGame.rom.path}`);
+          const romResponse = await fetchWithAuth(currentGame.rom.path);
+          if (!romResponse.ok) {
+            console.error(`Failed to fetch ROM: ${romResponse.statusText}`);
+            return;
           }
-        } catch (stateError) {
-          console.error("Error fetching state file:", stateError);
+          const romArrayBuffer = await romResponse.arrayBuffer();
+          romData = new Uint8Array(romArrayBuffer);
+        }
+
+        // Handle save state loading
+        if (currentGame.saveState) {
+          if (
+            currentGame.saveState.type === "blob" &&
+            currentGame.saveState.data
+          ) {
+            saveStateData = currentGame.saveState.data;
+          } else {
+            try {
+              if (!user) {
+                console.log("No user found when trying to load save state");
+                return;
+              }
+              const stateResponse = await fetchWithAuth(
+                `/api/users/${user.id}/library/${currentGame.slug}/save-state`
+              );
+
+              if (stateResponse.ok) {
+                const stateArrayBuffer = await stateResponse.arrayBuffer();
+                saveStateData = new Uint8Array(stateArrayBuffer);
+                console.log("Save state loaded, size:", saveStateData.length);
+              } else {
+                console.error(
+                  "Failed to load save state:",
+                  stateResponse.status,
+                  await stateResponse.text()
+                );
+              }
+            } catch (stateError) {
+              console.error("Error loading save state:", stateError);
+            }
+          }
         }
 
         if (romData.length > 0) {
           try {
             console.log("Initializing GameBoy emulator...");
-            await initGameboy(romData, options.palette, stateData);
+            await initGameboy(romData, options.palette, saveStateData);
             console.log("GameBoy emulator initialized successfully.");
           } catch (initError) {
             console.error("Error initializing GameBoy emulator:", initError);

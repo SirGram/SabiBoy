@@ -2,17 +2,32 @@ import { useRef } from "react";
 import { MoreVertical } from "lucide-react"; // Three-dot icon
 import { useClickOutside } from "../../../hooks/hooks";
 import { useGameboy } from "../../../context/GameboyContext";
-import { TGame } from "../../Library/Library";
+import { useAuth } from "../../../context/AuthContext";
+import { TGame, TGameDetails } from "../../../types";
 
 function ContextMenu({ game, onClose }: { game: TGame; onClose: () => void }) {
   const { setCurrentGame } = useGameboy();
+  const { fetchWithAuth } = useAuth();
+
+  const handleGameSelect = async (slug: string) => {
+    try {
+      const response = await fetchWithAuth(`/api/games/${slug}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const gameDetails: TGameDetails = await response.json();
+      setCurrentGame(gameDetails);
+    } catch (error) {
+      console.error("Failed to load game details:", error);
+    }
+  };
   return (
     <div className="absolute top-9  bg-base-background   w-full">
       <ul>
         <li
           className="px-4 py-2 cursor-pointer hover:bg-base-background-hover "
           onClick={() => {
-            setCurrentGame(game);
+            handleGameSelect(game.slug);
             onClose();
           }}
         >
@@ -35,7 +50,7 @@ type WithContextMenuProps = {
   children: React.ReactNode;
   menuId: string;
   openMenuId: string | null;
-  setOpenMenuId: (id: string ) => void;
+  setOpenMenuId: (id: string) => void;
   game: TGame;
 };
 export function WithContextMenu({

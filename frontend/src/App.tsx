@@ -1,4 +1,9 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import Library from "./pages/Library/Library";
 import Emulator from "./pages/Game/Emulator";
 import { GameboyProvider } from "./context/GameboyContext";
@@ -9,6 +14,18 @@ import OfflineEmulator from "./pages/Offline/OfflineEmulator";
 import Login from "./pages/Login/Login";
 import { AuthProvider } from "./context/AuthContext";
 import UserManagement from "./pages/UserManagement/UserManagement";
+import { useAuth } from "./context/AuthContext";
+import { ReactNode } from "react";
+
+function RequireAuth({ children }: { children: ReactNode }) {
+  const { isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
+
+  return <>{children}</>;
+}
 
 function App() {
   return (
@@ -17,13 +34,52 @@ function App() {
         <GameboyProvider>
           <Router>
             <Routes>
+              {/* Public routes */}
               <Route path="/login" element={<Login />} />
-              <Route path="/" element={<Board />} />
-              <Route path="/library" element={<Library />} />
               <Route path="/options" element={<Options />} />
-              <Route path="/emulator" element={<Emulator />} />
               <Route path="/offline-emulator" element={<OfflineEmulator />} />
-              <Route path="/user" element={<UserManagement />} />
+
+              {/* Protected routes */}
+              <Route
+                path="/"
+                element={
+                  <RequireAuth>
+                    <Board />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/board"
+                element={
+                  <RequireAuth>
+                    <Board />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/library"
+                element={
+                  <RequireAuth>
+                    <Library />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/emulator"
+                element={
+                  <RequireAuth>
+                    <Emulator />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/user"
+                element={
+                  <RequireAuth>
+                    <UserManagement />
+                  </RequireAuth>
+                }
+              />
             </Routes>
           </Router>
         </GameboyProvider>

@@ -1,6 +1,6 @@
 {
   "name": "backend",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "",
   "author": "",
   "private": true,
@@ -38,6 +38,7 @@
     "mongoose": "^8.9.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
+    "raw-body": "^3.0.0",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.1",
     "typeorm": "^0.3.20"
