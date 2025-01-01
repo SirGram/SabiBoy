@@ -53,6 +53,10 @@ export class User {
           type: Buffer,
           default: null,
         },
+        lastAccessed: {
+          type: Date,
+          default: null,
+        },
       },
     ],
     default: [],
@@ -61,6 +65,7 @@ export class User {
     game: Types.ObjectId;
     showInMainboard: boolean;
     saveState: Buffer | null;
+    lastAccessed: Date | null;
   }>;
 }
 

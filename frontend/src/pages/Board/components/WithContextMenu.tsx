@@ -22,7 +22,7 @@ function ContextMenu({ game, onClose }: { game: TGame; onClose: () => void }) {
     }
   };
   return (
-    <div className="absolute top-9  bg-base-background   w-full">
+    <div className="absolute top-9  bg-base-background   w-full ">
       <ul>
         <li
           className="px-4 py-2 cursor-pointer hover:bg-base-background-hover "
@@ -79,7 +79,7 @@ export function WithContextMenu({
       <div className="group relative">
         {children}
         <button
-          className={`absolute p-2 top-0 right-0 transition-all rounded-bl-md opacity-0 bg-base-background ${
+          className={`rounded-tr-md absolute p-2 top-0 right-0 transition-all rounded-bl-md opacity-0 bg-base-background ${
             isMenuVisible ? "opacity-100" : "group-hover:opacity-100"
           } cursor-pointer`}
           onClick={handleToggleMenu}

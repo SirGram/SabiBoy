@@ -222,4 +222,30 @@ export class UsersController {
     }
     return this.usersService.updateGameVisibility(id, slug, showInMainboard);
   }
+
+  @Get(':id/recently-played')
+  async getRecentlyPlayedGames(
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Query('days') days?: number,
+  ) {
+    const user = req.user;
+    if (user.id !== id) {
+      throw new ForbiddenException('You can only access your own game history');
+    }
+    return this.usersService.getRecentlyPlayedGames(id, days);
+  }
+
+  @Post(':id/library/:slug/access')
+  async updateGameLastAccessed(
+    @Param('id') id: string,
+    @Param('slug') slug: string,
+    @Req() req: Request,
+  ) {
+    const user = req.user;
+    if (user.id !== id) {
+      throw new ForbiddenException('You can only update your own game access');
+    }
+    return this.usersService.updateGameLastAccessed(id, slug);
+  }
 }

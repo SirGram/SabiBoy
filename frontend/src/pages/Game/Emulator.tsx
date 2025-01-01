@@ -130,9 +130,9 @@ export default function Emulator() {
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
       if (!gameboy) return;
-      console.log(options);
+      console.log(event);
       // Handle save button first
-      if (event.key.toLowerCase() === options.keys.Save.mapped.toLowerCase()) {
+      if (event.key.toLowerCase() === options.keys?.Save?.mapped?.toLowerCase()) {
         handleSaveButton();
         return;
       }

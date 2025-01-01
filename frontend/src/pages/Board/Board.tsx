@@ -49,7 +49,13 @@ export default function Board() {
         setPlayLaterGames(libraryGames);
 
         // Recently Played during last week
-
+        const recentlyPlayedResponse = await fetchWithAuth(
+          `/api/users/${user.id}/recently-played`
+        );
+        if (recentlyPlayedResponse.ok) {
+          const recentGames: TGame[] = await recentlyPlayedResponse.json();
+          setRecentlyPlayedGames(recentGames);
+        }
       } catch (error) {
         console.error("Failed to load games:", error);
       }
@@ -62,7 +68,7 @@ export default function Board() {
   return (
     <Layout>
       {!currentGame ? (
-        <div className="flex flex-col h-full w-full">
+        <div className="flex flex-col h-full w-full ">
           <CollapsibleList
             title="Recently Played"
             games={recentlyPlayedGames}

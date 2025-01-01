@@ -86,7 +86,7 @@ export default function CollapsibleList({
       </div>
 
       {isOpen && (
-        <div className="flex items-center gap-4 py-2  overflow-x-auto whitespace-nowrap md:flex-wrap md:overflow-x-hidden w-full">
+        <div className="px-1 flex items-center gap-4 py-2  overflow-x-auto whitespace-nowrap md:flex-wrap md:overflow-x-hidden w-full">
           {" "}
           {loadedGames.length > 0 ? (
             loadedGames.map((game) => (

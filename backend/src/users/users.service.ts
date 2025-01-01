@@ -262,11 +262,50 @@ export class UsersService {
         throw new NotFoundException('Game not found in user library');
       }
 
+      // Update last accessed time
+      await this.updateGameLastAccessed(userId, slug);
+
       console.log('Found save state size:', libraryItem.saveState?.length);
       return libraryItem.saveState;
     } catch (error) {
       console.error('Error retrieving save state:', error);
       throw error;
+    }
+  }
+
+  async updateGameLastAccessed(
+    userId: string,
+    slug: string,
+  ): Promise<User | null> {
+    try {
+      const game = await this.gameModel.findOne({ slug });
+      if (!game) throw new NotFoundException('Game not found');
+
+      const updatedUser = await this.userModel
+        .findOneAndUpdate(
+          {
+            _id: userId,
+            'library.game': game._id,
+          },
+          {
+            $set: {
+              'library.$.lastAccessed': new Date(),
+            },
+          },
+          { new: true },
+        )
+        .populate('library.game');
+
+      if (!updatedUser) throw new NotFoundException('User or game not found');
+
+      return updatedUser;
+    } catch (error) {
+      if (error.name === 'CastError') {
+        throw new BadRequestException('Invalid ID format');
+      }
+      throw new InternalServerErrorException(
+        'Failed to update last accessed time',
+      );
     }
   }
 
@@ -441,5 +480,36 @@ export class UsersService {
 
     user.password = newPassword;
     await user.save();
+  }
+  async getRecentlyPlayedGames(
+    userId: string,
+    days: number = 7,
+  ): Promise<GameDetails[]> {
+    try {
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - days);
+
+      const user = await this.userModel.findById(userId).select('library');
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      const recentGameIds = user.library
+        .filter((item) => item.lastAccessed && item.lastAccessed >= oneWeekAgo)
+        .sort((a, b) => {
+          if (!a.lastAccessed || !b.lastAccessed) return 0;
+          return b.lastAccessed.getTime() - a.lastAccessed.getTime();
+        })
+        .map((item) => item.game.toString()); // Convert ObjectId to string
+
+      // Get the game details using the IDs
+      return this.gamesService.getGamesByIds(recentGameIds);
+    } catch (error) {
+      console.error('Error getting recently played games:', error);
+      throw new InternalServerErrorException(
+        'Could not retrieve recently played games',
+      );
+    }
   }
 }
