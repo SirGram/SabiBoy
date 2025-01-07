@@ -8,9 +8,10 @@ type GameCardProps = {
 
 export default function GameCard({ game, onClick }: GameCardProps) {
   const hasImage = game.coverURL || game.coverPath;
+  const lang = game.language?.toUpperCase()  || 'EN';
 
   return (
-    <div className="flex flex-col w-40 h-52 rounded-lg bg-transparent hover:outline outline-accent overflow-hidden">
+    <div className="relative flex flex-col w-40 h-52 rounded-lg bg-transparent hover:outline outline-accent overflow-hidden">
       <button className="w-full h-full" onClick={onClick}>
         {hasImage ? (
           <img
@@ -27,6 +28,11 @@ export default function GameCard({ game, onClick }: GameCardProps) {
             No image available
           </div>
         )}
+        <div className="absolute bottom-1 right-1 flex gap-1 bg-black/50 rounded-md p-1">
+            <span key={lang} className="text-sm" title={lang.toUpperCase()}>
+              { lang.toUpperCase()}
+            </span>
+          </div>
       </button>
     </div>
   );

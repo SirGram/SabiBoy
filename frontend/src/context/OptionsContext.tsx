@@ -91,6 +91,7 @@ const DEFAULT_KEY_MAPPING: KeyMapping = {
 };
 
 type Options = {
+  muteOnStart: boolean;
   showFrame: boolean;
   keys: KeyMapping;
   palette: number[];
@@ -104,6 +105,7 @@ const PREDEFINED_LIMIT_OPTIONS = [10, 20, 50];
 const DEFAULT_LIMIT_OPTIONS = PREDEFINED_LIMIT_OPTIONS[2];
 
 const defaultOptions: Options = {
+  muteOnStart: false,
   showFrame: true,
   keys: DEFAULT_KEY_MAPPING,
   palette: DEFAULT_PALETTE,
@@ -115,6 +117,7 @@ const defaultOptions: Options = {
 const OptionsContext = createContext<{
   options: Options;
   setOptions: React.Dispatch<React.SetStateAction<Options>>;
+  toggleMuteOnStart: () => void;
   toggleShowFrame: () => void;
   toggleDebug: () => void;
   updateKeyMapping: (button: Buttons, newKey: string) => void;
@@ -126,6 +129,7 @@ const OptionsContext = createContext<{
 }>({
   options: defaultOptions,
   setOptions: () => {},
+  toggleMuteOnStart: () => {},
   toggleShowFrame: () => {},
   toggleDebug: () => {},
   updateKeyMapping: () => {},
@@ -241,11 +245,18 @@ export const OptionsProvider: React.FC<{ children: React.ReactNode }> = ({
       sortType: newSortType,
     }));
   };
+  const toggleMuteOnStart = () => {
+    setOptions((prev) => ({
+      ...prev,
+      muteOnStart: !prev.muteOnStart,
+    }));
+  }
 
   const value = useMemo(
     () => ({
       options,
       setOptions,
+      toggleMuteOnStart,
       toggleShowFrame,
       toggleDebug,
       updateKeyMapping,

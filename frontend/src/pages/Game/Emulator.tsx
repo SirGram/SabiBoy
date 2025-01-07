@@ -43,13 +43,15 @@ export default function Emulator() {
     licensee_code: "",
   });
   const [isGameboyPaused, setIsGameboyPaused] = useState(false);
-  const [isAudioEnabled, setIsAudioEnabled] = useState(true);
 
   const { gameboy, currentGame } = useGameboy();
   const [pressedKeys, setPressedKeys] = useState(0xff);
 
   const { options } = useOptions();
-  const {  user } = useAuth();
+  const [isAudioEnabled, setIsAudioEnabled] = useState(!options.muteOnStart);
+
+  const [volume, setVolume] = useState(!options.muteOnStart ? 100 : 0);
+  const { user } = useAuth();
 
   const handleSaveButton = async () => {
     try {
@@ -58,7 +60,7 @@ export default function Emulator() {
         `/api/users/${user?.id}/library/${currentGame?.slug}/save-state`,
         stateData,
         {
-          headers: { 'Content-Type': 'application/octet-stream' }
+          headers: { "Content-Type": "application/octet-stream" },
         }
       );
     } catch (error) {
@@ -87,7 +89,9 @@ export default function Emulator() {
   };
   const handleResetSaveState = async () => {
     try {
-      await api.delete(`/api/users/${user?.id}/library/${currentGame?.slug}/save-state`);
+      await api.delete(
+        `/api/users/${user?.id}/library/${currentGame?.slug}/save-state`
+      );
       navigate("/");
     } catch (error) {
       console.error("Failed to reset save state:", error);
@@ -100,7 +104,9 @@ export default function Emulator() {
       if (!gameboy) return;
       console.log(event);
       // Handle save button first
-      if (event.key.toLowerCase() === options.keys?.Save?.mapped?.toLowerCase()) {
+      if (
+        event.key.toLowerCase() === options.keys?.Save?.mapped?.toLowerCase()
+      ) {
         handleSaveButton();
         return;
       }
@@ -171,27 +177,36 @@ export default function Emulator() {
 
   const toggleAudio = useCallback(() => {
     if (!gameboy) return;
+
+    const newAudioEnabled = !isAudioEnabled;
+    setIsAudioEnabled(newAudioEnabled);
     gameboy.toggle_audio();
-    setIsAudioEnabled(!isAudioEnabled);
-    if (!isAudioEnabled) {
+
+    if (newAudioEnabled) {
       setVolume(100);
     } else {
       setVolume(0);
     }
+
   }, [gameboy, isAudioEnabled]);
 
-  const [volume, setVolume] = useState(100);
   const updateVolume = (newVolume: number) => {
-    console.log("Updating volume:", newVolume);
-    setVolume(newVolume);
-    if (newVolume == 0) {
+    if (newVolume === 0) {
       if (isAudioEnabled) {
-        toggleAudio();
+        setIsAudioEnabled(false);
+        gameboy?.toggle_audio();
       }
-    } else if (newVolume > 0 && !isAudioEnabled) {
-      toggleAudio();
+    } else if (!isAudioEnabled) {
+      setIsAudioEnabled(true);
+      gameboy?.toggle_audio();
     }
+    setVolume(newVolume);
   };
+  useEffect(() => {
+    if (gameboy && !isAudioEnabled) {
+      gameboy.toggle_audio(); // Sync initial state with emulator
+    }
+  }, [gameboy]);
   const playAudioFrame = useCallback(
     (audioContext: AudioContext, gainNode: GainNode) => {
       if (!isAudioEnabled || !gameboy) return;
@@ -1304,33 +1319,35 @@ function GameboyOptions({
 }) {
   const { isAuthenticated } = useAuth();
   const handleResetWithConfirmation = async () => {
-    const userConfirmed = window.confirm("Are you sure you want to reset the save state? This action cannot be undone.");
+    const userConfirmed = window.confirm(
+      "Are you sure you want to reset the save state? This action cannot be undone."
+    );
     if (userConfirmed) {
       handleResetSaveState();
     }
   };
-  
+
   return (
     <div className="absolute inset-0 z-10 hidden group-hover:block text-primary-foreground">
       <div className="absolute top-2 right-2  font-semibold">{fps}</div>
       <div className="absolute top-2 left-2 flex gap-2">
         {isAuthenticated && (
           <>
-          <button
-            className="p-2 rounded hover:bg-primary"
-            title="Save State to Cloud"
-            onClick={handleSaveButton}
+            <button
+              className="p-2 rounded hover:bg-primary"
+              title="Save State to Cloud"
+              onClick={handleSaveButton}
             >
-            <SaveIcon />
-          </button>
-          <button
-            className="p-2 rounded hover:bg-primary"
-            title="Reset Save State from cloud"
-            onClick={handleResetWithConfirmation}
+              <SaveIcon />
+            </button>
+            <button
+              className="p-2 rounded hover:bg-primary"
+              title="Reset Save State from cloud"
+              onClick={handleResetWithConfirmation}
             >
-            <SaveOff />
-          </button>
-            </>
+              <SaveOff />
+            </button>
+          </>
         )}
         <button
           className="p-2 rounded hover:bg-primary"

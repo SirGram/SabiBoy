@@ -90,7 +90,6 @@ export default function PaletteEditor({
     <div className="w-full space-y-6 text-base-foreground">
       <div className=" rounded-lg p-6">
         <div className="flex items-center justify-between pb-4 border-b border-base-border">
-          <h2 className="text-xl font-semibold">Color Palette</h2>
           <button
             onClick={() => setShowSaveDialog(true)}
             className="inline-flex items-center gap-2 px-3 py-1 text-sm bg-primary  rounded hover:bg-primary-hover transition-colors"

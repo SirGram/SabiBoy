@@ -9,6 +9,9 @@ export class Game {
   @Prop({ required: true, unique: true })
   slug: string; // folder name
 
+  @Prop({ required: true })
+  language: string;
+
   @Prop()
   description: string;
 

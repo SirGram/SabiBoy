@@ -15,6 +15,9 @@ export class CreateGameDto {
   @IsString()
   slug: string;
 
+  @IsString()
+  language: string;
+
   @IsOptional()
   @IsString()
   description?: string;

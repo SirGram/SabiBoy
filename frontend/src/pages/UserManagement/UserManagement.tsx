@@ -5,6 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/client";
 import { AxiosError } from "axios";
+import CollapsibleList from "../../components/CollapsibleList";
 
 // Types for user and form states
 interface UserFormData {
@@ -127,19 +128,30 @@ export default function UserManagement() {
     logout();
     navigate("/login");
   };
+  const handleDeleteAllGames = async () => {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete all the games from the common Library? This action cannot be undone."
+      )
+    )
+      return;
+      try {
+        await api.delete(`/api/games`);
+        alert("All games have been deleted successfully");
+      } catch (error) {
+        console.error("Game deletion error:", error);
+        alert("An error occurred while deleting games");
+      }
+  };
 
   return (
     <Layout>
-      <div className="flex flex-col gap-4 h-full items-center  max-w-md mx-auto">
-        <h1 className="text-2xl font-bold mb-6">User Management</h1>
+      <div className="flex flex-col gap-6 h-full items-center max-w-md mx-auto">
+        <h1 className="text-2xl font-bold">User Management</h1>
 
-        {/* Account Details */}
-        <div className="w-full border-base-border border-b  mb-4">
-          <h2 className="text-xl font-semibold mb-3 flex flex-col ">
-            Account Details
-          </h2>
-          <div className="flex flex-col justify-between gap-4 ">
-            <div className="flex justify-between items-center ">
+        <CollapsibleList title="Account Details">
+          <div className="w-full space-y-4">
+            <div className="flex justify-between items-center">
               <span>Email</span>
               <span className="text-base-foreground/60">{user?.email}</span>
             </div>
@@ -150,12 +162,11 @@ export default function UserManagement() {
               Log Out
             </button>
           </div>
-        </div>
-
-        {/* Password Change */}
-        <div className="w-full">
-          <h2 className="text-xl font-semibold mb-4">Change Password</h2>
-          <form onSubmit={handlePasswordChange} className="space-y-4">
+          <h4>Change Password</h4>
+          <form
+            onSubmit={handlePasswordChange}
+            className="space-y-4 w-full flex flex-col"
+          >
             <input
               type="password"
               placeholder="Current Password"
@@ -202,26 +213,26 @@ export default function UserManagement() {
               Change Password
             </button>
           </form>
-        </div>
-
-        {/* Account Deletion */}
-        <div className="w-full">
-          <h2 className="text-xl font-semibold mb-3">Account Actions</h2>
+          <h4>Account Actions</h4>
           <button
             onClick={handleDeleteAccount}
             className="w-full bg-destructive text-white px-4 py-2 rounded hover:bg-destructive-hover transition"
           >
             <Trash2 className="mr-2 inline" /> Delete Account
           </button>
-        </div>
+          {user?.role === "superuser" && (
+          <button
+            onClick={handleDeleteAllGames}
+            className="w-full bg-destructive text-white px-4 py-2 rounded hover:bg-destructive-hover transition"
+          >
+            <Trash2 className="mr-2 inline" /> Delete Library
+          </button>)}
+        </CollapsibleList>
 
-        {/* Superuser Sections */}
         {user?.role === "superuser" && (
           <>
-            {/* Create New User */}
-            <div className="w-full">
-              <h2 className="text-xl font-semibold mb-4">Create New User</h2>
-              <form onSubmit={handleCreateUser} className="space-y-4">
+            <CollapsibleList title="Create New User">
+              <form onSubmit={handleCreateUser} className="space-y-4 w-full flex flex-col">
                 <input
                   type="email"
                   placeholder="Email"
@@ -253,10 +264,10 @@ export default function UserManagement() {
                   onChange={(e) =>
                     setNewUserForm((prev) => ({
                       ...prev,
-                      role: e.target.value,
+                      role: e.target.value as "normal" | "superuser",
                     }))
                   }
-                  className="w-full px-3 py-2 border rounded"
+                  className="w-full px-3 py-2 border rounded bg-base-background"
                 >
                   <option value="normal">Normal User</option>
                   <option value="superuser">Superuser</option>
@@ -268,53 +279,55 @@ export default function UserManagement() {
                   <UserPlus className="mr-2" /> Create User
                 </button>
               </form>
-            </div>
+            </CollapsibleList>
 
-            {/* User List */}
-            <div className="w-full">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">User List</h2>
-                <button
-                  onClick={fetchUsers}
-                  className="bg-secondary hover:bg-secondary-hover px-3 py-1 rounded"
-                >
-                  Refresh Users
-                </button>
-              </div>
-              {showUserList && (
-                <div className="w-full overflow-x-auto">
-                  <table className="w-full border border-base-border rounded-md overflow-hidden">
-                    <thead>
-                      <tr className="bg-muted">
-                        <th className="border p-2">Email</th>
-                        <th className="border p-2">Role</th>
-                        <th className="border p-2">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users.map((userEntry) => (
-                        <tr key={userEntry._id} className="hover:bg-muted/50">
-                          <td className="border p-2">{userEntry.email}</td>
-                          <td className="border p-2">
-                            {userEntry.role.toUpperCase()}
-                          </td>
-                          <td className="border p-2 text-center">
-                            {userEntry.role == "normal" && (
-                              <button
-                                onClick={() => handleDeleteUser(userEntry._id)}
-                                className="text-destructive hover:bg-destructive/10 p-1 rounded"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            <CollapsibleList title="User List">
+              <div className="w-full">
+                <div className="flex justify-end mb-4">
+                  <button
+                    onClick={fetchUsers}
+                    className="bg-secondary hover:bg-secondary-hover px-3 py-1 rounded"
+                  >
+                    Refresh Users
+                  </button>
                 </div>
-              )}
-            </div>
+                {showUserList && (
+                  <div className="w-full overflow-x-auto">
+                    <table className="w-full border border-base-border rounded-md overflow-hidden">
+                      <thead>
+                        <tr className="bg-muted">
+                          <th className="border p-2">Email</th>
+                          <th className="border p-2">Role</th>
+                          <th className="border p-2">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {users.map((userEntry) => (
+                          <tr key={userEntry._id} className="hover:bg-muted/50">
+                            <td className="border p-2">{userEntry.email}</td>
+                            <td className="border p-2">
+                              {userEntry.role.toUpperCase()}
+                            </td>
+                            <td className="border p-2 text-center">
+                              {userEntry.role === "normal" && (
+                                <button
+                                  onClick={() =>
+                                    handleDeleteUser(userEntry._id)
+                                  }
+                                  className="text-destructive hover:bg-destructive/10 p-1 rounded"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </CollapsibleList>
           </>
         )}
       </div>

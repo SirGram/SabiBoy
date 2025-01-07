@@ -6,7 +6,8 @@ export type Game = {
   };
 export type TGame = {
   slug: string;
-  name: string;
+  name: string;  
+  language:string
   coverPath?: string;
   coverURL?: string;
 };

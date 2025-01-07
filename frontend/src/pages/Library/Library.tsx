@@ -153,13 +153,17 @@ export default function Library() {
                 <Loading />
               ) : (
                 <div className="flex flex-wrap gap-4 justify-center w-full mb-10">
-                  {games.map((game) => (
+                  {games.length > 0 ? games.map((game) => (
                     <GameCard
                       key={String(game.slug)}
                       game={game}
                       onClick={() => handleGameSelect(game.slug)}
                     />
-                  ))}
+                  ))
+                :(
+                  <p className="text-gray-500">No results in the library</p>
+                )
+                }
                 </div>
               )}
             </div>

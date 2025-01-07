@@ -33,6 +33,7 @@ export class UsersController {
   async createUser(
     @Body() createUserDto: CreateUserDto,
   ): Promise<Partial<User>> {
+    console.log('creating user', createUserDto);
     return this.usersService.createUser(createUserDto);
   }
 

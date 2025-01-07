@@ -16,6 +16,7 @@ import { Game } from 'src/schemas/game.shema';
 export interface GameListItem {
   slug: string;
   name: string;
+  language: string
   coverPath?: string;
 }
 export interface GameDetails extends Game {
@@ -112,7 +113,7 @@ export class GamesService {
       const totalGames = await this.gameModel.countDocuments(dbQuery);
       const games = await this.gameModel
         .find(dbQuery)
-        .select('name slug')
+        .select('name slug language')
         .sort(sortOptions)
         .skip((page - 1) * sanitizedLimit)
         .limit(sanitizedLimit);
@@ -138,12 +139,14 @@ export class GamesService {
             slug: game.slug,
             name: game.name,
             coverPath,
+            language: game.language
           });
         } catch (folderErr) {
           // If folder doesn't exist, add game without cover
           listedGames.push({
             slug: game.slug,
             name: game.name,
+            language: game.language
           });
           this.logger.warn(`Folder not found for game: ${game.slug}`);
         }
@@ -206,6 +209,7 @@ export class GamesService {
       const gameDetails: GameDetails = {
         slug: game.slug,
         name: game.name,
+        language: game.language,
         coverPath,
         rom: {
           type: 'url',
@@ -294,6 +298,60 @@ export class GamesService {
     } catch (err) {
       this.logger.error('Error fetching games by IDs:', err);
       return [];
+    }
+  }
+ 
+  async deleteGame(slug: string): Promise<{ message: string }> {
+    try {
+      const game = await this.gameModel.findOne({ slug });
+      if (!game) {
+        throw new NotFoundException(`Game with slug ${slug} not found`);
+      }
+
+      // Delete from database
+      await this.gameModel.deleteOne({ slug });
+
+      // Optionally delete files from filesystem
+      try {
+        const gameFolderPath = path.join(this.gamesPath, slug);
+        await fs.rm(gameFolderPath, { recursive: true, force: true });
+      } catch (fsErr) {
+        this.logger.warn(`Failed to delete game files for ${slug}: ${fsErr.message}`);
+      }
+
+      return { message: `Game ${slug} successfully deleted` };
+    } catch (err) {
+      this.logger.error(`Error deleting game ${slug}:`, err);
+      throw err;
+    }
+  }
+
+  async deleteAllGames(): Promise<{ message: string; count: number }> {
+    try {
+      // Delete all games from database
+      const result = await this.gameModel.deleteMany({});
+
+      // Delete all game files
+      try {
+        const files = await fs.readdir(this.gamesPath);
+        for (const file of files) {
+          const filePath = path.join(this.gamesPath, file);
+          const stats = await fs.stat(filePath);
+          if (stats.isDirectory()) {
+            await fs.rm(filePath, { recursive: true, force: true });
+          }
+        }
+      } catch (fsErr) {
+        this.logger.warn(`Failed to delete game files: ${fsErr.message}`);
+      }
+
+      return {
+        message: 'All games successfully deleted',
+        count: result.deletedCount
+      };
+    } catch (err) {
+      this.logger.error('Error deleting all games:', err);
+      throw new Error('Failed to delete all games');
     }
   }
 }

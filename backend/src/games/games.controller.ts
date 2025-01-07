@@ -6,9 +6,15 @@ import {
   Param,
   Logger,
   Query,
+  Delete,
+  UseGuards,
 } from '@nestjs/common';
 import { GamesService } from './games.service';
 import { CreateGameDto } from './dto/create-game.dto';
+import { Roles } from 'src/decorators/roles.decorator';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { UserRole } from 'src/schemas/user.schema';
 
 @Controller('games')
 export class GamesController {
@@ -36,8 +42,24 @@ export class GamesController {
     return this.gamesService.getGameDetails(slug);
   }
 
-  @Post()
+  @Post()  
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPERUSER)
   create(@Body() createGameDto: CreateGameDto) {
     return this.gamesService.create(createGameDto);
+  }
+  
+  @Delete()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPERUSER)
+  async deleteAllGames() {
+    return this.gamesService.deleteAllGames();
+  }
+
+  @Delete(':slug')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPERUSER)
+  async deleteGame(@Param('slug') slug: string) {
+    return this.gamesService.deleteGame(slug);
   }
 }

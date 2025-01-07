@@ -8,6 +8,7 @@ import {
   Users,
   X,
   ImageOff,
+  EarthIcon,
 } from "lucide-react";
 import { useGameboy } from "../../../context/GameboyContext";
 import { useNavigate } from "react-router-dom";
@@ -113,7 +114,7 @@ export default function GameInfo() {
     };
 
     checkGameLibraryStatus();
-  }, [currentGame, user ]);
+  }, [currentGame, user]);
 
   const placeholder = "/placeholder-image.png";
   const { imageURL } = useImageLoader(currentGame?.coverPath) || placeholder;
@@ -211,11 +212,22 @@ export default function GameInfo() {
       </button>
 
       <div className="flex flex-col md:flex-row w-full mb-6 gap-10">
-        <img
-          src={imageURL || placeholder}
-          alt={`${currentGame.name ?? "Unknown Game"} cover`}
-          className="h-80 object-cover rounded-lg shadow-md"
-        />
+        <div className="relative min-w-60 h-80">
+          <div className="absolute bottom-1 right-1 flex gap-1 bg-black/50 rounded-md p-1">
+            <span
+              key={currentGame.language}
+              className="text-sm"
+              title={currentGame.language.toUpperCase()}
+            >
+              {currentGame.language.toUpperCase()}
+            </span>
+          </div>
+          <img
+            src={imageURL || placeholder}
+            alt={`${currentGame.name ?? "Unknown Game"} cover`}
+            className="w-60 h-80 object-cover rounded-lg shadow-md"
+          />
+        </div>
         <div className="text-center md:text-left">
           <h1 className="mb-1">{currentGame.name ?? "Untitled Game"}</h1>
           {currentGame.originalTitle && (
@@ -280,6 +292,12 @@ export default function GameInfo() {
           <Star className="mr-2 text-yellow-500" size={18} />
           <span className="font-thin text-base-foreground">
             Rating: {currentGame.rating?.toFixed(2) ?? "N/A"} / 100
+          </span>
+        </div>
+        <div className="flex items-center">
+          <EarthIcon className="mr-2 text-yellow-500" size={18} />
+          <span className="font-thin text-base-foreground">
+            Region/Language: {currentGame.language} 
           </span>
         </div>
       </div>

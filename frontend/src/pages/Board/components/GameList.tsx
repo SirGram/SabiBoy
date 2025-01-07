@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
 import GameCard from "../../Library/components/GameCard";
 import { useGameboy } from "../../../context/GameboyContext";
 import { WithContextMenu } from "./WithContextMenu";
@@ -8,28 +7,20 @@ import { TGame } from "../../../types";
 import { loadGameImage } from "../../../api/api";
 import api from "../../../api/client";
 
-type CollapsibleListProps = {
-  title: string;
+type GameListProps = {
   games: TGame[];
-  defaultOpen?: boolean;
   openMenuId: string | null;
   updateOpenMenuId: (id: string) => void;
 };
 
-export default function CollapsibleList({
-  title,
+export default function GameList({
   games,
-  defaultOpen = true,
   openMenuId,
   updateOpenMenuId,
-}: CollapsibleListProps) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+}: GameListProps) {
   const { setCurrentGame } = useGameboy();
   const [loadedGames, setLoadedGames] = useState<TGame[]>([]);
 
-  const toggleCollapse = () => {
-    setIsOpen(!isOpen);
-  };
 
   const handleGameSelect = async (slug: string) => {
     try {
@@ -45,7 +36,7 @@ export default function CollapsibleList({
   };
 
   useEffect(() => {
-    if (isOpen && games.length > 0 && loadedGames.length === 0) {
+    if ( games.length > 0 && loadedGames.length === 0) {
       Promise.all(games.map(loadGameImage))
         .then((gamesWithImages) => {
           setLoadedGames(gamesWithImages);
@@ -54,22 +45,11 @@ export default function CollapsibleList({
           console.error("Failed to load game images:", error);
         });
     }
-  }, [isOpen, games]);
+  }, [ games]);
   const navigate = useNavigate();
 
   return (
-    <div className="flex flex-col gap-4 w-full rounded-lg p-2">
-      <div
-        className="flex items-center justify-start cursor-pointer w-fit text-muted-foreground"
-        onClick={toggleCollapse}
-      >
-        {isOpen ? <ChevronDown /> : <ChevronRight />}
-        <h2 className="text-xl font-semibold">{title}</h2>
-      </div>
-
-      {isOpen && (
-        <div className="px-1 flex items-center gap-4 py-2  overflow-x-auto whitespace-nowrap md:flex-wrap md:overflow-x-hidden w-full">
-          {" "}
+    <>
           {loadedGames.length > 0 ? (
             loadedGames.map((game) => (
               <WithContextMenu
@@ -88,8 +68,6 @@ export default function CollapsibleList({
           ) : (
             <p className="text-gray-500">No games in this category</p>
           )}
-        </div>
-      )}
-    </div>
+        </>
   );
 }
