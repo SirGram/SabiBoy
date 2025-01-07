@@ -5,6 +5,7 @@ import React, {
   ReactNode,
   useEffect,
 } from "react";
+import api from "../api/client";
 
 interface User {
   id: string;
@@ -17,7 +18,6 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
-  fetchWithAuth: (input: RequestInfo, init?: RequestInit) => Promise<Response>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -25,7 +25,6 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => {},
   logout: () => {},
   isAuthenticated: false,
-  fetchWithAuth: async () => new Response(),
 });
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({
@@ -64,21 +63,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
+      const response = await api.post("/api/auth/login", {
+        email,
+        password,
       });
       console.log(response);
 
-      if (!response.ok) {
-        throw new Error("Login failed");
-      }
-
-      const data = await response.json();
-      const { access_token, user } = data;
+      const { access_token, user } = response.data;
 
       localStorage.setItem("access_token", access_token);
 
@@ -95,29 +86,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     setUser(null);
   };
 
-  // Attach token to outgoing requests
-  const fetchWithAuth = async (input: RequestInfo, init: RequestInit = {}) => {
-    const token = localStorage.getItem("access_token");
-
-    // Create headers, ensuring a new Headers object
-    const headers = new Headers(init.headers || {});
-
-    if (token) {
-      headers.set("Authorization", `Bearer ${token}`);
-    }
-
-    // Explicitly set Content-Type if not already set
-    if (!headers.get("Content-Type")) {
-      headers.set("Content-Type", "application/json");
-    }
-
-
-    return fetch(input, {
-      ...init,
-      headers,
-    });
-  };
-
   return (
     <AuthContext.Provider
       value={{
@@ -125,7 +93,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         login,
         logout,
         isAuthenticated: !!user,
-        fetchWithAuth,
       }}
     >
       {children}

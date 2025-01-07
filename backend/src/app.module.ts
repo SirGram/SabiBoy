@@ -35,6 +35,7 @@ import { join } from 'path';
     GamesModule,
     AuthModule,
     UsersModule,
+    
   ],
 })
 export class AppModule {}

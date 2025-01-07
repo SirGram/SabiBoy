@@ -3,6 +3,8 @@ import { Trash2, UserPlus } from "lucide-react";
 import Layout from "../../components/Layout/MainLayout";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import api from "../../api/client";
+import { AxiosError } from "axios";
 
 // Types for user and form states
 interface UserFormData {
@@ -19,7 +21,7 @@ interface UserListEntry {
 }
 
 export default function UserManagement() {
-  const { user, logout, fetchWithAuth } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const [passwordForm, setPasswordForm] = useState<UserFormData>({
@@ -46,43 +48,34 @@ export default function UserManagement() {
     }
 
     try {
-      const response = await fetchWithAuth(`/api/users/change-password`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          currentPassword: passwordForm.currentPassword,
-          newPassword: passwordForm.newPassword,
-        }),
+      await api.patch("/api/users/change-password", {
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
       });
 
-      if (response.ok) {
-        alert("Password changed successfully");
-        setPasswordForm((prev) => ({
-          ...prev,
-          currentPassword: "",
-          newPassword: "",
-          confirmPassword: "",
-        }));
-      } else {
-        const errorData = await response.json();
-        alert(errorData.message || "Failed to change password");
-      }
+      alert("Password changed successfully");
+      setPasswordForm((prev) => ({
+        ...prev,
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      }));
     } catch (error) {
+      const axiosError = error as AxiosError<{ message: string }>;
+      const message =
+        axiosError.response?.data?.message || "Failed to change password";
       console.error("Password change error:", error);
-      alert("An error occurred while changing password");
+      alert(message);
     }
   };
 
   const fetchUsers = async () => {
     try {
-      const response = await fetchWithAuth("/api/users");
-      if (response.ok) {
-        const userData = await response.json();
-        setUsers(userData);
-        setShowUserList(true);
-      }
+      const response = await api.get("/api/users");
+
+      const userData = await response.data;
+      setUsers(userData);
+      setShowUserList(true);
     } catch (error) {
       console.error("Failed to fetch users:", error);
     }
@@ -90,24 +83,11 @@ export default function UserManagement() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-
     try {
-      const response = await fetchWithAuth("/api/users", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newUserForm),
-      });
-
-      if (response.ok) {
-        alert("User created successfully");
-        setNewUserForm({ email: "", password: "", role: "normal" });
-        fetchUsers(); // Refresh user list
-      } else {
-        const errorData = await response.json();
-        alert(errorData.message || "Failed to create user");
-      }
+      await api.post("/api/users", newUserForm);
+      alert("User created successfully");
+      setNewUserForm({ email: "", password: "", role: "normal" });
+      fetchUsers();
     } catch (error) {
       console.error("User creation error:", error);
       alert("An error occurred while creating user");
@@ -115,54 +95,34 @@ export default function UserManagement() {
   };
 
   const handleDeleteAccount = async () => {
-    const confirmDelete = window.confirm(
-      "Are you sure you want to delete your account? This action cannot be undone."
-    );
+    if (
+      !window.confirm(
+        "Are you sure you want to delete your account? This action cannot be undone."
+      )
+    )
+      return;
 
-    if (confirmDelete) {
-      try {
-        const response = await fetchWithAuth(`/api/users/${user?.id}`, {
-          method: "DELETE",
-        });
-
-        if (response.ok) {
-          logout();
-          navigate("/login");
-        } else {
-          const errorData = await response.json();
-          alert(errorData.message || "Failed to delete account");
-        }
-      } catch (error) {
-        console.error("Account deletion error:", error);
-        alert("An error occurred while deleting account");
-      }
+    try {
+      await api.delete(`/api/users/${user?.id}`);
+      logout();
+      navigate("/login");
+    } catch (error) {
+      console.error("Account deletion error:", error);
+      alert("An error occurred while deleting account");
     }
   };
 
   const handleDeleteUser = async (userId: string) => {
-    const confirmDelete = window.confirm(
-      "Are you sure you want to delete this user?"
-    );
+    if (!window.confirm("Are you sure you want to delete this user?")) return;
 
-    if (confirmDelete) {
-      try {
-        const response = await fetchWithAuth(`/api/users/${userId}`, {
-          method: "DELETE",
-        });
-
-        if (response.ok) {
-          fetchUsers();
-        } else {
-          const errorData = await response.json();
-          alert(errorData.message || "Failed to delete user");
-        }
-      } catch (error) {
-        console.error("User deletion error:", error);
-        alert("An error occurred while deleting user");
-      }
+    try {
+      await api.delete(`/api/users/${userId}`);
+      fetchUsers();
+    } catch (error) {
+      console.error("User deletion error:", error);
+      alert("An error occurred while deleting user");
     }
   };
-
   const handleLogOut = () => {
     logout();
     navigate("/login");

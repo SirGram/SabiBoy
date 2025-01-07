@@ -3,13 +3,20 @@ services:
     build:
       context: ./frontend
     ports:
-      - "80:80" # Serve on port 80 for production
+      - "80:80"
 
   backend:
     build:
-      context: ./backend
+      context: .
+      dockerfile: ./backend/Dockerfile
     ports:
-      - "3000:3000" # API exposed on port 3000
+      - "3000:3000"
     volumes:
       - ./backend:/app
-      - ./games:/games 
+      - /app/node_modules
+      - ./games:/games
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    env_file:
+      - ./backend/.env

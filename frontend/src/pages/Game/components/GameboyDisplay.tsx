@@ -3,6 +3,7 @@ import { CartridgeHeaderState } from "../Emulator";
 import { useGameboy } from "../../../context/GameboyContext";
 import { useOptions } from "../../../context/OptionsContext";
 import { useAuth } from "../../../context/AuthContext";
+import api from "../../../api/client";
 
 type GameboyDisplayProps = {
   setFps: React.Dispatch<React.SetStateAction<number>>;
@@ -149,7 +150,7 @@ const GameboyDisplay = ({
     }
   }, [gameboy, isGameboyPaused]);
 
-  const { fetchWithAuth, user } = useAuth();
+  const {  user } = useAuth();
 
   useEffect(() => {
     const loadEmulator = async () => {
@@ -160,53 +161,30 @@ const GameboyDisplay = ({
         let romData: Uint8Array;
         let saveStateData: Uint8Array | undefined;
 
-        // Handle ROM loading
-        if (currentGame.rom.type === "blob" && currentGame.rom.data) {
-          romData = currentGame.rom.data;
-        } else {
-          console.log(`Fetching ROM from: ${currentGame.rom.path}`);
-          const romResponse = await fetchWithAuth(currentGame.rom.path);
-          if (!romResponse.ok) {
-            console.error(`Failed to fetch ROM: ${romResponse.statusText}`);
-            return;
-          }
-          const romArrayBuffer = await romResponse.arrayBuffer();
-          romData = new Uint8Array(romArrayBuffer);
-        }
+         // Load ROM
+    if (currentGame.rom.type === "blob" && currentGame.rom.data) {
+      romData = currentGame.rom.data;
+    } else {
+      const { data } = await api.get(currentGame.rom.path, { responseType: 'arraybuffer' });
+      romData = new Uint8Array(data);
+    }
 
-        // Handle save state loading
-        if (currentGame.saveState) {
-          if (
-            currentGame.saveState.type === "blob" &&
-            currentGame.saveState.data
-          ) {
-            saveStateData = currentGame.saveState.data;
-          } else {
-            try {
-              if (!user) {
-                console.log("No user found when trying to load save state");
-                return;
-              }
-              const stateResponse = await fetchWithAuth(
-                `/api/users/${user.id}/library/${currentGame.slug}/save-state`
-              );
-
-              if (stateResponse.ok) {
-                const stateArrayBuffer = await stateResponse.arrayBuffer();
-                saveStateData = new Uint8Array(stateArrayBuffer);
-                console.log("Save state loaded, size:", saveStateData.length);
-              } else {
-                console.error(
-                  "Failed to load save state:",
-                  stateResponse.status,
-                  await stateResponse.text()
-                );
-              }
-            } catch (stateError) {
-              console.error("Error loading save state:", stateError);
-            }
-          }
+    // Load save state
+    if (currentGame.saveState && user) {
+      if (currentGame.saveState.type === "blob" && currentGame.saveState.data) {
+        saveStateData = currentGame.saveState.data;
+      } else {
+        try {
+          const { data } = await api.get(
+            `/api/users/${user.id}/library/${currentGame.slug}/save-state`,
+            { responseType: 'arraybuffer' }
+          );
+          saveStateData = new Uint8Array(data);
+        } catch (error) {
+          console.error("Error loading save state:", error);
         }
+      }
+    }
 
         if (romData.length > 0) {
           try {
@@ -223,7 +201,7 @@ const GameboyDisplay = ({
     };
 
     loadEmulator();
-  }, [currentGame, options.palette, initGameboy, fetchWithAuth]);
+  }, [currentGame, options.palette, initGameboy]);
 
   return (
     <div ref={containerRef} className="relative w-full h-full">

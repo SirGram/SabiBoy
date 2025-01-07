@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import api from "../api/client";
 
 export function useClickOutside(
   ref: React.RefObject<HTMLElement>,
@@ -36,47 +37,42 @@ export const useImageLoader = (imagePath: string | undefined) => {
 
   useEffect(() => {
     setIsLoading(true);
+    let isMounted = true;
+
     const fetchImage = async () => {
       if (!imagePath) {
         setIsLoading(false);
         return;
       }
 
-      const token = localStorage.getItem("access_token");
-      if (!token) {
-        setIsLoading(false);
-        return;
-      }
-
       try {
-        const response = await fetch(imagePath, {
-          headers: { Authorization: `Bearer ${token}` },
+        const response = await api.get(imagePath, {
+          responseType: 'blob'
         });
 
-        if (!response.ok) {
-          console.error(`Failed to fetch image: ${response.statusText}`);
+        if (isMounted) {
+          const url = URL.createObjectURL(response.data);
+          setImageURL(url);
           setIsLoading(false);
-          return;
         }
-
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        setImageURL(url);
-        setIsLoading(false);
       } catch (error) {
         console.error("Error fetching image:", error);
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchImage();
 
     return () => {
-      if (imageURL) URL.revokeObjectURL(imageURL);
+      isMounted = false;
+      if (imageURL) {
+        URL.revokeObjectURL(imageURL);
+      }
     };
   }, [imagePath]);
 
   return { imageURL, isLoading };
 };
-
 

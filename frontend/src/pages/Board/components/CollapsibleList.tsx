@@ -3,9 +3,10 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import GameCard from "../../Library/components/GameCard";
 import { useGameboy } from "../../../context/GameboyContext";
 import { WithContextMenu } from "./WithContextMenu";
-import { useAuth } from "../../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { TGame } from "../../../types";
+import { loadGameImage } from "../../../api/api";
+import api from "../../../api/client";
 
 type CollapsibleListProps = {
   title: string;
@@ -24,36 +25,17 @@ export default function CollapsibleList({
 }: CollapsibleListProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const { setCurrentGame } = useGameboy();
-  const { fetchWithAuth } = useAuth();
   const [loadedGames, setLoadedGames] = useState<TGame[]>([]);
 
   const toggleCollapse = () => {
     setIsOpen(!isOpen);
   };
 
-  const loadGameImage = async (game: TGame): Promise<TGame> => {
-    if (!game.coverPath) return game;
-
-    try {
-      const response = await fetchWithAuth(game.coverPath);
-      if (!response.ok) return game;
-
-      const blob = await response.blob();
-      const coverURL = URL.createObjectURL(blob);
-      return { ...game, coverURL };
-    } catch (error) {
-      console.error(`Failed to load image for ${game.name}:`, error);
-      return game;
-    }
-  };
-
   const handleGameSelect = async (slug: string) => {
     try {
-      const response = await fetchWithAuth(`/api/games/${slug}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const gameDetails = await response.json();
+      const response = await api.get(`/api/games/${slug}`);
+      console.log(response);
+      const gameDetails = response.data;
       setCurrentGame(gameDetails);
 
       navigate("/emulator");

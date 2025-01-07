@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import packageJson from "../../../package.json";
 import { useAuth } from "../../context/AuthContext";
-import logo from "/icon.svg";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();

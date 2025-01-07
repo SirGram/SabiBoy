@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import Layout from "../../components/Layout/MainLayout";
 import { useGameboy } from "../../context/GameboyContext";
 import Emulator from "../Game/Emulator";
-import { TGameDetails } from "../../types";
+import { TGameDetailsWithSaveState } from "../../types";
 
 export default function OfflineEmulator() {
   const { currentGame, setCurrentGame } = useGameboy();
@@ -10,7 +10,7 @@ export default function OfflineEmulator() {
   const [saveFileName, setSaveFileName] = useState<string>("");
   const romInputRef = useRef<HTMLInputElement>(null);
   const stateInputRef = useRef<HTMLInputElement>(null);
-  const [gameToLoad, setGameToLoad] = useState<TGameDetails | null>(null);
+  const [gameToLoad, setGameToLoad] = useState<TGameDetailsWithSaveState | null>(null);
 
   const handleRomUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -26,12 +26,12 @@ export default function OfflineEmulator() {
 
           setRomFileName(file.name);
           setGameToLoad((prev) => ({
-            slug: file.name.toLowerCase().replace(/\s+/g, '-'),
+            slug: file.name.toLowerCase().replace(/\s+/g, "-"),
             name: file.name,
             rom: {
-              type: 'blob',
+              type: "blob",
               path: blobUrl,
-              data: romData
+              data: romData,
             },
             screenshotPaths: [],
             ...(prev || {}),
@@ -57,23 +57,25 @@ export default function OfflineEmulator() {
         try {
           const stateData = new Uint8Array(arrayBuffer);
           const blobUrl = URL.createObjectURL(new Blob([stateData]));
-          
+
           setSaveFileName(file.name);
-          setGameToLoad(prev => {
+          setGameToLoad((prev) => {
             if (!prev) return null;
             return {
               ...prev,
               saveState: {
-                type: 'blob',
+                type: "blob",
                 path: blobUrl,
-                data: stateData
-              }
+                data: stateData,
+              },
             };
           });
           console.log("Save state loaded successfully");
         } catch (error) {
           console.error("Failed to load save state:", error);
-          alert("Failed to load save state. Please check the file and try again.");
+          alert(
+            "Failed to load save state. Please check the file and try again."
+          );
         }
       }
     };
@@ -89,10 +91,10 @@ export default function OfflineEmulator() {
   // Cleanup blob URLs on unmount
   useEffect(() => {
     return () => {
-      if (gameToLoad?.rom.type === 'blob') {
+      if (gameToLoad?.rom.type === "blob") {
         URL.revokeObjectURL(gameToLoad.rom.path);
       }
-      if (gameToLoad?.saveState?.type === 'blob') {
+      if (gameToLoad?.saveState?.type === "blob") {
         URL.revokeObjectURL(gameToLoad.saveState.path);
       }
     };

@@ -1,35 +1,50 @@
-# Step 1: Build the NestJS app
-FROM node:18-alpine AS builder
+# Build stage
+FROM node:18 AS builder
 
 WORKDIR /app
+
+# Copy package files first
+COPY backend/package*.json ./
+COPY backend/.env ./
 
 # Install dependencies
-COPY backend/package*.json ./ 
-RUN npm install
+RUN npm ci
 
-# Copy all the backend files and the games folder
-COPY backend/. ./ 
-COPY games ./games 
+# Copy source code
+COPY backend/. ./
 
-# Build the NestJS app
+# Build the application
 RUN npm run build
 
-# Step 2: Run the production server
-FROM node:18-alpine
+# Production stage
+FROM node:18
 
 WORKDIR /app
 
-# Copy compiled code from the builder stage
+# Copy package files and install production dependencies
+COPY backend/package*.json ./
+COPY backend/.env ./
+RUN npm ci --only=production && \
+    npm rebuild bcrypt --build-from-source
+
+# Copy built application
 COPY --from=builder /app/dist ./dist
 
-# Copy package.json again to ensure production dependencies are available
-COPY backend/package*.json ./
+# Create games directory
+RUN mkdir -p /app/games
 
-# Install only production dependencies
-RUN npm install --production
+# Copy games directory contents
+COPY games/. /app/games/
 
-# Expose the application port
-EXPOSE 3000
+# Set proper ownership and permissions
+RUN chown -R node:node /app && \
+    chmod -R 755 /app/games
 
-# Start the app
+# Verify the games directory
+RUN ls -la /app/games
+
+USER node
+
+EXPOSE 8080
+
 CMD ["node", "dist/main"]

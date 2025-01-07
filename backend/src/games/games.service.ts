@@ -37,9 +37,14 @@ interface TSaveStateSource {
 export class GamesService {
   private readonly logger = new Logger(GamesService.name);
 
-  private readonly gamesPath = path.join(process.cwd(), '..', 'games');
+  private readonly gamesPath: string;
 
-  constructor(@InjectModel(Game.name) private gameModel: Model<Game>) {}
+  constructor(@InjectModel(Game.name) private gameModel: Model<Game>) {
+    this.gamesPath =
+      process.env.NODE_ENV === 'production'
+        ? '/app/games'
+        : path.join(process.cwd(), '..', 'games');
+  }
 
   async create(createGameDto: CreateGameDto): Promise<Game> {
     const existingGame = await this.gameModel
@@ -58,7 +63,11 @@ export class GamesService {
     page = 1,
     limit = 10,
     searchTerm = '',
-    sortBy: 'recent_desc' | 'recent_asc' | 'name_asc' | 'name_desc' = 'recent_desc',
+    sortBy:
+      | 'recent_desc'
+      | 'recent_asc'
+      | 'name_asc'
+      | 'name_desc' = 'recent_desc',
   ): Promise<{
     games: GameListItem[];
     total: number;
@@ -68,7 +77,7 @@ export class GamesService {
     this.logger.log('Getting games list');
     try {
       const sanitizedLimit = Math.min(Math.max(1, limit), 50);
-  
+
       // Prepare database query
       const dbQuery = searchTerm
         ? {
@@ -79,26 +88,26 @@ export class GamesService {
             ],
           }
         : {};
-  
+
       // Determine sort order based on the new sortBy options
       let sortOptions = {};
       switch (sortBy) {
         case 'recent_desc':
-          sortOptions = { _id: -1 };  // Newest first
+          sortOptions = { _id: -1 }; // Newest first
           break;
         case 'recent_asc':
-          sortOptions = { _id: 1 };   // Oldest first
+          sortOptions = { _id: 1 }; // Oldest first
           break;
         case 'name_asc':
-          sortOptions = { name: 1 };  // A to Z
+          sortOptions = { name: 1 }; // A to Z
           break;
         case 'name_desc':
           sortOptions = { name: -1 }; // Z to A
           break;
         default:
-          sortOptions = { _id: -1 };  // Default to newest first
+          sortOptions = { _id: -1 }; // Default to newest first
       }
-  
+
       // Fetch games from database
       const totalGames = await this.gameModel.countDocuments(dbQuery);
       const games = await this.gameModel
@@ -107,21 +116,24 @@ export class GamesService {
         .sort(sortOptions)
         .skip((page - 1) * sanitizedLimit)
         .limit(sanitizedLimit);
-  
+
       const listedGames: GameListItem[] = [];
       for (const game of games) {
         try {
           const gameFolderPath = path.join(this.gamesPath, game.slug);
+          console.log('gameFolderPath', gameFolderPath);
           const files = await fs.readdir(gameFolderPath);
-  
+          console.log('files', files);
+
           // Find cover
           const coverFile = files.find((file) =>
             file.match(/^cover\.(png|jpg|jpeg)$/i),
           );
+          console.log('coverFile', coverFile);
           const coverPath = coverFile
             ? `api/games/${game.slug}/${coverFile}`
             : undefined;
-  
+
           listedGames.push({
             slug: game.slug,
             name: game.name,
@@ -136,7 +148,7 @@ export class GamesService {
           this.logger.warn(`Folder not found for game: ${game.slug}`);
         }
       }
-  
+
       return {
         games: listedGames,
         total: totalGames,

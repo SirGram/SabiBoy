@@ -11,6 +11,7 @@ import { useAuth } from "../../context/AuthContext";
 import Loading from "../../components/Loading";
 import { TGame, TGameDetails } from "../../types";
 import { loadGames } from "../../api/api";
+import api from "../../api/client";
 
 export type TPaginatedResponse = {
   games: TGame[];
@@ -33,13 +34,12 @@ export default function Library() {
     total: 0,
     totalPages: 0,
   });
-  const { fetchWithAuth, user } = useAuth();
+  const {  user } = useAuth();
   const debouncedLoadGames = useCallback(
     debounce(async () => {
       setIsLoading(true);
       try {
         const result = await loadGames(
-          fetchWithAuth,
           pagination.page,
           searchTerm,
           options.limitOptions,
@@ -58,14 +58,13 @@ export default function Library() {
       } catch (error) {
         console.error("Error while loading games:", error);
       } finally {
-        setIsLoading(false); // Stop loading
+        setIsLoading(false);
       }
     }, 300),
     [
       options.limitOptions,
       searchTerm,
       pagination.page,
-      fetchWithAuth,
       options.sortType,
     ]
   );
@@ -99,11 +98,9 @@ export default function Library() {
   const handleGameSelect = async (slug: string) => {
     if (!user) return;
     try {
-      const response = await fetchWithAuth(`/api/games/${slug}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const gameDetails: TGameDetails = await response.json();
+      const response = await api.get(`/api/games/${slug}`);
+      const gameDetails: TGameDetails = await response.data;
+      
       setCurrentGame(gameDetails);
     } catch (error) {
       console.error("Failed to load game details:", error);

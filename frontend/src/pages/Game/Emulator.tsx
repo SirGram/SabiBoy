@@ -18,6 +18,7 @@ import { useOptions } from "../../context/OptionsContext";
 import { usePreventDefaultTouch } from "../../hooks/hooks";
 import { WasmPpuState } from "../../wasm/pkg/gameboy_wasm";
 import { useAuth } from "../../context/AuthContext";
+import api from "../../api/client";
 
 export interface CartridgeHeaderState {
   title: string;
@@ -48,35 +49,18 @@ export default function Emulator() {
   const [pressedKeys, setPressedKeys] = useState(0xff);
 
   const { options } = useOptions();
-  const { fetchWithAuth, user } = useAuth();
+  const {  user } = useAuth();
 
   const handleSaveButton = async () => {
     try {
-      console.log("Starting save state process...");
       const stateData = gameboy!.save_state();
-      console.log("Save state data generated, size:", stateData.length);
-
-      const response = await fetchWithAuth(
+      await api.patch(
         `/api/users/${user?.id}/library/${currentGame?.slug}/save-state`,
+        stateData,
         {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/octet-stream",
-          },
-          body: stateData,
+          headers: { 'Content-Type': 'application/octet-stream' }
         }
       );
-
-      console.log("Save state response status:", response.status);
-      const responseData = await response.text();
-
-      if (!response.ok) {
-        throw new Error(
-          `Failed to save state: ${response.statusText} - ${responseData}`
-        );
-      }
-
-      return response;
     } catch (error) {
       console.error("Failed to save state:", error);
       throw error;
@@ -103,23 +87,7 @@ export default function Emulator() {
   };
   const handleResetSaveState = async () => {
     try {
-      const response = await fetchWithAuth(
-        `/api/users/${user?.id}/library/${currentGame?.slug}/save-state`,
-        {
-          method: "DELETE",
-        }
-      );
-  
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(
-          `Failed to reset save state: ${response.statusText} - ${errorData}`
-        );
-      }
-  
-  
-      console.log("Save state reset successfully");
-      
+      await api.delete(`/api/users/${user?.id}/library/${currentGame?.slug}/save-state`);
       navigate("/");
     } catch (error) {
       console.error("Failed to reset save state:", error);

@@ -3,7 +3,6 @@ import react from "@vitejs/plugin-react";
 import wasm from "vite-plugin-wasm";
 import topLevelAwait from "vite-plugin-top-level-await";
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), wasm(), topLevelAwait()],
   assetsInclude: ["**/*.gb"],
@@ -14,7 +13,12 @@ export default defineConfig({
       "/api": {
         target: process.env.VITE_API_URL || "http://localhost:3000",
         changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path,
         configure: (proxy, _options) => {
+          proxy.on("error", (err, _req, _res) => {
+            console.log('proxy error', err);
+          });
           proxy.on("proxyReq", (proxyReq, req: any) => {
             if (req.body instanceof ArrayBuffer) {
               proxyReq.setHeader("Content-Length", req.body.byteLength);
@@ -25,4 +29,13 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_URL || 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false
+      }
+    }
+  }
 });

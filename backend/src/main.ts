@@ -9,11 +9,21 @@ import { ConfigService } from '@nestjs/config';
 import * as express from 'express';
 import { json, raw, urlencoded } from 'express';
 import * as getRawBody from 'raw-body';
+import * as fs from 'fs';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true,
+  });
+
+  app.enableCors({
+    origin: '*', // Add your frontend URL
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   });
 
   // Enable global validation pipes
@@ -37,17 +47,37 @@ async function bootstrap() {
   // Serve static assets from the "games" folder
   const gamesMiddleware = createGamesMiddleware(configService);
   app.use('/api/games', gamesMiddleware);
-  app.useStaticAssets(join(__dirname, '..', '..', 'games'), {
+
+  // Modified path resolution for games directory
+  // In main.ts, before setting up static assets
+  const gamesPath =
+    process.env.NODE_ENV === 'production'
+      ? '/app/games'
+      : join(__dirname, '..', '..', 'games');
+
+  // Add detailed logging
+  logger.log(`Node Environment: ${process.env.NODE_ENV}`);
+  logger.log(`Games Path: ${gamesPath}`);
+  logger.log(`Directory contents:`);
+  try {
+    const contents = fs.readdirSync(gamesPath);
+    logger.log(contents);
+
+    // Check permissions
+    const stats = fs.statSync(gamesPath);
+    logger.log(`Directory permissions: ${stats.mode}`);
+  } catch (error) {
+    logger.error(`Error accessing games directory: ${error.message}`);
+  }
+
+  app.useStaticAssets(gamesPath, {
     prefix: '/api/games',
   });
 
-  logger.log('Serving protected static assets from /api/games directory');
-
-  // Enable CORS
-  app.enableCors();
+  logger.log(`Serving protected static assets from ${gamesPath} directory`);
 
   const port = process.env.PORT ?? 3000;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   logger.log(`Server listening on http://localhost:${port}`);
 }
 

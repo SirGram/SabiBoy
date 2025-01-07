@@ -5,14 +5,15 @@ import { useGameboy } from "../../context/GameboyContext";
 import GameInfo from "../Library/components/GameInfo";
 import { useAuth } from "../../context/AuthContext";
 import { TGame } from "../../types";
-import { loadGames } from "../../api/api"; // Assuming loadGames is already implemented and reusable
+import { loadGames } from "../../api/api";
 import { SortType } from "../../context/OptionsContext";
+import api from "../../api/client";
 
 export default function Board() {
   const [recentlyAddedGames, setRecentlyAddedGames] = useState<TGame[]>([]);
   const [recentlyPlayedGames, setRecentlyPlayedGames] = useState<TGame[]>([]);
   const [playLaterGames, setPlayLaterGames] = useState<TGame[]>([]);
-  const { fetchWithAuth, user } = useAuth();
+  const { user } = useAuth(); 
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const updateOpenMenuId = (id: string) => {
@@ -26,34 +27,25 @@ export default function Board() {
       if (!user) return;
 
       try {
-        // Recently Added
-        const result = await loadGames(
-          fetchWithAuth,
-          1,
-          "",
-          5,
-          SortType.DATE_NEW
-        );
+        // Recently Added Games
+        const result = await loadGames(1, "", 5, SortType.DATE_NEW);
         if (result) {
           setRecentlyAddedGames(result.gamesWithImages);
         }
 
-        // User Library
-        const response = await fetchWithAuth(`/api/users/${user.id}/library`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        // User Library 
+        const libraryResponse = await api.get(`/api/users/${user.id}/library`);
+        if (libraryResponse.status === 200) {
+          const libraryGames: TGame[] = libraryResponse.data;
+          setPlayLaterGames(libraryGames);
+        } else {
+          throw new Error(`Failed to fetch user library: ${libraryResponse.status}`);
         }
 
-        const libraryGames: TGame[] = await response.json();
-        console.log(response, libraryGames);
-        setPlayLaterGames(libraryGames);
-
-        // Recently Played during last week
-        const recentlyPlayedResponse = await fetchWithAuth(
-          `/api/users/${user.id}/recently-played`
-        );
-        if (recentlyPlayedResponse.ok) {
-          const recentGames: TGame[] = await recentlyPlayedResponse.json();
+        // Recently Played Games
+        const recentlyPlayedResponse = await api.get(`/api/users/${user.id}/recently-played`);
+        if (recentlyPlayedResponse.status === 200) {
+          const recentGames: TGame[] = recentlyPlayedResponse.data;
           setRecentlyPlayedGames(recentGames);
         }
       } catch (error) {
@@ -63,7 +55,7 @@ export default function Board() {
 
     fetchGames();
     setCurrentGame(null);
-  }, [fetchWithAuth, user, setCurrentGame]);
+  }, [user, setCurrentGame]);
 
   return (
     <Layout>

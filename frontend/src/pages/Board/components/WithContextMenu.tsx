@@ -2,20 +2,17 @@ import { useRef } from "react";
 import { MoreVertical } from "lucide-react"; // Three-dot icon
 import { useClickOutside } from "../../../hooks/hooks";
 import { useGameboy } from "../../../context/GameboyContext";
-import { useAuth } from "../../../context/AuthContext";
 import { TGame, TGameDetails } from "../../../types";
+import api from "../../../api/client";
 
 function ContextMenu({ game, onClose }: { game: TGame; onClose: () => void }) {
   const { setCurrentGame } = useGameboy();
-  const { fetchWithAuth } = useAuth();
 
   const handleGameSelect = async (slug: string) => {
     try {
-      const response = await fetchWithAuth(`/api/games/${slug}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const gameDetails: TGameDetails = await response.json();
+      const response = await api.get(`api/games/${slug}`);
+      const gameDetails: TGameDetails = await response.data;
+      console.log(gameDetails);
       setCurrentGame(gameDetails);
     } catch (error) {
       console.error("Failed to load game details:", error);

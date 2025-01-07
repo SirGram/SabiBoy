@@ -14,8 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { useImageLoader } from "../../../hooks/hooks";
 import { useAuth } from "../../../context/AuthContext";
 import { useEffect, useState } from "react";
-
-// Function to get dominant color from an image
+import api from "../../../api/client";
 
 const getDominantColor = (
   imgEl: HTMLImageElement
@@ -66,9 +65,8 @@ export default function GameInfo() {
   const { currentGame, setCurrentGame } = useGameboy();
   const navigate = useNavigate();
   const [isInLibrary, setIsInLibrary] = useState(false);
-  const { fetchWithAuth, user } = useAuth();
+  const { user } = useAuth();
   const [screenshotURLs, setScreenshotURLs] = useState<(string | null)[]>([]);
-  const [dominantColor, setDominantColor] = useState<string>("rgb(0,0,0)");
 
   useEffect(() => {
     const loadScreenshots = async () => {
@@ -81,10 +79,8 @@ export default function GameInfo() {
         currentGame.screenshotPaths.map(async (path) => {
           if (!path) return null;
           try {
-            const response = await fetchWithAuth(path);
-            if (!response.ok) return null;
-            const blob = await response.blob();
-            return URL.createObjectURL(blob);
+            const { data } = await api.get(path, { responseType: "blob" });
+            return URL.createObjectURL(data);
           } catch (error) {
             console.error("Failed to load screenshot:", error);
             return null;
@@ -101,28 +97,23 @@ export default function GameInfo() {
         if (url) URL.revokeObjectURL(url);
       });
     };
-  }, [currentGame?.screenshotPaths, fetchWithAuth]);
+  }, [currentGame?.screenshotPaths]);
 
   useEffect(() => {
     const checkGameLibraryStatus = async () => {
       if (!user || !currentGame) return;
-
       try {
-        const response = await fetchWithAuth(
-          `/api/users/${user.id}/library/check?slug=${currentGame.slug}`
-        );
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const { inLibrary } = await response.json();
-        setIsInLibrary(inLibrary);
+        const { data } = await api.get(`/api/users/${user.id}/library/check`, {
+          params: { slug: currentGame.slug },
+        });
+        setIsInLibrary(data.inLibrary);
       } catch (error) {
         console.error("Failed to check library status:", error);
       }
     };
 
     checkGameLibraryStatus();
-  }, [currentGame, user, fetchWithAuth]);
+  }, [currentGame, user ]);
 
   const placeholder = "/placeholder-image.png";
   const { imageURL } = useImageLoader(currentGame?.coverPath) || placeholder;
@@ -136,25 +127,16 @@ export default function GameInfo() {
     if (!user || !currentGame) return;
 
     try {
-      const url = `/api/users/${user.id}/library`;
-      const method = isInLibrary ? "DELETE" : "POST";
-
-      const response = await fetchWithAuth(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      if (isInLibrary) {
+        await api.delete(`/api/users/${user.id}/library`, {
+          data: { slug: currentGame.slug },
+        });
+      } else {
+        await api.post(`/api/users/${user.id}/library`, {
           slug: currentGame.slug,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        });
       }
-
       setIsInLibrary(!isInLibrary);
-      console.log(isInLibrary ? "Removed from library" : "Added to library");
     } catch (error) {
       console.error(
         `Failed to ${isInLibrary ? "remove" : "add"} game to library:`,
@@ -210,7 +192,6 @@ export default function GameInfo() {
         backdropFilter: `blur(0px)`, // Frosted glass effect
         WebkitBackdropFilter: `blur(0px)`,
         padding: "1rem",
-        
       }}
     >
       {/* Subtle accent border based on primary color */}
