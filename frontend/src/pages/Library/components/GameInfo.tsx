@@ -213,10 +213,10 @@ export default function GameInfo() {
 
       <div className="flex flex-col md:flex-row w-full mb-6 gap-10">
         <div className="relative min-w-60 h-80">
-          <div className="absolute bottom-1 right-1 flex gap-1 bg-black/50 rounded-md p-1">
+          <div className="absolute top-2 left-2 flex gap-1 bg-black/50 rounded-md p-1">
             <span
               key={currentGame.language}
-              className="text-sm"
+              className="text-lg"
               title={currentGame.language.toUpperCase()}
             >
               {currentGame.language.toUpperCase()}
@@ -228,7 +228,7 @@ export default function GameInfo() {
             className="w-60 h-80 object-cover rounded-lg shadow-md"
           />
         </div>
-        <div className="text-center md:text-left">
+        <div className="text-center md:text-left w-full">
           <h1 className="mb-1">{currentGame.name ?? "Untitled Game"}</h1>
           {currentGame.originalTitle && (
             <p className="text-base-foreground mb-4">

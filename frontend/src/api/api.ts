@@ -42,8 +42,6 @@ export const loadGames = async (
         sortBy
       }
     });
-
-    console.log("reposense" , responseData);
     
     if (status !== 200) {
       throw new Error(`HTTP error! status: ${status}`);

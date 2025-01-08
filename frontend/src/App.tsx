@@ -16,11 +16,15 @@ import { AuthProvider } from "./context/AuthContext";
 import UserManagement from "./pages/UserManagement/UserManagement";
 import { useAuth } from "./context/AuthContext";
 import { ReactNode } from "react";
+import LoadingScreen from "./components/LoadingScreen";
 
 function RequireAuth({ children }: { children: ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !isLoading) {
     return <Navigate to="/login" />;
   }
 

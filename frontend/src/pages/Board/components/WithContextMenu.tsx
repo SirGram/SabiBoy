@@ -1,5 +1,11 @@
 import { useRef } from "react";
-import { MoreVertical } from "lucide-react"; // Three-dot icon
+import {
+  MoreVertical,
+  PlayCircle,
+  PlayCircleIcon,
+  PlayIcon,
+  PlaySquareIcon,
+} from "lucide-react"; // Three-dot icon
 import { useClickOutside } from "../../../hooks/hooks";
 import { useGameboy } from "../../../context/GameboyContext";
 import { TGame, TGameDetails } from "../../../types";
@@ -72,7 +78,7 @@ export function WithContextMenu({
   };
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative pb-1" ref={ref}>
       <div className="group relative">
         {children}
         <button
@@ -83,6 +89,13 @@ export function WithContextMenu({
         >
           <MoreVertical size={20} />
         </button>
+
+        <div
+          className={`absolute inset-0 w-full h-full flex items-center justify-center pointer-events-none transition-opacity delay-100 opacity-0 group-hover:opacity-100
+          }`}
+        >
+          <PlayCircle size={40} />
+        </div>
       </div>
 
       {isMenuVisible && (

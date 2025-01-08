@@ -1,5 +1,5 @@
+import React from "react";
 import { TGame } from "../../../types";
-
 
 type GameCardProps = {
   game: TGame;
@@ -8,31 +8,47 @@ type GameCardProps = {
 
 export default function GameCard({ game, onClick }: GameCardProps) {
   const hasImage = game.coverURL || game.coverPath;
-  const lang = game.language?.toUpperCase()  || 'EN';
+  const lang = game.language?.toUpperCase() || "EN";
 
   return (
-    <div className="relative flex flex-col w-40 h-52 rounded-lg bg-transparent hover:outline outline-accent overflow-hidden">
-      <button className="w-full h-full" onClick={onClick}>
+    <div className="group w-40 h-auto flex flex-col gap-2">
+      <button
+        className="relative w-40 h-52 rounded-lg overflow-hidden transition-transform duration-200  hover:shadow-lg hover:shadow-primary/20"
+        onClick={onClick}
+      >
+        {/* Background glow effect on hover */}
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-primary/10 transition-opacity duration-200" />
+
+        {/* Image or fallback */}
         {hasImage ? (
           <img
             src={game.coverURL || game.coverPath}
             alt={game.name}
-            className="w-full h-full object-fill"
+            className="w-full h-full object-cover rounded-lg hover:scale-110"
             title={game.name}
           />
         ) : (
           <div
-            className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-600"
+            className="w-full h-full flex items-center justify-center bg-gray-800 text-gray-400"
             title={game.name}
           >
             No image available
           </div>
         )}
-        <div className="absolute bottom-1 right-1 flex gap-1 bg-black/50 rounded-md p-1">
-            <span key={lang} className="text-sm" title={lang.toUpperCase()}>
-              { lang.toUpperCase()}
-            </span>
-          </div>
+
+        {/* Overlay with game name on hover */}
+        <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/90 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-3">
+          <span className="text-white text-sm font-medium " title={game.name}>
+            {game.name}
+          </span>
+        </div>
+
+        {/* Language badge */}
+        <div className="absolute top-2 left-2 flex gap-1 bg-black/70 backdrop-blur-sm rounded-md px-2 py-1">
+          <span className="text-xs font-medium text-white" title={lang}>
+            {lang}
+          </span>
+        </div>
       </button>
     </div>
   );

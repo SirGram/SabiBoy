@@ -1,10 +1,4 @@
-import React, {
-  createContext,
-  useState,
-  useContext,
-  ReactNode,
-  useEffect,
-} from "react";
+import React, { createContext, useState, useContext, ReactNode, useEffect } from "react";
 import api from "../api/client";
 
 interface User {
@@ -18,6 +12,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
+  isLoading: boolean; // Add loading state
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -25,41 +20,46 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => {},
   logout: () => {},
   isAuthenticated: false,
+  isLoading: true, 
 });
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({
-  children,
-}) => {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Check for existing token on app load
+  // Monitor auth state changes
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    console.log(token);
-    if (token) {
-      verifyToken(token);
-    }
-  }, []);
+    console.log("Auth state updated:", {
+      user,
+      isAuthenticated: !!user,
+      isLoading
+    });
+  }, [user, isLoading]);
 
-  const verifyToken = async (token: string) => {
-    try {
-      const response = await fetch("/auth/profile", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+  // Check for existing token and verify it on app load
+  useEffect(() => {
+    const verifyAuth = async () => {
+      try {
+        const token = localStorage.getItem("access_token");
+        console.log("Token", token);
+        if (!token) {
+          setIsLoading(false);
+          return;
+        }
 
-      if (!response.ok) {
-        throw new Error("Token verification failed");
+        const response = await api.get("/api/auth/profile");
+        console.log("Response", response);
+        setUser(response.data);
+      } catch (error) {
+        console.error("Token verification failed:", error);
+        logout();
+      } finally {
+        setIsLoading(false);
       }
+    };
 
-      const data = await response.json();
-      setUser(data);
-    } catch {
-      logout();
-    }
-  };
+    verifyAuth();
+  }, []);
 
   const login = async (email: string, password: string) => {
     try {
@@ -67,22 +67,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         email,
         password,
       });
-      console.log(response);
 
       const { access_token, user } = response.data;
 
+      // Store token and configure api client
       localStorage.setItem("access_token", access_token);
+      api.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
 
-      // Set user
       setUser(user);
     } catch (error) {
-      console.error("Login failed", error);
+      console.error("Login failed:", error);
       throw error;
     }
   };
 
   const logout = () => {
     localStorage.removeItem("access_token");
+    delete api.defaults.headers.common["Authorization"];
     setUser(null);
   };
 
@@ -93,6 +94,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         login,
         logout,
         isAuthenticated: !!user,
+        isLoading,
       }}
     >
       {children}

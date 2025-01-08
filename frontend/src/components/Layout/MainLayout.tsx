@@ -71,7 +71,6 @@ function Navbar({ menuItems, footer }: NavbarProps) {
              border-t md:border-r md:border-t-0 border-base-border 
              shadow-xl z-10"
     >
-
       {/* Menu Items */}
       <div className="md:px-2 flex md:flex-col items-center w-full h-full md:h-auto md:flex-1 justify-around md:justify-start md:pt-0 ">
         {menuItems.map((item) => (
@@ -127,13 +126,16 @@ function NavItem({ label, to, Icon }: NavItemProps) {
         className={`w-6 h-6 md:w-6 md:h-6 transition-all duration-300 transform group-hover:scale-110 ${
           isActive
             ? "text-primary"
-            : "text-lg-foreground group-hover:text-primary"
+            : "text-lg-foreground group-hover:text-base-foreground"
         }`}
       />
       <span
-        className={`text-xs md:text-lg mt-1 md:mt-0 font-medium ${
-          isActive ? "text-primary" : "text-muted-foreground"
-        }`}
+        className={`text-xs md:text-lg mt-1 md:mt-0 font-medium 
+           ${
+             isActive
+               ? "text-primary"
+               : "text-muted-foreground group-hover:text-base-foreground"
+           }`}
       >
         {label}
       </span>

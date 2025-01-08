@@ -187,7 +187,6 @@ export default function Emulator() {
     } else {
       setVolume(0);
     }
-
   }, [gameboy, isAudioEnabled]);
 
   const updateVolume = (newVolume: number) => {
@@ -1279,14 +1278,14 @@ function BackButton({ handleSaveButton }: { handleSaveButton: () => void }) {
   return (
     <div className="fixed top-0 left-0 p-6">
       <button
-        className=" text-xl  font-bold hover:text-accent "
+        className="   font-bold text-muted hover:text-base-foreground "
         onClick={() => {
           handleSaveButton();
           setCurrentGame(null);
           navigate("/");
         }}
       >
-        <ChevronLeft />
+        <ChevronLeft size={30} />
       </button>
     </div>
   );
@@ -1342,7 +1341,7 @@ function GameboyOptions({
             </button>
             <button
               className="p-2 rounded hover:bg-primary"
-              title="Reset Save State from cloud"
+              title="Reset Save State from Cloud"
               onClick={handleResetWithConfirmation}
             >
               <SaveOff />

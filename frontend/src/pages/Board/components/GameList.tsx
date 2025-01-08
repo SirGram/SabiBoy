@@ -59,10 +59,11 @@ export default function GameList({
                 setOpenMenuId={updateOpenMenuId}
                 game={game}
               >
+                  
                 <GameCard
                   game={game}
                   onClick={() => handleGameSelect(game.slug)}
-                />
+                  />
               </WithContextMenu>
             ))
           ) : (

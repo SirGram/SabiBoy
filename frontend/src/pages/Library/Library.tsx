@@ -161,7 +161,7 @@ export default function Library() {
                     />
                   ))
                 :(
-                  <p className="text-gray-500">No results in the library</p>
+                  <p className="text-muted">No results in the library</p>
                 )
                 }
                 </div>

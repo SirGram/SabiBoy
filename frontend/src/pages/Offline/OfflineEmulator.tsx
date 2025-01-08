@@ -28,6 +28,7 @@ export default function OfflineEmulator() {
           setGameToLoad((prev) => ({
             slug: file.name.toLowerCase().replace(/\s+/g, "-"),
             name: file.name,
+            language: "EN",
             rom: {
               type: "blob",
               path: blobUrl,
