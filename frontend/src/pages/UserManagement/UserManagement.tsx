@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Trash2, UserPlus } from "lucide-react";
-import Layout from "../../components/Layout/MainLayout";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/client";
@@ -135,17 +134,19 @@ export default function UserManagement() {
       )
     )
       return;
-      try {
-        await api.delete(`/api/games`);
-        alert("All games have been deleted successfully");
-      } catch (error) {
-        console.error("Game deletion error:", error);
-        alert("An error occurred while deleting games");
-      }
+    try {
+      await api.delete(`/api/games`);
+      alert("All games have been deleted successfully");
+    } catch (error) {
+      console.error("Game deletion error:", error);
+      alert("An error occurred while deleting games");
+    }
   };
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   return (
-    <Layout>
       <div className="flex flex-col gap-6 h-full items-center max-w-md mx-auto">
         <h1 className="text-2xl font-bold">User Management</h1>
 
@@ -221,18 +222,22 @@ export default function UserManagement() {
             <Trash2 className="mr-2 inline" /> Delete Account
           </button>
           {user?.role === "superuser" && (
-          <button
-            onClick={handleDeleteAllGames}
-            className="w-full bg-destructive text-white px-4 py-2 rounded hover:bg-destructive-hover transition"
-          >
-            <Trash2 className="mr-2 inline" /> Delete Library
-          </button>)}
+            <button
+              onClick={handleDeleteAllGames}
+              className="w-full bg-destructive text-white px-4 py-2 rounded hover:bg-destructive-hover transition"
+            >
+              <Trash2 className="mr-2 inline" /> Delete Library
+            </button>
+          )}
         </CollapsibleList>
 
         {user?.role === "superuser" && (
           <>
             <CollapsibleList title="Create New User">
-              <form onSubmit={handleCreateUser} className="space-y-4 w-full flex flex-col">
+              <form
+                onSubmit={handleCreateUser}
+                className="space-y-4 w-full flex flex-col"
+              >
                 <input
                   type="email"
                   placeholder="Email"
@@ -283,14 +288,6 @@ export default function UserManagement() {
 
             <CollapsibleList title="User List">
               <div className="w-full">
-                <div className="flex justify-end mb-4">
-                  <button
-                    onClick={fetchUsers}
-                    className="bg-secondary hover:bg-secondary-hover px-3 py-1 rounded"
-                  >
-                    Refresh Users
-                  </button>
-                </div>
                 {showUserList && (
                   <div className="w-full overflow-x-auto">
                     <table className="w-full border border-base-border rounded-md overflow-hidden">
@@ -331,6 +328,5 @@ export default function UserManagement() {
           </>
         )}
       </div>
-    </Layout>
   );
 }

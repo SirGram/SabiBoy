@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { EditIcon, SaveIcon, XIcon } from "lucide-react";
-import Layout from "../../components/Layout/MainLayout";
 import { PREDEFINED_PALETTES, useOptions } from "../../context/OptionsContext";
 import { Buttons } from "../../context/OptionsContext";
 import PaletteEditor from "./Palette";
@@ -61,7 +60,6 @@ export default function Options() {
   };
 
   return (
-    <Layout>
       <div className="flex flex-col gap-6 h-full items-center max-w-md mx-auto p-4">
         <h1 className="text-2xl font-bold">Emulator Settings</h1>
 
@@ -165,6 +163,5 @@ export default function Options() {
           </div>
         </CollapsibleList>
       </div>
-    </Layout>
   );
 }

@@ -106,19 +106,21 @@ export class UsersController {
     return this.usersService.deleteGameFromUserLibrary(id, slug, user.id);
   }
 
-  @Get(':id/library/check')
-  async checkGameInLibrary(
+  @Get(':id/library/:slug/status')
+  async getGameStatus(
     @Param('id') id: string,
-    @Query('slug') slug: string,
+    @Param('slug') slug: string,
     @Req() req: Request,
   ) {
     const user = req.user;
     if (user.id !== id) {
-      throw new ForbiddenException('You can only check your own library');
+      throw new ForbiddenException(
+        'You can only check your own library status',
+      );
     }
-    return {
-      inLibrary: await this.usersService.isGameInUserLibrary(id, slug),
-    };
+
+    const status = await this.usersService.getGameStatus(id, slug);
+    return status;
   }
 
   @Patch('change-password')

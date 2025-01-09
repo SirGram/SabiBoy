@@ -217,14 +217,19 @@ export class UsersService {
     }
   }
 
-  async isGameInUserLibrary(
+  async getGameStatus(
     userId: string,
     gameSlug: string,
-  ): Promise<boolean> {
+  ): Promise<{
+    hasSaveState: boolean;
+    lastPlayed: string | null;
+    isInLibrary: boolean;
+  }> {
     try {
       const user = await this.userModel
         .findById(userId)
         .populate('library.game');
+
       if (!user) {
         throw new NotFoundException('User not found');
       }
@@ -234,14 +239,32 @@ export class UsersService {
         throw new NotFoundException('Game not found');
       }
 
-      return user.library.some((libraryItem) =>
-        libraryItem.game._id.equals(game._id),
-      );
+      const libraryItem = user.library.find((item) => {
+        // Skip items where game reference is null
+        if (!item.game) return false;
+
+        return item.game._id.toString() === game._id.toString();
+      });
+
+      if (!libraryItem) {
+        return {
+          hasSaveState: false,
+          lastPlayed: null,
+          isInLibrary: false,
+        };
+      }
+
+      return {
+        hasSaveState: !!libraryItem.saveState,
+        // Handle case where lastAccessed might be undefined
+        lastPlayed: libraryItem.lastAccessed
+          ? libraryItem.lastAccessed.toISOString()
+          : null,
+        isInLibrary: true,
+      };
     } catch (error) {
-      console.error('Error checking game in library:', error);
-      throw new InternalServerErrorException(
-        'Could not check game library status',
-      );
+      console.error('Error getting game status:', error);
+      throw new InternalServerErrorException('Could not get game status');
     }
   }
 

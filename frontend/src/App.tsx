@@ -7,13 +7,11 @@ import {
 import Library from "./pages/Library/Library";
 import Emulator from "./pages/Game/Emulator";
 import { GameboyProvider } from "./context/GameboyContext";
-import Options from "./pages/Options/Options";
 import { OptionsProvider } from "./context/OptionsContext";
 import Board from "./pages/Board/Board";
 import OfflineEmulator from "./pages/Offline/OfflineEmulator";
 import Login from "./pages/Login/Login";
 import { AuthProvider } from "./context/AuthContext";
-import UserManagement from "./pages/UserManagement/UserManagement";
 import { useAuth } from "./context/AuthContext";
 import { ReactNode } from "react";
 import LoadingScreen from "./components/LoadingScreen";
@@ -40,7 +38,6 @@ function App() {
             <Routes>
               {/* Public routes */}
               <Route path="/login" element={<Login />} />
-              <Route path="/options" element={<Options />} />
               <Route path="/offline-emulator" element={<OfflineEmulator />} />
 
               {/* Protected routes */}
@@ -73,14 +70,6 @@ function App() {
                 element={
                   <RequireAuth>
                     <Emulator />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/user"
-                element={
-                  <RequireAuth>
-                    <UserManagement />
                   </RequireAuth>
                 }
               />
