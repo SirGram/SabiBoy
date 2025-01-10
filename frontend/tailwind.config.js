@@ -7,22 +7,22 @@ export default {
         // Base Colors
         base: {
           foreground: "#FFFFFF",
-          background: "#0c0c15",
+          background: "#120C15",
           border: "#262626",
         },
 
         // Primary Colors (for main actions, highlights)
         primary: {
-          DEFAULT: "#9f3bf6", // Blue
+          DEFAULT: "#D89B2B", // Blue
           foreground: "#FFFFFF",
-          hover: "#ac25eb",
+          hover: "#C27126",
         },
 
         // Secondary Colors (for secondary actions)
         secondary: {
-          DEFAULT: "#6366F1", // Indigo
+          DEFAULT: "#A5890D", // Indigo
           foreground: "#FFFFFF",
-          hover: "#4F46E5",
+          hover: "#8F650A",
         },
 
         // Accent Colors (for additional highlights)

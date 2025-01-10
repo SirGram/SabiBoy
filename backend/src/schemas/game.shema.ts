@@ -1,8 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 
 @Schema()
 export class Game {
+  _id?: Types.ObjectId;
+
   @Prop({ required: true })
   name: string;
 

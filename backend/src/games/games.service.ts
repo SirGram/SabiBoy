@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
@@ -16,7 +17,7 @@ import { Game } from 'src/schemas/game.shema';
 export interface GameListItem {
   slug: string;
   name: string;
-  language: string
+  language: string;
   coverPath?: string;
 }
 export interface GameDetails extends Game {
@@ -58,6 +59,77 @@ export class GamesService {
     }
     const createdGame = new this.gameModel(createGameDto);
     return createdGame.save();
+  }
+
+  async createGameWithFiles(
+    createGameDto: CreateGameDto,
+    files: Express.Multer.File[],
+  ): Promise<Game> {
+    const gameFolderPath = path.join(this.gamesPath, createGameDto.slug);
+    let createdGame: Game | null = null;
+
+    console.log(createGameDto, files);
+
+    try {
+      // Create game directories
+      await fs.mkdir(gameFolderPath, { recursive: true });
+      await fs.mkdir(path.join(gameFolderPath, 'screenshots'), {
+        recursive: true,
+      });
+
+      // Process and validate files
+      let hasRomFile = false;
+
+      for (const file of files) {
+        console.log('Processing file:', file.originalname);
+
+        // Check if the file is a ROM or screenshot
+        if (file.originalname.endsWith('.gb')) {
+          hasRomFile = true;
+          // Save ROM at the root of the game folder
+          const romPath = path.join(gameFolderPath, file.originalname);
+          await fs.writeFile(romPath, file.buffer);
+        } else if (
+          file.originalname.match(/^screenshot\d+\.(png|jpg|jpeg|webp)$/i)
+        ) {
+          // Save screenshots in the `screenshots` folder
+          const screenshotPath = path.join(
+            gameFolderPath,
+            'screenshots',
+            file.originalname,
+          );
+          await fs.writeFile(screenshotPath, file.buffer);
+        } else {
+          console.warn(`Unrecognized file type for: ${file.originalname}`);
+        }
+      }
+
+      if (!hasRomFile) {
+        throw new InternalServerErrorException('No ROM file found in upload');
+      }
+
+      // Create database entry using original create function
+      createdGame = await this.create(createGameDto);
+      return createdGame;
+    } catch (error) {
+      // Clean up files if they were created
+      await fs.rm(gameFolderPath, { recursive: true, force: true });
+
+      // If database entry was created, delete it
+      if (createdGame) {
+        await this.gameModel.findByIdAndDelete(createdGame._id);
+      }
+
+      if (
+        error instanceof ConflictException ||
+        error instanceof InternalServerErrorException
+      ) {
+        throw error;
+      }
+
+      this.logger.error(`Failed to create game ${createGameDto.slug}:`, error);
+      throw new InternalServerErrorException('Failed to create game');
+    }
   }
 
   async getGamesList(
@@ -128,7 +200,7 @@ export class GamesService {
 
           // Find cover
           const coverFile = files.find((file) =>
-            file.match(/^cover\.(png|jpg|jpeg)$/i),
+            file.match(/^cover\.(png|jpg|jpeg|webp)$/i),
           );
           console.log('coverFile', coverFile);
           const coverPath = coverFile
@@ -139,14 +211,14 @@ export class GamesService {
             slug: game.slug,
             name: game.name,
             coverPath,
-            language: game.language
+            language: game.language,
           });
         } catch (folderErr) {
           // If folder doesn't exist, add game without cover
           listedGames.push({
             slug: game.slug,
             name: game.name,
-            language: game.language
+            language: game.language,
           });
           this.logger.warn(`Folder not found for game: ${game.slug}`);
         }
@@ -181,7 +253,7 @@ export class GamesService {
 
       // Find cover
       const coverFile = files.find((file) =>
-        file.match(/^cover\.(png|jpg|jpeg)$/i),
+        file.match(/^cover\.(png|jpg|jpeg|webp)$/i),
       );
       const coverPath = coverFile
         ? `api/games/${slug}/${coverFile}`
@@ -300,7 +372,7 @@ export class GamesService {
       return [];
     }
   }
- 
+
   async deleteGame(slug: string): Promise<{ message: string }> {
     try {
       const game = await this.gameModel.findOne({ slug });
@@ -316,7 +388,9 @@ export class GamesService {
         const gameFolderPath = path.join(this.gamesPath, slug);
         await fs.rm(gameFolderPath, { recursive: true, force: true });
       } catch (fsErr) {
-        this.logger.warn(`Failed to delete game files for ${slug}: ${fsErr.message}`);
+        this.logger.warn(
+          `Failed to delete game files for ${slug}: ${fsErr.message}`,
+        );
       }
 
       return { message: `Game ${slug} successfully deleted` };
@@ -347,7 +421,7 @@ export class GamesService {
 
       return {
         message: 'All games successfully deleted',
-        count: result.deletedCount
+        count: result.deletedCount,
       };
     } catch (err) {
       this.logger.error('Error deleting all games:', err);

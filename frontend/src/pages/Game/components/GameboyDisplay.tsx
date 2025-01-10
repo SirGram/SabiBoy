@@ -72,7 +72,7 @@ const GameboyDisplay = ({
   // Handle volume changes
   useEffect(() => {
     if (gainNodeRef.current) {
-      gainNodeRef.current.gain.value = volume / 100;
+      gainNodeRef.current.gain.value = (volume / 100) * 0.1 ; // there's some weird distortion
     }
   }, [volume]);
 
@@ -150,7 +150,7 @@ const GameboyDisplay = ({
     }
   }, [gameboy, isGameboyPaused]);
 
-  const {  user } = useAuth();
+  const { user } = useAuth();
 
   useEffect(() => {
     const loadEmulator = async () => {
@@ -161,30 +161,35 @@ const GameboyDisplay = ({
         let romData: Uint8Array;
         let saveStateData: Uint8Array | undefined;
 
-         // Load ROM
-    if (currentGame.rom.type === "blob" && currentGame.rom.data) {
-      romData = currentGame.rom.data;
-    } else {
-      const { data } = await api.get(currentGame.rom.path, { responseType: 'arraybuffer' });
-      romData = new Uint8Array(data);
-    }
-
-    // Load save state
-    if (currentGame.saveState && user) {
-      if (currentGame.saveState.type === "blob" && currentGame.saveState.data) {
-        saveStateData = currentGame.saveState.data;
-      } else {
-        try {
-          const { data } = await api.get(
-            `/api/users/${user.id}/library/${currentGame.slug}/save-state`,
-            { responseType: 'arraybuffer' }
-          );
-          saveStateData = new Uint8Array(data);
-        } catch (error) {
-          console.error("Error loading save state:", error);
+        // Load ROM
+        if (currentGame.rom.type === "blob" && currentGame.rom.data) {
+          romData = currentGame.rom.data;
+        } else {
+          const { data } = await api.get(currentGame.rom.path, {
+            responseType: "arraybuffer",
+          });
+          romData = new Uint8Array(data);
         }
-      }
-    }
+
+        // Load save state
+        if (currentGame.saveState && user) {
+          if (
+            currentGame.saveState.type === "blob" &&
+            currentGame.saveState.data
+          ) {
+            saveStateData = currentGame.saveState.data;
+          } else {
+            try {
+              const { data } = await api.get(
+                `/api/users/${user.id}/library/${currentGame.slug}/save-state`,
+                { responseType: "arraybuffer" }
+              );
+              saveStateData = new Uint8Array(data);
+            } catch (error) {
+              console.error("Error loading save state:", error);
+            }
+          }
+        }
 
         if (romData.length > 0) {
           try {

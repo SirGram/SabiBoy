@@ -242,7 +242,7 @@ export default function Emulator() {
     [gameboy, isAudioEnabled]
   );
   usePreventDefaultTouch();
-
+  
   return (
     <div className="flex flex-col items-center justify-center h-full min-h-screen md:p-4 bg-base-background">
       <BackButton handleSaveButton={handleSaveButton} />
@@ -1282,6 +1282,7 @@ function BackButton({ handleSaveButton }: { handleSaveButton: () => void }) {
         onClick={() => {
           handleSaveButton();
           setCurrentGame(null);
+
           navigate("/");
         }}
       >

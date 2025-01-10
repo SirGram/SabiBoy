@@ -28,7 +28,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-primary to-secondary/40 px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-primary to-accent/20 px-4">
       {/* Logo Card */}
       <div className="w-fit max-w-md mb-4 p-6 bg-base-background rounded-lg shadow-lg text-center">
         <div className="flex flex-col items-center gap-2">
@@ -97,7 +97,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-2 px-4 bg-violet-600 text-white font-semibold rounded-lg hover:bg-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-2 px-4 bg-primary text-white font-semibold rounded-lg hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? "Signing in..." : "Sign In"}
           </button>
@@ -113,7 +113,7 @@ export default function Login() {
 
           <Link 
             to="/offline-emulator"
-            className="block w-full py-2 px-4 bg-gray-800 text-white font-semibold rounded-lg hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors text-center"
+            className="block w-full py-2 px-4 bg-secondary text-white font-semibold rounded-lg hover:bg-secondary-hover focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-offset-2 transition-colors text-center"
           >
             Continue Offline
           </Link>

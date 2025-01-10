@@ -1,4 +1,4 @@
-import { Transform, Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import {
   IsString,
   IsOptional,
@@ -8,6 +8,7 @@ import {
   Min,
   Max,
 } from 'class-validator';
+
 export class CreateGameDto {
   @IsString()
   name: string;
@@ -27,6 +28,7 @@ export class CreateGameDto {
   originalTitle?: string;
 
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : Number(value)))
   @IsNumber()
   @Min(0)
   @Max(100)
@@ -34,33 +36,46 @@ export class CreateGameDto {
 
   @IsOptional()
   @Transform(({ value }) => {
+    if (!value) return undefined;
     if (value instanceof Date) return value;
-
-    // If it's a number (timestamp), convert to Date
-    if (typeof value === 'number') {
-      return new Date(value * 1000);
+    if (typeof value === 'string') {
+      const date = new Date(value);
+      return isNaN(date.getTime()) ? undefined : date;
     }
-
-    // If it's a string that looks like a timestamp, convert it
-    if (typeof value === 'string' && /^\d+$/.test(value)) {
-      return new Date(parseInt(value) * 1000);
-    }
-
-    return value;
+    return undefined;
   })
-  @Type(() => Date)
   @IsDate()
   releaseDate?: Date;
 
   @IsOptional()
+  @Transform(({ value }) => {
+    if (!value) return [];
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return [];
+      }
+    }
+    return Array.isArray(value) ? value : [];
+  })
   @IsArray()
   @IsString({ each: true })
   developers?: string[];
 
   @IsOptional()
+  @Transform(({ value }) => {
+    if (!value) return [];
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return [];
+      }
+    }
+    return Array.isArray(value) ? value : [];
+  })
   @IsArray()
   @IsString({ each: true })
   genres?: string[];
 }
-
-export class UpdateGameDto extends CreateGameDto {}

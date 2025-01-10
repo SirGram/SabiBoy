@@ -7,8 +7,9 @@ type GameCardProps = {
 };
 
 export default function GameCard({ game, onClick }: GameCardProps) {
-  const hasImage = game.coverURL || game.coverPath;
+  const hasImage = game.coverURL ;
   const lang = game.language?.toUpperCase() || "EN";
+  console.log(game.coverURL)
 
   return (
     <div className="group w-40 h-auto flex flex-col gap-2">
@@ -22,14 +23,14 @@ export default function GameCard({ game, onClick }: GameCardProps) {
         {/* Image or fallback */}
         {hasImage ? (
           <img
-            src={game.coverURL || game.coverPath}
+            src={game.coverURL }
             alt={game.name}
             className="w-full h-full object-cover rounded-lg hover:scale-110"
             title={game.name}
           />
         ) : (
           <div
-            className="w-full h-full flex items-center justify-center bg-gray-800 text-gray-400"
+            className="w-full h-full flex items-center justify-center  text-base-foreground/20 bg-muted/20"
             title={game.name}
           >
             No image available

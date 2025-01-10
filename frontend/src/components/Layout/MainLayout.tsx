@@ -11,23 +11,26 @@ import {
 } from "lucide-react";
 import packageJson from "../../../package.json";
 import { useAuth } from "../../context/AuthContext";
-import Options from "../../pages/Options/Options";
+import Options from "../../pages/modals/Options/Options";
 import Modal from "./Modal";
-import UserManagement from "../../pages/UserManagement/UserManagement";
+import UserManagement from "../../pages/modals/UserManagement/UserManagement";
+import UploadNewGame from "../../pages/modals/UploadNewGame/UploadNewGame";
+import { useModal } from "../../context/ModalContext";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
   const [showOptions, setShowOptions] = useState(false);
   const [showUserManagement, setShowUserManagement] = useState(false);
+  const { showUploadModal, updateShowUploadModal } = useModal();
 
   const publicMenuItems = [
-    { label: "Offline", to: "/offline-emulator", icon: Gamepad },
     {
       label: "Options",
       icon: SettingsIcon,
       onClick: () => setShowOptions(true),
       isButton: true,
     },
+    { label: "Offline", to: "/offline-emulator", icon: Gamepad },
   ];
 
   const privateMenuItems = [
@@ -70,6 +73,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <UserManagement />
         </Modal>
       )}
+      {showUploadModal && (
+        <Modal
+          isOpen={showUploadModal}
+          onClose={() => updateShowUploadModal(false)}
+        >
+          <UploadNewGame />
+        </Modal>
+      )}
     </div>
   );
 }
@@ -89,24 +100,29 @@ type NavbarProps = {
     version: string;
   };
 };
-
 function Navbar({ menuItems, footer }: NavbarProps) {
   return (
     <nav className="fixed bottom-0 left-0 right-0 h-16 md:my-2 md:h-screen md:left-0 md:top-0 md:max-w-36 bg-base-background/95 backdrop-blur-md flex md:flex-col items-center border-t md:border-r md:border-t-0 border-base-border shadow-xl z-10">
       <div className="md:px-2 flex md:flex-col items-center w-full h-full md:h-auto md:flex-1 justify-around md:justify-start md:pt-0">
-        {menuItems.map((item) => (
-          <NavItem key={item.label} {...item} />
+        {menuItems.map((item, index) => (
+          <>
+            <NavItem key={item.label} {...item} />
+            {index !== menuItems.length - 1 && (
+              <div className="hidden md:flex border-t border-base-border border-1 w-full h-0.5"></div>
+            )}
+          </>
         ))}
       </div>
-      <div className="hidden md:flex items-center space-y-2 mb-6 w-full">
+      {/* Footer Section */}
+      <div className="hidden md:flex  items-center flex-col space-y-4 mb-6 w-full px-2 opacity-50 hover:opacity-100 ">
         <a
           href={footer.githubLink}
           target="_blank"
           rel="noopener noreferrer"
-          className="group relative hover:bg-muted/20 rounded-lg py-3 px-5 transition-colors duration-300 flex items-center gap-2"
+          className="group relative hover:bg-muted/20 rounded-lg py-2 px-3 transition-all duration-300 flex flex-col items-center justify-center w-full"
         >
-          <Github className="text-lg-foreground group-hover:text-primary w-7 h-7 transition-all duration-300 transform group-hover:scale-110" />
-          <span className="text-muted-foreground text-xs md:text-lg font-medium mt-1 block">
+          <Github className="w-6 h-6 transition-all duration-300 transform group-hover:scale-110 text-lg-foreground " />
+          <span className="text-xs md:text-sm font-medium text-muted-foreground group-hover:text-base-foreground">
             v{footer.version}
           </span>
         </a>
