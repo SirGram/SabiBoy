@@ -227,7 +227,7 @@ export default function GameInfo() {
     }
   };
 
-  const formatDate = (date: string | undefined | null) => {
+  const formatDate = (date: string | Date | null | undefined) => {
     if (!date) return "Unknown";
     try {
       return new Intl.DateTimeFormat("en-US", {
@@ -246,25 +246,35 @@ export default function GameInfo() {
 
   const hasValidScreenshots = screenshotURLs.some((url) => url !== null);
 
+  const handleDeleteFromLibrary = async () => {
+    if (!user) return;
+
+    if (
+      !confirm("Are you sure you want to delete this game from your library?")
+    )
+      return;
+
+    try {
+      await api.delete(`/api/games/${gameslug}`);
+      navigate("/library");
+    } catch (error) {
+      console.error("Failed to delete game from library:", error);
+    }
+  };
+
   return (
     <Layout>
+      {/* Subtle accent border based on primary color */}
       <div
-        className="flex flex-col items-start rounded-md md:min-w-[400px] overflow-y-auto shadow-lg border-base-border max-w-5xl"
+        className="absolute inset-0 pointer-events-none opacity-20"
         style={{
-          backdropFilter: `blur(0px)`, // Frosted glass effect
-          WebkitBackdropFilter: `blur(0px)`,
-          padding: "1rem",
+          background: `linear-gradient(135deg, ${colors.primary} 100%, transparent 100%)`,
+          maskImage: "linear-gradient(to bottom, transparent, black)",
+          WebkitMaskImage: "linear-gradient(to bottom, transparent, black)",
+          zIndex: 1,
         }}
-      >
-        {/* Subtle accent border based on primary color */}
-        <div
-          className="absolute inset-0 pointer-events-none opacity-50"
-          style={{
-            background: `linear-gradient(135deg, ${colors.primary} 0%, transparent 100%)`,
-            maskImage: "linear-gradient(to bottom, transparent, black)",
-            WebkitMaskImage: "linear-gradient(to bottom, transparent, black)",
-          }}
-        />
+      />
+      <div className="z-10 relative flex flex-col items-start rounded-md md:min-w-[400px] overflow-y-auto  border-base-border max-w-5xl">
         <button
           onClick={handleBackToLibrary}
           className="flex items-center mb-4 text-base-foreground hover:text-base-foreground"
@@ -272,8 +282,8 @@ export default function GameInfo() {
           <ArrowLeft className="mr-2" /> Back to Library
         </button>
 
-        <div className="flex flex-col md:flex-row w-full mb-6 gap-10">
-          <div className="relative min-w-60 h-80">
+        <div className="flex flex-col md:flex-row w-full  gap-10">
+          <div className="relative min-w-60 h-80 self-center md:self-start">
             <div className="absolute top-2 left-2 flex gap-1 bg-black/50 rounded-md p-1">
               <span
                 key={currentGame?.language}
@@ -296,27 +306,36 @@ export default function GameInfo() {
                 Original: {currentGame?.originalTitle}
               </p>
             )}
-            <div className="flex w-full justify-center items-center flex-col md:flex-row gap-3 my-4 max-w-md md:max-w-xl">
+            <div className="w-full  h-1 bg-base-border mt-4 mb-4 self-center"></div>
+            <div className="flex w-full max-w-3xl mx-auto justify-center items-center md:items-stretch  flex-col md:flex-row gap-4 mt-2 mb-6">
               <button
                 onClick={handlePlayGame}
-                className="py-3 px-4 w-full rounded-md bg-primary hover:bg-primary-hover transition-colors"
+                className="flex-1 w-full py-3 px-6 max-w-sm rounded-lg bg-primary hover:bg-primary-hover text-white font-medium transition-colors"
               >
                 Play Game
               </button>
               <button
-                className="py-3 px-4 rounded-md flex items-center w-full h-full bg-secondary hover:bg-secondary-hover transition-colors justify-center"
                 onClick={handleToggleLibrary}
+                className="flex-1 w-full max-w-sm py-3 px-6 rounded-lg bg-secondary hover:bg-secondary-hover text-white font-medium transition-colors flex items-center justify-center"
               >
                 {isInLibrary ? (
                   <>
-                    <X className="mr-2" size={24} /> Remove from Board
+                    <X className="mr-2 min-w-max" size={20} /> Remove from Board
                   </>
                 ) : (
                   <>
-                    <Plus className="mr-2" size={24} /> Add to Board
+                    <Plus className="mr-2 min-w-max" size={20} /> Add to Board
                   </>
                 )}
               </button>
+              {user?.role === "superuser" && (
+                <button
+                  onClick={handleDeleteFromLibrary}
+                  className="flex-1 w-full py-3 px-6 max-w-sm rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors"
+                >
+                  Delete from Library
+                </button>
+              )}
             </div>
             <div className="w-fit">
               {saveStateSection({
@@ -325,25 +344,24 @@ export default function GameInfo() {
                 handleStateUpload,
                 hasSaveState,
                 handleResetSaveState,
-                lastPlayed,
+                lastPlayed: lastPlayed as string | null,
               })}
-            </div>
-
-            <div className="mb-4 bg-base-foreground/5 p-4 rounded-lg">
-              <h3 className="text-xl font-semibold mb-2 flex items-center">
-                Description
-              </h3>
-              <p className="leading-relaxed text-justify font-thin">
-                {currentGame?.description ?? "No description available."}
-              </p>
             </div>
           </div>
         </div>
-        <div className="bg-base-foreground/5 mb-4 p-4">
+        <div className="mb-4 bg-base-background/75 p-4 rounded-lg">
+          <h3 className="text-xl font-semibold mb-2 flex items-center">
+            Description
+          </h3>
+          <p className="leading-relaxed text-justify font-thin">
+            {currentGame?.description ?? "No description available."}
+          </p>
+        </div>
+        <div className="bg-base-background/75 mb-4 p-4 self-center md:self-start rounded-lg">
           <h3 className="text-xl font-semibold mb-2 flex items-center">
             Other Information
           </h3>
-          <div className="grid md:grid-cols-2 gap-4  rounded-lg">
+          <div className="grid md:grid-cols-2 gap-4  ">
             <div className="flex items-center">
               <Calendar className="mr-2 text-green-600" size={18} />
               <span className=" text-base-foreground font-thin">
@@ -382,7 +400,7 @@ export default function GameInfo() {
           </div>
         </div>
 
-        <div className="w-full my-4">
+        <div className="bg-base-background/75 mb-4 p-4 self-center md:self-start rounded-lg">
           <h3 className="text-xl font-semibold mb-2">Screenshots</h3>
           {hasValidScreenshots ? (
             <div className="flex flex-wrap gap-4 w-full items-center justify-center md:justify-normal">
@@ -393,7 +411,7 @@ export default function GameInfo() {
                     key={index}
                     src={url}
                     alt={`Screenshot ${index + 1}`}
-                    className="h-36 object-cover rounded-lg shadow-md"
+                    className="h-36 object-cover rounded-lg "
                   />
                 );
               })}
@@ -423,21 +441,23 @@ function saveStateSection({
   handleStateUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
   hasSaveState: boolean;
   handleResetSaveState: () => void;
-  lastPlayed: Date;
+  lastPlayed: string | null;
 }) {
   return (
-    <div className="w-full mb-4 bg-base-foreground/5 p-4 rounded-lg">
+    <div className="w-full mb-4 bg-base-background/75 p-4 rounded-lg">
       <h3 className="text-xl font-semibold mb-2 flex items-center">
         User Data
       </h3>
 
       <div className="flex flex-col gap-4">
-        <div className="flex items-center">
-          <Clock className="mr-2 text-blue-600" size={18} />
-          <span className="font-thin text-base-foreground">
-            Last played on {formatDate(lastPlayed)}
-          </span>
-        </div>
+        {hasSaveState && (
+          <div className="flex items-center">
+            <Clock className="mr-2 text-blue-600" size={18} />
+            <span className="font-thin text-base-foreground">
+              Last played on {formatDate(lastPlayed)}
+            </span>
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-3">
           <input

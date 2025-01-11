@@ -1,4 +1,3 @@
-import React from "react";
 import { TGame } from "../../../types";
 
 type GameCardProps = {
@@ -7,9 +6,8 @@ type GameCardProps = {
 };
 
 export default function GameCard({ game, onClick }: GameCardProps) {
-  const hasImage = game.coverURL ;
+  const hasImage = game.coverURL;
   const lang = game.language?.toUpperCase() || "EN";
-  console.log(game.coverURL)
 
   return (
     <div className="group w-40 h-auto flex flex-col gap-2">
@@ -18,12 +16,12 @@ export default function GameCard({ game, onClick }: GameCardProps) {
         onClick={onClick}
       >
         {/* Background glow effect on hover */}
-        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-primary/10 transition-opacity duration-200" />
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-base-background/10 transition-opacity duration-200" />
 
         {/* Image or fallback */}
         {hasImage ? (
           <img
-            src={game.coverURL }
+            src={game.coverURL}
             alt={game.name}
             className="w-full h-full object-cover rounded-lg hover:scale-110"
             title={game.name}
@@ -38,7 +36,7 @@ export default function GameCard({ game, onClick }: GameCardProps) {
         )}
 
         {/* Overlay with game name on hover */}
-        <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/90 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-3">
+        <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-3">
           <span className="text-white text-sm font-medium " title={game.name}>
             {game.name}
           </span>

@@ -68,7 +68,6 @@ export class GamesService {
     const gameFolderPath = path.join(this.gamesPath, createGameDto.slug);
     let createdGame: Game | null = null;
 
-    console.log(createGameDto, files);
 
     try {
       // Create game directories
@@ -81,7 +80,6 @@ export class GamesService {
       let hasRomFile = false;
 
       for (const file of files) {
-        console.log('Processing file:', file.originalname);
 
         // Check if the file is a ROM or screenshot
         if (file.originalname.endsWith('.gb')) {
@@ -89,6 +87,10 @@ export class GamesService {
           // Save ROM at the root of the game folder
           const romPath = path.join(gameFolderPath, file.originalname);
           await fs.writeFile(romPath, file.buffer);
+        } else if (file.originalname.match(/^cover\.(png|jpg|jpeg|webp)$/i)) {
+          // Save cover at the root of the game folder
+          const coverPath = path.join(gameFolderPath, file.originalname);
+          await fs.writeFile(coverPath, file.buffer);
         } else if (
           file.originalname.match(/^screenshot\d+\.(png|jpg|jpeg|webp)$/i)
         ) {
@@ -194,15 +196,12 @@ export class GamesService {
       for (const game of games) {
         try {
           const gameFolderPath = path.join(this.gamesPath, game.slug);
-          console.log('gameFolderPath', gameFolderPath);
           const files = await fs.readdir(gameFolderPath);
-          console.log('files', files);
 
           // Find cover
           const coverFile = files.find((file) =>
             file.match(/^cover\.(png|jpg|jpeg|webp)$/i),
           );
-          console.log('coverFile', coverFile);
           const coverPath = coverFile
             ? `api/games/${game.slug}/${coverFile}`
             : undefined;
@@ -309,20 +308,22 @@ export class GamesService {
     }
   }
 
-  async getGamesByIds(gameIds: string[]): Promise<GameDetails[]> {
+  async getGamesByIds(gameIds: string[]): Promise<GameListItem[]> {
     try {
-      const games = await this.gameModel.find({
-        _id: { $in: gameIds },
-      });
+      const games = await this.gameModel
+        .find({
+          _id: { $in: gameIds },
+        })
+        .select('name slug language'); 
 
-      const processedGames: GameDetails[] = [];
+      const processedGames: GameListItem[] = [];
 
       for (const game of games) {
         try {
           const gameFolderPath = path.join(this.gamesPath, game.slug);
           const files = await fs.readdir(gameFolderPath);
 
-          // Find cover
+          // Find cover - only processing cover file now since that's all we need
           const coverFile = files.find((file) =>
             file.match(/^cover\.(png|jpg|jpeg)$/i),
           );
@@ -330,34 +331,11 @@ export class GamesService {
             ? `api/games/${game.slug}/${coverFile}`
             : undefined;
 
-          // Find ROM
-          const romFile = files.find((file) => file.endsWith('.gb'));
-
-          // Find screenshots
-          let screenshotPaths: string[] = [];
-          try {
-            const screenshotDir = path.join(gameFolderPath, 'screenshots');
-            const screenshotFiles = await fs.readdir(screenshotDir);
-            screenshotPaths = screenshotFiles.map(
-              (file) => `api/games/${game.slug}/screenshots/${file}`,
-            );
-          } catch (screenshotErr) {
-            this.logger.warn(`No screenshots found for game ${game.slug}`);
-          }
-
-          // Construct GameDetails object with all required properties
-          const gameDetails: GameDetails = {
-            ...game.toObject(),
-            coverPath,
-            screenshotPaths,
-            rom: {
-              type: 'url',
-              path: romFile ? `api/games/${game.slug}/${romFile}` : undefined,
-            },
-            saveState: {
-              type: 'url',
-              path: undefined,
-            },
+          const gameDetails: GameListItem = {
+            name: game.name,
+            slug: game.slug,
+            language: game.language,
+            coverPath: coverPath || '',
           };
 
           processedGames.push(gameDetails);
@@ -383,7 +361,7 @@ export class GamesService {
       // Delete from database
       await this.gameModel.deleteOne({ slug });
 
-      // Optionally delete files from filesystem
+      // Delete files from filesystem
       try {
         const gameFolderPath = path.join(this.gamesPath, slug);
         await fs.rm(gameFolderPath, { recursive: true, force: true });

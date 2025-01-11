@@ -1,6 +1,12 @@
-import axios, { isAxiosError } from "axios";
-import React, { useState, ChangeEvent, FormEvent } from "react";
+import axios from "axios";
+import React, {
+  useState,
+  ChangeEvent,
+  FormEvent,
+  InputHTMLAttributes,
+} from "react";
 import api from "../../../api/client";
+import { useModal } from "../../../context/ModalContext";
 
 interface GameFormData {
   name: string;
@@ -36,6 +42,12 @@ interface CreateGamePayload {
   releaseDate?: string;
   developers?: string[];
   genres?: string[];
+}
+
+interface FolderInputProps extends InputHTMLAttributes<HTMLInputElement> {
+  webkitdirectory?: string;
+  directory?: string;
+  folder?: string;
 }
 
 const UploadNewGame: React.FC = () => {
@@ -238,8 +250,10 @@ const UploadNewGame: React.FC = () => {
       console.log("Failed to upload game");
     } finally {
       setIsLoading(false);
+      updateShowUploadModal(false);
     }
   };
+  const { updateShowUploadModal } = useModal();
   return (
     <div className=" w-full flex-col flex gap-6 p-4 justify-center items-center">
       <h1 className="text-2xl font-bold">Upload New Game</h1>
@@ -266,10 +280,13 @@ const UploadNewGame: React.FC = () => {
             Game Folder
             <input
               type="file"
-              webkitdirectory=""
-              directory=""
               className="mt-1 block w-full"
               onChange={handleFolderUpload}
+              {...({
+                webkitdirectory: "",
+                directory: "",
+                folder: "",
+              } as any)}
             />
           </label>
           {errors.folder?.rom && (
@@ -411,9 +428,12 @@ const UploadNewGame: React.FC = () => {
 
         <button
           type="submit"
-          className="bg-primary  px-4 py-2 rounded hover:bg-primary self-center"
+          className={`bg-primary px-4 py-2 rounded self-center ${
+            isLoading ? "opacity-50 cursor-not-allowed" : "hover:bg-primary"
+          }`}
+          disabled={isLoading}
         >
-          Upload Game
+          {isLoading ? "Uploading Game..." : "Upload Game"}
         </button>
       </form>
     </div>

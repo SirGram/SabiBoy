@@ -143,8 +143,7 @@ type NavItemProps = {
 
 function NavItem({ label, to, icon: Icon, onClick, isButton }: NavItemProps) {
   const { pathname } = useLocation();
-  const isActive = to && pathname === to;
-
+  const isActive = to === "/" ? pathname === "/" : pathname.startsWith(to!);
   const baseClassName = `text-center group flex flex-col md:flex-row md:gap-2 relative hover:bg-muted/20 
     py-2 md:py-4 px-3 w-full rounded-lg transition-all duration-300 
     justify-center items-center md:justify-start 

@@ -2,16 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import GameCard from "./components/GameCard";
 import Layout from "../../components/Layout/MainLayout";
 import { ChevronRight, PlusCircle, SearchIcon, XIcon } from "lucide-react";
-import GameInfo from "./components/GameInfo";
-import { useGameboy } from "../../context/GameboyContext";
 import Pagination from "./components/Pagination";
 import { SortType, useOptions } from "../../context/OptionsContext";
 import { debounce } from "../../utils/utils";
-import { useAuth } from "../../context/AuthContext";
 import Loading from "../../components/Loading";
-import { TGame, TGameDetails } from "../../types";
+import { TGame } from "../../types";
 import { loadGames } from "../../api/api";
-import api from "../../api/client";
 import { useModal } from "../../context/ModalContext";
 import { useNavigate } from "react-router-dom";
 
@@ -36,7 +32,6 @@ export default function Library() {
     total: 0,
     totalPages: 0,
   });
-  const { user } = useAuth();
   const debouncedLoadGames = useCallback(
     debounce(async () => {
       setIsLoading(true);
@@ -172,7 +167,7 @@ export default function Library() {
         <div className="flex flex-col items-center justify-center">
           <div className="max-w-sm w-full  bg-base-border rounded-lg h-0.5 mb-6"></div>
           <button
-            className="w-40 h-52 flex items-center flex-col justify-center self-center  text-base-foreground/20 bg-base-background/20 border-base-border border-dashed border-2 rounded-lg hover:text-base-foreground transition-all"
+            className="w-40 h-auto py-2 flex items-center flex-col justify-center self-center  text-base-foreground/20 bg-base-background/20 border-base-border border-dashed border-2 rounded-lg hover:text-base-foreground transition-all"
             onClick={handleAddNewGame}
           >
             <PlusCircle size={40} />

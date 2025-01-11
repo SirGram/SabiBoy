@@ -11,7 +11,8 @@ import { User, UserDocument, UserRole } from '../schemas/user.schema';
 import { AuthService } from '../auth/auth.service';
 import { CreateUserDto } from '../auth/dto/create_user.dto';
 import { Game, GameDocument } from 'src/schemas/game.shema';
-import { GameDetails, GamesService } from 'src/games/games.service';
+import { GameDetails, GameListItem, GamesService } from 'src/games/games.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class UsersService {
@@ -22,14 +23,19 @@ export class UsersService {
     private readonly gamesService: GamesService,
     @InjectModel(Game.name)
     private gameModel: Model<GameDocument>,
+
+    private readonly configService: ConfigService,
   ) {}
 
   async createFirstUserIfNoneExist(): Promise<void> {
     const existingUser = await this.userModel.findOne();
     if (!existingUser) {
+      const email = this.configService.get<string>('INITIAL_USER_MAIL');
+      const password = this.configService.get<string>('INITIAL_USER_PASSWORD');
+      
       const createUserDto: CreateUserDto = {
-        email: 'admin@example.com',
-        password: 'supersecretpassword',
+        email: email,
+        password: password,
         role: UserRole.SUPERUSER,
       };
       const user = new this.userModel(createUserDto);
@@ -199,7 +205,7 @@ export class UsersService {
     }
   }
 
-  async getUserLibrary(userId: string): Promise<GameDetails[]> {
+  async getUserLibrary(userId: string): Promise<GameListItem[]> {
     try {
       const user = await this.userModel.findById(userId).select('library');
 
@@ -210,6 +216,7 @@ export class UsersService {
       const gameIds = user.library
         .filter((item) => item.showInMainboard)
         .map((item) => item.game.toString());
+      console.log('gameIds', gameIds);
 
       return this.gamesService.getGamesByIds(gameIds);
     } catch (error) {
@@ -507,7 +514,7 @@ export class UsersService {
   async getRecentlyPlayedGames(
     userId: string,
     days: number = 7,
-  ): Promise<GameDetails[]> {
+  ): Promise<GameListItem[]> {
     try {
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - days);
