@@ -242,10 +242,10 @@ export default function Emulator() {
     [gameboy, isAudioEnabled]
   );
   usePreventDefaultTouch();
-  
+
   return (
     <div className="flex flex-col items-center justify-center h-full min-h-screen md:p-4 bg-base-background">
-      <BackButton handleSaveButton={handleSaveButton} />
+      <BackButton />
 
       <div className="w-full   rounded-lg shadow-md pt-6 ">
         <div
@@ -1272,7 +1272,7 @@ const BusInfo = ({ isGameboyPaused }: { isGameboyPaused: boolean }) => {
   );
 };
 
-function BackButton({ handleSaveButton }: { handleSaveButton: () => void }) {
+function BackButton() {
   const navigate = useNavigate();
   const { setCurrentGame, gameboy } = useGameboy();
   return (
@@ -1280,7 +1280,6 @@ function BackButton({ handleSaveButton }: { handleSaveButton: () => void }) {
       <button
         className="   font-bold text-muted hover:text-base-foreground "
         onClick={() => {
-          handleSaveButton();
           gameboy?.reset();
           setCurrentGame(null);
 
