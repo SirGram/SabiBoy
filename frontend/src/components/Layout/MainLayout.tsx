@@ -61,7 +61,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         }}
       />
       {showOptions && (
-        <Modal isOpen={showOptions} onClose={() => setShowOptions(false)}>
+        <Modal
+          isOpen={showOptions}
+          onClose={() => setShowOptions(false)}
+          title="Emulator Settings"
+        >
           <Options />
         </Modal>
       )}
@@ -69,6 +73,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <Modal
           isOpen={showUserManagement}
           onClose={() => setShowUserManagement(false)}
+          title="User Management"
         >
           <UserManagement />
         </Modal>
@@ -77,6 +82,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <Modal
           isOpen={showUploadModal}
           onClose={() => updateShowUploadModal(false)}
+          title="Upload New Game"
         >
           <UploadNewGame />
         </Modal>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CartridgeHeaderState } from "../Emulator";
 import { useGameboy } from "../../../context/GameboyContext";
 import { useOptions } from "../../../context/OptionsContext";
@@ -17,7 +17,7 @@ type GameboyDisplayProps = {
   volume: number;
 };
 
-const GameboyDisplay = ({
+export default function GameboyDisplay({
   setFps,
   setCartridgeInfo,
   isGameboyPaused,
@@ -27,7 +27,7 @@ const GameboyDisplay = ({
   isAudioEnabled,
   playAudioFrame,
   volume,
-}: GameboyDisplayProps) => {
+}: GameboyDisplayProps) {
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
   const imageDataRef = useRef<ImageData | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -67,12 +67,11 @@ const GameboyDisplay = ({
       gainNodeRef.current?.disconnect();
       audioContextRef.current?.close();
     };
-  }, []); // Empty dependency array to run once
+  }, []);
 
-  // Handle volume changes
   useEffect(() => {
     if (gainNodeRef.current) {
-      gainNodeRef.current.gain.value = (volume / 100) * 0.1 ; // there's some weird distortion
+      gainNodeRef.current.gain.value = (volume / 100) * 0.1; // there's some weird distortion
     }
   }, [volume]);
 
@@ -151,17 +150,25 @@ const GameboyDisplay = ({
   }, [gameboy, isGameboyPaused]);
 
   const { user } = useAuth();
+  const [loadingState, setLoadingState] = useState<
+    "rom" | "savestate" | "error" | null
+  >(null);
+  console.log(loadingState);
 
   useEffect(() => {
     const loadEmulator = async () => {
-      if (!currentGame?.rom) return;
-      console.log(currentGame);
+      if (!currentGame?.rom) {
+        setLoadingState("error");
+        return;
+      }
 
       try {
         let romData: Uint8Array;
         let saveStateData: Uint8Array | undefined;
 
         // Load ROM
+
+        setLoadingState("rom");
         if (currentGame.rom.type === "blob" && currentGame.rom.data) {
           romData = currentGame.rom.data;
         } else {
@@ -172,6 +179,7 @@ const GameboyDisplay = ({
         }
 
         // Load save state
+        setLoadingState("savestate");
         if (currentGame.saveState && user) {
           if (
             currentGame.saveState.type === "blob" &&
@@ -195,13 +203,16 @@ const GameboyDisplay = ({
           try {
             console.log("Initializing GameBoy emulator...");
             await initGameboy(romData, options.palette, saveStateData);
+            setLoadingState(null);
             console.log("GameBoy emulator initialized successfully.");
           } catch (initError) {
             console.error("Error initializing GameBoy emulator:", initError);
+            setLoadingState("error");
           }
         }
       } catch (error) {
         console.error("Error loading the emulator:", error);
+        setLoadingState("error");
       }
     };
 
@@ -209,18 +220,78 @@ const GameboyDisplay = ({
   }, [currentGame, options.palette, initGameboy]);
 
   return (
-    <div ref={containerRef} className="relative w-full h-full">
+    <div
+      ref={containerRef}
+      className="relative w-full h-full min-w-[330px] min-h-[297px]"
+    >
       <canvas
         ref={canvasRef}
-        className="w-full h-full"
+        className="w-full h-full "
         style={{
           imageRendering: "pixelated",
           backgroundColor: "#000000",
           display: "block",
         }}
       />
+      {loadingState && <LoadingScreen loadingState={loadingState} />}
+    </div>
+  );
+}
+
+const LoadingScreen = ({
+  loadingState,
+}: {
+  loadingState: "rom" | "savestate" | null | "error";
+}) => {
+  const [glitterIndex, setGlitterIndex] = useState(0);
+  const letters = "SABIBOY".split("");
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (loadingState === "rom" || loadingState === "savestate") {
+        setGlitterIndex((prev) => (prev + 1) % letters.length);
+      }
+    }, 200);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="absolute  inset-0 flex flex-col items-center justify-center bg-black">
+      <div className="mb-8 flex space-x-2">
+        {letters.map((letter, index) => (
+          <span
+            key={index}
+            className={`text-4xl font-bold transition-opacity duration-200 ${
+              index === glitterIndex ? "text-secondary" : "text-secondary-hover"
+            }`}
+          >
+            {letter}
+          </span>
+        ))}
+      </div>
+
+      <div className="w-64">
+        <div className="mb-2 text-secondary text-sm text-center">
+          {loadingState === "rom" && "Loading ROM..."}
+          {loadingState === "savestate" && "Loading Save State..."}
+        </div>
+
+        {loadingState === "error" ? (
+          <div className="text-red-500 text-sm text-center">
+            Failed to load ROM
+          </div>
+        ) : (
+          <div className="h-2 bg-secondary-hover rounded-full overflow-hidden">
+            <div
+              className="h-full bg-secondary transition-all duration-300 rounded-full"
+              style={{
+                width: loadingState === "rom" ? "50%" : "100%",
+              }}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 };
-
-export default GameboyDisplay;

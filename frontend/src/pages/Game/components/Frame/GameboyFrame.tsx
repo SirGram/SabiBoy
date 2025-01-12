@@ -30,8 +30,8 @@ export function GameboyFrame({
   }
   const { options } = useOptions();
   return !options.showFrame ? (
-    <div className="p-2 bg-base-border rounded-md">
-      <div style={{ width: "330px", height: "297px" }}>{children}</div>
+    <div className="p-2 bg-base-border rounded-md ">
+     {children}
     </div>
   ) : (
     <div className="gameboy" id="GameBoy">

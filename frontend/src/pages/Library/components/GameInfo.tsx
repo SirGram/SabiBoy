@@ -282,7 +282,7 @@ export default function GameInfo() {
           <ArrowLeft className="mr-2" /> Back to Library
         </button>
 
-        <div className="flex flex-col md:flex-row w-full  gap-10">
+        <div className="flex flex-col md:flex-row w-full  gap-10 mb-4">
           <div className="relative min-w-60 h-80 self-center md:self-start">
             <div className="absolute top-2 left-2 flex gap-1 bg-black/50 rounded-md p-1">
               <span
@@ -306,7 +306,12 @@ export default function GameInfo() {
                 Original: {currentGame?.originalTitle}
               </p>
             )}
-            <div className="w-full  h-1 bg-base-border mt-4 mb-4 self-center"></div>
+            <div
+              className="w-full   h-1 bg-base-border mt-4 mb-4 "
+              style={{
+                background: `linear-gradient(to right, ${colors.primary}, ${colors.accent})`,
+              }}
+            ></div>
             <div className="flex w-full max-w-3xl mx-auto justify-center items-center md:items-stretch  flex-col md:flex-row gap-4 mt-2 mb-6">
               <button
                 onClick={handlePlayGame}
@@ -331,22 +336,24 @@ export default function GameInfo() {
               {user?.role === "superuser" && (
                 <button
                   onClick={handleDeleteFromLibrary}
-                  className="flex-1 w-full py-3 px-6 max-w-sm rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors"
+                  className="flex-1 w-full py-3 px-6 max-w-sm rounded-lg bg-destructive hover:bg-destructive-hover text-white font-medium transition-colors"
                 >
                   Delete from Library
                 </button>
               )}
             </div>
-            <div className="w-fit">
-              {saveStateSection({
-                formatDate,
-                fileInputRef,
-                handleStateUpload,
-                hasSaveState,
-                handleResetSaveState,
-                lastPlayed: lastPlayed as string | null,
-              })}
-            </div>
+            {isInLibrary && (
+              <div className="w-fit">
+                {saveStateSection({
+                  formatDate,
+                  fileInputRef,
+                  handleStateUpload,
+                  hasSaveState,
+                  handleResetSaveState,
+                  lastPlayed: lastPlayed as string | null,
+                })}
+              </div>
+            )}
           </div>
         </div>
         <div className="mb-4 bg-base-background/75 p-4 rounded-lg">
@@ -378,7 +385,10 @@ export default function GameInfo() {
               currentGame.developers &&
               currentGame.developers.length > 0 && (
                 <div className="flex items-center">
-                  <Users className="mr-2 text-red-600" size={18} />
+                  <Users
+                    className="mr-2 text-destructive-hover"
+                    size={18}
+                  />
                   <span className="font-thin text-base-foreground">
                     Developers:{" "}
                     {currentGame?.developers?.join(", ") ?? "Unknown"}
@@ -479,7 +489,7 @@ function saveStateSection({
             {hasSaveState && (
               <button
                 onClick={handleResetSaveState}
-                className="py-2 px-4 rounded-md bg-red-500 hover:bg-red-600 transition-colors flex items-center"
+                className="py-2 px-4 rounded-md bg-destructive hover:bg-destructive-hover transition-colors flex items-center"
               >
                 <Trash2 className="mr-2" size={18} />
                 Delete Savestate

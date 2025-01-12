@@ -255,8 +255,7 @@ const UploadNewGame: React.FC = () => {
   };
   const { updateShowUploadModal } = useModal();
   return (
-    <div className=" w-full flex-col flex gap-6 p-4 justify-center items-center">
-      <h1 className="text-2xl font-bold">Upload New Game</h1>
+    <div className=" w-full flex-col flex gap-6  justify-center items-center">
       <div className="self-start ">
         <h2 className="text-lg font-bold mb-2">Folder Structure:</h2>
         <pre className=" p-3 rounded text-sm">

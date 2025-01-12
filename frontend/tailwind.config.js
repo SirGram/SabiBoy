@@ -2,51 +2,40 @@
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
-    extend: {
+    extend:{
       colors: {
-        // Base Colors
         base: {
           foreground: "#FFFFFF",
-          background: "#120C15",
-          border: "#262626",
+          background: "#08000f",
+          border: "#2D2438",
         },
-
-        // Primary Colors (for main actions, highlights)
         primary: {
-          DEFAULT: "#D89B2B", // Blue
+          DEFAULT: "#d22581",
           foreground: "#FFFFFF",
-          hover: "#C27126",
+          hover: "#c11671",
         },
-
-        // Secondary Colors (for secondary actions)
         secondary: {
-          DEFAULT: "#A5890D", // Indigo
+          DEFAULT: "#7C3AED",
           foreground: "#FFFFFF",
-          hover: "#8F650A",
+          hover: "#6D28D9",
         },
-
-        // Accent Colors (for additional highlights)
         accent: {
-          DEFAULT: "#10B981", // Emerald
+          DEFAULT: "#14B8A6",
           foreground: "#FFFFFF",
-          hover: "#059669",
+          hover: "#0D9488",
         },
-
-        // Destructive Colors (for delete, remove actions)
         destructive: {
-          DEFAULT: "#EF4444", // Red
+          DEFAULT: "#bd2b2b",
           foreground: "#FFFFFF",
-          hover: "#DC2626",
+          hover: "#aa1717",
         },
-
-        // Muted Colors (for less important elements)
         muted: {
-          DEFAULT: "#4B5563", // Gray
+          DEFAULT: "#4F4867",
           foreground: "#9CA3AF",
-          hover: "#6B7280",
+          hover: "#635D80",
         },
-      },
-    },
+      }
+    }
   },
   plugins: [
     require("@tailwindcss/forms"),

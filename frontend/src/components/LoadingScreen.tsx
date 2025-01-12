@@ -26,9 +26,8 @@ const LoadingScreen = () => {
           </h1>
         </div>
 
-        {/* Progress bar container */}
+        {/* Bouncing loading bar */}
         <div className="w-64 h-5 bg-black border-2 border-primary p-0.5">
-          {/* Bouncing loading bar */}
           <div
             className="h-full w-16 bg-primary"
             style={{

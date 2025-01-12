@@ -42,6 +42,9 @@ impl GameboyWasm {
     
         Ok(())
     }
+    pub fn reset(&mut self) {
+        self.gameboy.set_power_up_sequence();
+    }
     pub fn save_state(&self) -> Vec<u8> {
         match self.gameboy.save_state() {
             Ok(state) => state,

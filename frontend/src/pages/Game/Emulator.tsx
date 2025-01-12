@@ -1274,13 +1274,14 @@ const BusInfo = ({ isGameboyPaused }: { isGameboyPaused: boolean }) => {
 
 function BackButton({ handleSaveButton }: { handleSaveButton: () => void }) {
   const navigate = useNavigate();
-  const { setCurrentGame } = useGameboy();
+  const { setCurrentGame, gameboy } = useGameboy();
   return (
     <div className="fixed top-0 left-0 p-6">
       <button
         className="   font-bold text-muted hover:text-base-foreground "
         onClick={() => {
           handleSaveButton();
+          gameboy?.reset();
           setCurrentGame(null);
 
           navigate("/");

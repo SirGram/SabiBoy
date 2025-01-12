@@ -38,7 +38,6 @@ export const GameboyProvider: React.FC<{ children: React.ReactNode }> = ({
       saveStateData?: Uint8Array
     ) => {
       const paletteArray = new Uint32Array(palette);
-      console.log("Palette Array:", paletteArray);
 
       try {
         const newGameboy = new GameboyWasm(paletteArray);

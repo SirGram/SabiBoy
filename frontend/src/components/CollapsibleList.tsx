@@ -21,10 +21,11 @@ export default function CollapsibleList({
       >
         {isOpen ? <ChevronDown /> : <ChevronRight />}
         <h2 className="text-xl font-semibold">{title}</h2>
+
       </div>
 
       {isOpen && (
-        <div className="px-1 flex items-center gap-4 py-2  overflow-x-auto whitespace-nowrap md:flex-wrap md:overflow-x-hidden w-full">
+        <div className="px-1 flex items-center gap-4 pb-4  overflow-x-auto whitespace-nowrap md:flex-wrap md:overflow-x-hidden w-full">
          {children}
         </div>
       )}

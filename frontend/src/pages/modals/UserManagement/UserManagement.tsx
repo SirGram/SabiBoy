@@ -147,9 +147,7 @@ export default function UserManagement() {
   }, []);
 
   return (
-    <div className="flex flex-col gap-6 h-full items-center max-w-md mx-auto py-4 px-1">
-      <h1 className="text-2xl font-bold">User Management</h1>
-
+    <div className="flex flex-col gap-6 h-full items-center max-w-md mx-auto ">
       <CollapsibleList title="Account Details">
         <div className="w-full space-y-4">
           <div className="flex justify-between items-center">

@@ -46,7 +46,7 @@ export default function Library() {
         if (result) {
           const { gamesWithImages, pagination } = result;
           setGames(gamesWithImages);
-          console.log(gamesWithImages)
+          console.log(gamesWithImages);
           setPagination(pagination);
         } else {
           console.error("Failed to load games");
@@ -65,7 +65,6 @@ export default function Library() {
       debouncedLoadGames();
     }
   }, [options.limitOptions, searchTerm, pagination.page, debouncedLoadGames]);
-
 
   const handlePageChange = (newPage: number) => {
     if (newPage > 0 && newPage <= pagination.totalPages) {
@@ -95,46 +94,46 @@ export default function Library() {
   };
   return (
     <Layout>
-      <div className="flex w-full flex-col gap-6">
-        <div className="flex flex-col w-full  ">
-          <div className="flex  flex-col md:flex-row gap-2 items-center w-full  justify-between">
+      <div className="flex flex-col gap-8 px-4 py-2 max-w-7xl mx-auto w-full">
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between max-w-xl self-center w-full">
             <SearchBar
               searchTerm={searchTerm}
-              onSearchChange={handleSearch}
+              onSearchChange={(term) => {
+                setSearchTerm(term);
+                setPagination(prev => ({ ...prev, page: 1 }));
+              }}
               handleClearSearch={() => setSearchTerm("")}
             />
-            <div className="flex  gap-4 items-center w-full justify-center">
-              <div
-                className="bg-base-background h-full flex items-center border border-base-border rounded-md px-2 py-1 
-                           transition-colors duration-200 cursor-pointer group"
-                onClick={handleLimitChange}
+            
+            <div className="flex gap-3 items-center">
+              <button
+                onClick={() => {
+                  cycleLimitOptions();
+                  setPagination(prev => ({ ...prev, page: 1 }));
+                }}
+                className="flex items-center gap-2 px-3 h-10 rounded-md border border-base-border hover:border-primary transition-colors bg-transparent"
               >
-                <div className="flex items-center text-center gap-1  ">
-                  <span className="text-sm font-medium">
-                    {options.limitOptions}
-                  </span>
-                  <ChevronRight
-                    size={16}
-                    className="text-gray-500 group-hover:text-gray-700 transition-colors duration-200"
-                  />
-                </div>
-              </div>
+                <span className="text-sm font-medium text-muted">
+                  {options.limitOptions}
+                </span>
+                <ChevronRight size={16} className="text-base-foreground/50" />
+              </button>
 
               <select
-                id="sort-type"
                 value={options.sortType}
                 onChange={(e) => updateSortType(e.target.value as SortType)}
-                className="border rounded px-2 py-1"
+                className="text-muted px-3 h-10 rounded-md border border-base-border bg-transparent hover:border-primary transition-colors outline-none"
               >
-                {Object.values(SortType).map((sortType) => (
-                  <option key={sortType} value={sortType}>
-                    {sortType}
+                {Object.values(SortType).map((type) => (
+                  <option key={type} value={type} className="bg-base-background">
+                    {type}
                   </option>
                 ))}
               </select>
             </div>
           </div>
-          <div className="flex justify-center w-full pt-10 ">
+          <div className="flex justify-center w-full  ">
             {isLoading ? (
               <Loading />
             ) : (
@@ -163,7 +162,7 @@ export default function Library() {
             </div>
           )}
         </div>
-
+        {/* Games */}
         <div className="flex flex-col items-center justify-center">
           <div className="max-w-sm w-full  bg-base-border rounded-lg h-0.5 mb-6"></div>
           <button
@@ -188,25 +187,26 @@ function SearchBar({
   onSearchChange: (term: string) => void;
   handleClearSearch: () => void;
 }) {
-  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    onSearchChange(event.target.value);
-  };
-
   return (
-    <div className="flex flex-1 items-center gap-1 px-2 w-full rounded-lg border border-base-border focus-within:border-primary bg-base-background text-sm">
-      <SearchIcon />
-      <input
-        type="text"
-        value={searchTerm}
-        onChange={handleSearchChange}
-        placeholder="Search games..."
-        className=" bg-transparent outline-none border-none focus:outline-none focus:ring-0"
-      />
-      {searchTerm !== "" && (
-        <button onClick={handleClearSearch}>
-          <XIcon />
-        </button>
-      )}
+    <div className="relative flex-1">
+      <div className="flex items-center h-10 gap-2 px-4 w-full rounded-md border border-base-border focus-within:border-primary bg-transparent">
+        <SearchIcon className="w-4 h-4 text-base-foreground/50" />
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder="Search games..."
+          className="flex-1 h-full bg-transparent outline-none border-none focus:outline-none focus:ring-0 placeholder:text-base-foreground/30"
+        />
+        {searchTerm && (
+          <button 
+            onClick={handleClearSearch}
+            className="text-base-foreground/50 hover:text-base-foreground transition-colors"
+          >
+            <XIcon className="w-4 h-4" />
+          </button>
+        )}
+      </div>
     </div>
   );
 }

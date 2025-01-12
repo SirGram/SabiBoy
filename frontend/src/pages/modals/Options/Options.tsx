@@ -64,8 +64,6 @@ export default function Options() {
 
   return (
     <div className="flex flex-col gap-6 h-full items-center max-w-md mx-auto p-4">
-      <h1 className="text-2xl font-bold">Emulator Settings</h1>
-
       <CollapsibleList title="General Settings">
         <div className="w-full space-y-4">
           <label className="flex justify-between items-center w-full py-2">
