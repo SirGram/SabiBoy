@@ -3,7 +3,6 @@ import React, {
   useState,
   ChangeEvent,
   FormEvent,
-  InputHTMLAttributes,
 } from "react";
 import api from "../../../api/client";
 import { useModal } from "../../../context/ModalContext";
@@ -44,11 +43,6 @@ interface CreateGamePayload {
   genres?: string[];
 }
 
-interface FolderInputProps extends InputHTMLAttributes<HTMLInputElement> {
-  webkitdirectory?: string;
-  directory?: string;
-  folder?: string;
-}
 
 const UploadNewGame: React.FC = () => {
   const [formData, setFormData] = useState<GameFormData>({

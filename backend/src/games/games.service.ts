@@ -325,7 +325,7 @@ export class GamesService {
 
           // Find cover - only processing cover file now since that's all we need
           const coverFile = files.find((file) =>
-            file.match(/^cover\.(png|jpg|jpeg)$/i),
+            file.match(/^cover\.(png|jpg|jpeg|webp)$/i),
           );
           const coverPath = coverFile
             ? `api/games/${game.slug}/${coverFile}`

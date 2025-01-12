@@ -29,7 +29,6 @@ export default function Board() {
       try {
         // User Library
         const libraryResponse = await api.get(`/api/users/${user.id}/library`);
-        console.log("libraryResponse", libraryResponse);
         if (libraryResponse.status === 200) {
           const libraryGames: TGame[] = libraryResponse.data;
           setPlayLaterGames(libraryGames);
@@ -43,14 +42,12 @@ export default function Board() {
         const recentlyPlayedResponse = await api.get(
           `/api/users/${user.id}/recently-played`
         );
-        console.log("recentlyPlayedResponse", recentlyPlayedResponse);
         if (recentlyPlayedResponse.status === 200) {
           const recentGames: TGame[] = recentlyPlayedResponse.data;
           setRecentlyPlayedGames(recentGames);
         }
         // Recently Added Games
         const result = await loadGames(1, "", 5, SortType.DATE_NEW);
-        console.log("setRecentlyAddedGames", result);
         if (result) {
           setRecentlyAddedGames(result.gamesWithImages);
         }

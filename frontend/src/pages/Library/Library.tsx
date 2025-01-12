@@ -75,15 +75,6 @@ export default function Library() {
     }
   };
 
-  const handleSearch = (term: string) => {
-    setSearchTerm(term);
-    setPagination((prev) => ({ ...prev, page: 1 }));
-  };
-
-  const handleLimitChange = () => {
-    cycleLimitOptions();
-    setPagination((prev) => ({ ...prev, page: 1 }));
-  };
   const navigate = useNavigate();
   const handleGameSelect = async (slug: string) => {
     navigate(`/library/${slug}`);
@@ -101,16 +92,16 @@ export default function Library() {
               searchTerm={searchTerm}
               onSearchChange={(term) => {
                 setSearchTerm(term);
-                setPagination(prev => ({ ...prev, page: 1 }));
+                setPagination((prev) => ({ ...prev, page: 1 }));
               }}
               handleClearSearch={() => setSearchTerm("")}
             />
-            
-            <div className="flex gap-3 items-center">
+
+            <div className="flex gap-3 items-center w-full justify-center">
               <button
                 onClick={() => {
                   cycleLimitOptions();
-                  setPagination(prev => ({ ...prev, page: 1 }));
+                  setPagination((prev) => ({ ...prev, page: 1 }));
                 }}
                 className="flex items-center gap-2 px-3 h-10 rounded-md border border-base-border hover:border-primary transition-colors bg-transparent"
               >
@@ -120,17 +111,25 @@ export default function Library() {
                 <ChevronRight size={16} className="text-base-foreground/50" />
               </button>
 
-              <select
-                value={options.sortType}
-                onChange={(e) => updateSortType(e.target.value as SortType)}
-                className="text-muted px-3 h-10 rounded-md border border-base-border bg-transparent hover:border-primary transition-colors outline-none"
-              >
-                {Object.values(SortType).map((type) => (
-                  <option key={type} value={type} className="bg-base-background">
-                    {type}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={options.sortType}
+                  onChange={(e) => updateSortType(e.target.value as SortType)}
+                  className="appearance-none text-muted px-3 pr-8 h-10 rounded-md border border-base-border bg-transparent hover:border-primary transition-colors outline-none cursor-pointer"
+                  aria-label="Sort by"
+                >
+                  {Object.values(SortType).map((type) => (
+                    <option
+                      key={type}
+                      value={type}
+                      className="bg-base-background"
+                    >
+                      {type}
+                    </option>
+                  ))}
+                </select>
+                
+              </div>
             </div>
           </div>
           <div className="flex justify-center w-full  ">
@@ -199,7 +198,7 @@ function SearchBar({
           className="flex-1 h-full bg-transparent outline-none border-none focus:outline-none focus:ring-0 placeholder:text-base-foreground/30"
         />
         {searchTerm && (
-          <button 
+          <button
             onClick={handleClearSearch}
             className="text-base-foreground/50 hover:text-base-foreground transition-colors"
           >
