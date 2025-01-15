@@ -219,7 +219,7 @@ impl PPU {
 
         let ly = self.get_io_register(IoRegister::Ly);
 
-         if ly ==50 && self.mode_cycles < 200 && self.mode_cycles >80 {
+        /*  if ly ==50 && self.mode_cycles < 200 && self.mode_cycles >80 {
          
           println!(
             "ly {} cycles {} window {} wcoun {} xpos {} xposren {} scx {} bg_fifo_len {} sprite_fifo_len {} current_sprite_x {} sprftch_act {}",
@@ -235,8 +235,8 @@ impl PPU {
             self.pixel_fifo.sprite_fifo.len(),
             self.sprite_fetcher.sprite.x_pos,
             self.sprite_fetcher.active
-        );     
-    } 
+            );     
+        }  */
 
         match self.mode {
             PPUMode::OAM_SCAN => self.handle_oam(),

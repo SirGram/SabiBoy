@@ -12,7 +12,9 @@ mod debug_window;
 fn main() {
     // Parse command line arguments
     let debug_enabled = std::env::args().any(|arg| arg == "--debug" || arg == "-d");
-    let mut window = set_up_window();
+    let turbo_mode = std::env::args().any(|arg| arg == "--turbo" || arg == "-t");
+    let audio_disabled = std::env::args().any(|arg| arg == "--audio" || arg == "-a");
+    let mut window = set_up_window(turbo_mode);
     let mut debug_window = if debug_enabled {
         Some(debug_window::DebugWindow::new())
     } else {
@@ -22,15 +24,19 @@ fn main() {
     // Initialize GameBoy
     let palette: [u32; 4] = [0x9bbc0f, 0x8bac0f, 0x306230, 0x0f380f];
     let mut gameboy = gameboy_core::gameboy::Gameboy::new(palette);
+    if audio_disabled {
+        gameboy.apu.toggle_audio(); 
+    }
     gameboy.set_power_up_sequence();
     gameboy.load_rom(include_bytes!(
         "../../../games/dmg-acid2/rom.gb"
     ));
 
-       let save_state = std::fs::read("./rom.gb.state").expect("Failed to read state from file");
-     gameboy
-    .load_state(save_state)
-    .expect("Failed to load state");  
+    if let Ok(save_state) = std::fs::read("./rom.gb.state") {
+        if let Err(e) = gameboy.load_state(save_state) {
+            println!("Failed to load state: {}", e);
+        }
+    }
 
     // Setup audio
     let audio_output = match AudioOutput::new() {
@@ -41,10 +47,9 @@ fn main() {
         }
     };
 
-    run(&mut window, &mut gameboy, &mut debug_window, audio_output.as_ref());
+    run(&mut window, &mut gameboy, &mut debug_window, audio_output.as_ref(), turbo_mode);
 }
-
-fn set_up_window() -> Window {
+fn set_up_window(turbo_mode: bool) -> Window {
     let width = 160;
     let height = 144;
     let window_options = WindowOptions {
@@ -56,37 +61,48 @@ fn set_up_window() -> Window {
     let mut window =
         Window::new("SabiBoy", width, height, window_options).expect("Failed to create window");
 
-    window.limit_update_rate(Some(std::time::Duration::from_micros(16667)));
+    // Only limit update rate if not in turbo mode
+    if !turbo_mode {
+        window.limit_update_rate(Some(std::time::Duration::from_micros(16667)));
+    }
     window
 }
-
 fn run(
     window: &mut Window,
     gameboy: &mut gameboy_core::gameboy::Gameboy,
     debug_window: &mut Option<debug_window::DebugWindow>,
     audio_output: Option<&AudioOutput>,
+    turbo_mode: bool,
 ) {
-    let target_frame_time = Duration::from_micros(16_667); // 60 fps
+    let target_frame_time = if turbo_mode {
+        Duration::from_micros(0)
+    } else {
+        Duration::from_micros(16_667)
+    };
+    
     let mut last_fps_check = Instant::now();
     let mut frames = 0;
     let mut current_fps = 0;
-
-    // Buffer to hold the converted pixels
     let mut buffer = vec![0u32; 160 * 144];
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let frame_start_time = Instant::now();
-        gameboy.run_frame();
+        
+        // In turbo mode, run multiple frames per iteration
+        if turbo_mode {
+            for _ in 0..4 { // Run 4 frames at once for higher speed
+                gameboy.run_frame();
+            }
+        } else {
+            gameboy.run_frame();
+        }
 
         // Get the frame buffer from PPU and convert colors
         let gb_buffer = gameboy.ppu.get_frame_buffer();
         for (i, &color) in gb_buffer.iter().enumerate() {
-            // Convert GameBoy color to RGB888 format that minifb expects
             let r = ((color >> 16) & 0xFF) as u32;
             let g = ((color >> 8) & 0xFF) as u32;
             let b = (color & 0xFF) as u32;
-
-            // Pack RGB values into a single u32 (0RGB)
             buffer[i] = (r << 16) | (g << 8) | b;
         }
 
@@ -95,33 +111,46 @@ fn run(
             .update_with_buffer(&buffer, 160, 144)
             .expect("Failed to update window");
 
-        // FPS calculation
+        // FPS calculation and window title update
         frames += 1;
         if last_fps_check.elapsed() > Duration::from_secs(1) {
             current_fps = frames;
             frames = 0;
             last_fps_check = Instant::now();
+            
+            // Update window title with FPS
+            let title = if turbo_mode {
+                format!("SabiBoy - {} FPS (Turbo)", current_fps)
+            } else {
+                format!("SabiBoy - {} FPS", current_fps)
+            };
+            window.set_title(&title);
         }
 
-        // Frame timing
-        let frame_time = frame_start_time.elapsed();
-        if frame_time < target_frame_time {
-            std::thread::sleep(target_frame_time - frame_time);
+        // Frame timing (only if not in turbo mode)
+        if !turbo_mode {
+            let frame_time = frame_start_time.elapsed();
+            if frame_time < target_frame_time {
+                std::thread::sleep(target_frame_time - frame_time);
+            }
         }
 
-        // update key input
+        // Update key input
         handle_input(window, gameboy);
 
-        // update debug window
+        // Update debug window
         if let Some(debug_window) = debug_window {
             debug_window.update(&gameboy.cpu, &gameboy.bus, &gameboy.ppu, current_fps);
             debug_window.render();
         }
-        // update audio per frame? 48000 samples / 60fps? plz help
+
+        // Update audio (skip in turbo mode to prevent audio buffer overflow)
+       
         let samples = gameboy.apu.get_samples();
         if let Some(audio) = audio_output {
             audio.add_samples(&samples);
         }
+       
     }
 }
 
