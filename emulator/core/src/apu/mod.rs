@@ -5,7 +5,7 @@ use channel2::Channel2;
 use channel3::Channel3;
 use channel4::Channel4;
 
-use crate::bus::{self, io_address::IoRegister, Bus};
+use crate::bus::{self, io_address::IoRegister, Bus, MemoryInterface};
 use std::{cell::RefCell, rc::Rc};
 
 const SAMPLE_RATE: usize = 48_000;
@@ -19,7 +19,6 @@ mod channel4;
 
 #[derive(Debug, Clone)]
 pub struct APU {
-    bus: Rc<RefCell<Bus>>,
     channel1: Channel1,
     channel2: Channel2,
     channel3: Channel3,
@@ -42,9 +41,8 @@ pub struct APU {
     pub ch4_enabled: bool,
 }
 impl APU {
-    pub fn new(bus: Rc<RefCell<Bus>>) -> Self {
+    pub fn new() -> Self {
         Self {
-            bus: bus,
             channel1: Channel1::new(),
             channel2: Channel2::new(),
             channel3: Channel3::new(),
@@ -76,23 +74,23 @@ impl APU {
             _ => {}
         }
     }
-    pub fn tick(&mut self) {
+    pub fn tick<M:MemoryInterface>(&mut self, memory: &mut M) {
         if !self.enabled {
             return;
         }
         self.frame_sequencer_timer += 1;
         if self.frame_sequencer_timer >= 8192 {
             self.frame_sequencer_timer = 0;
-            self.step_frame_sequencer()
+            self.step_frame_sequencer(memory)
         }
-        self.channel1.tick(&mut self.bus.borrow_mut());
-        self.channel2.tick(&mut self.bus.borrow_mut());
-        self.channel3.tick(&mut self.bus.borrow_mut());
-        self.channel4.tick(&mut self.bus.borrow_mut());
+        self.channel1.tick(memory);
+        self.channel2.tick(memory);
+        self.channel3.tick(memory);
+        self.channel4.tick(memory);
 
         if self.cycle_sample_counter >= CYCLES_PER_SAMPLE {
             self.cycle_sample_counter = 0;
-            self.generate_sample();
+            self.generate_sample(memory);
         }
         self.cycle_sample_counter += 1;
     }
@@ -116,13 +114,12 @@ impl APU {
         
         samples
     }
-    fn generate_sample(&mut self) {
-        let bus = &mut self.bus.borrow_mut();
-
+    fn generate_sample<M: MemoryInterface>(&mut self, memory: &mut M) {
+     
         // Read panning and volume registers
-        let nr50 = bus.read_byte(bus::io_address::IoRegister::Nr50.address());
-        let nr51 = bus.read_byte(bus::io_address::IoRegister::Nr51.address());
-        let nr52 = bus.read_byte(bus::io_address::IoRegister::Nr52.address());
+        let nr50 = memory.read_byte(bus::io_address::IoRegister::Nr50.address());
+        let nr51 = memory.read_byte(bus::io_address::IoRegister::Nr51.address());
+        let nr52 = memory.read_byte(bus::io_address::IoRegister::Nr52.address());
 
         // Master volume
         if nr52 & 0x80 == 0 {
@@ -131,10 +128,10 @@ impl APU {
             return;
         }
 
-        let ch1_sample = if self.ch1_enabled { self.channel1.sample(bus) } else { 0.0 };
-        let ch2_sample = if self.ch2_enabled { self.channel2.sample(bus) } else { 0.0 };
-        let ch3_sample = if self.ch3_enabled { self.channel3.sample(bus) } else { 0.0 };
-        let ch4_sample = if self.ch4_enabled { self.channel4.sample() } else { 0.0 };
+        let ch1_sample = if self.ch1_enabled { self.channel1.sample(memory) } else { 0.0 };
+        let ch2_sample = if self.ch2_enabled { self.channel2.sample(memory) } else { 0.0 };
+        let ch3_sample = if self.ch3_enabled { self.channel3.sample(memory) } else { 0.0 };
+        let ch4_sample = if self.ch4_enabled { self.channel4.sample(memory) } else { 0.0 };
 
         // Panning for left and right channels
         let mut left_amplitude = 0.0;
@@ -182,22 +179,24 @@ impl APU {
         self.current_ch3_output = ch3_sample ;
         self.current_ch4_output = ch4_sample ; 
     }
-    fn update_lengths(&mut self) {
-        self.channel1.update_length(&self.bus.borrow());
-        self.channel2.update_length(&self.bus.borrow());
-        self.channel3.update_length(&self.bus.borrow());
-        self.channel4.update_length(&self.bus.borrow());
-    }
-    fn update_sweeps(&mut self) {
-        self.channel2.update_sweep(&mut self.bus.borrow_mut());
-    }
-    fn update_envelopes(&mut self) {
-        self.channel1.update_envelope(&mut self.bus.borrow_mut());
-        self.channel2.update_envelope(&mut self.bus.borrow_mut());
-        self.channel4.update_envelope(&mut self.bus.borrow_mut());
+    fn update_lengths<M: MemoryInterface>(&mut self, memory: &M) {
+        self.channel1.update_length(memory);
+        self.channel2.update_length(memory);
+        self.channel3.update_length(memory);
+        self.channel4.update_length(memory);
     }
 
-    fn step_frame_sequencer(&mut self) {
+    fn update_sweeps<M: MemoryInterface>(&mut self, memory: &mut M) {
+        self.channel1.update_sweep(memory);
+    }
+
+    fn update_envelopes<M: MemoryInterface>(&mut self, memory: &mut M) {
+        self.channel1.update_envelope(memory);
+        self.channel2.update_envelope(memory);
+        self.channel4.update_envelope(memory);
+    }
+
+    fn step_frame_sequencer<M:MemoryInterface>(&mut self, memory: &mut M) {
         /* TODO: get from DIV register
         Step   Length Ctr  Vol Env     Sweep
         ---------------------------------------
@@ -214,24 +213,24 @@ impl APU {
         */
         match self.frame_sequencer_step {
             0 => {
-                self.update_lengths();
+                self.update_lengths(memory);
             }
             1 => {}
             2 => {
-                self.update_lengths();
-                self.update_sweeps();
+                self.update_lengths(memory);
+                self.update_sweeps(memory);
             }
             3 => {}
             4 => {
-                self.update_lengths();
+                self.update_lengths(memory);
             }
             5 => {}
             6 => {
-                self.update_lengths();
-                self.update_sweeps();
+                self.update_lengths(memory);
+                self.update_sweeps(memory);
             }
             7 => {
-                self.update_envelopes();
+                self.update_envelopes(memory);
             }
             _ => unreachable!(),
         }

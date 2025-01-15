@@ -93,7 +93,7 @@ impl GameboyWasm {
         rgba
     }
     pub fn handle_keys(&mut self, keys: u8) {
-        self.gameboy.bus.borrow_mut().joypad.update_keys(keys);
+        self.gameboy.bus.joypad.update_keys(keys);
     }
     pub fn get_audio_buffer(&mut self) -> Vec<f32> {
         self.gameboy.apu.get_samples()
@@ -144,8 +144,8 @@ impl GameboyWasm {
         }
     }
     pub fn get_bus_state(&self) -> WasmBusState {
-        let bus_state = self.gameboy.bus.borrow().save_state();
-        let joypad_state = self.gameboy.bus.borrow().joypad.clone();
+        let bus_state = self.gameboy.bus.save_state();
+        let joypad_state = self.gameboy.bus.joypad.clone();
         WasmBusState {
             joypad:  WasmJoypad { register: joypad_state.register, keys: joypad_state.keys},         
             io_registers: bus_state.io_registers,
@@ -206,7 +206,7 @@ impl GameboyWasm {
         self.gameboy.ppu.toggle_window_debug_mode(enabled);
     }
     pub fn get_cartridge_info(&self) -> CartridgeHeaderState {
-        let cartridge_data = self.gameboy.bus.borrow().read_cartridge_header();
+        let cartridge_data = self.gameboy.bus.read_cartridge_header();
         let title = cartridge::cartridge_header::get_title(&cartridge_data);
         let kind = cartridge::cartridge_header::get_cartridge_type(&cartridge_data);
         let rom_size = cartridge::cartridge_header::get_rom_size(&cartridge_data);

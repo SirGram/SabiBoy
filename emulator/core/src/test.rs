@@ -1,6 +1,6 @@
 use std::{fs, path::Path};
 
-use crate::{bus::io_address::IoRegister, gameboy::Gameboy};
+use crate::{bus::{io_address::IoRegister, MemoryInterface}, gameboy::Gameboy};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
@@ -169,9 +169,8 @@ impl Gameboy {
         self.cpu.ime = initial.ime != 0;
 
         // Initialize RAM
-        let mut bus = self.bus.borrow_mut();
         for &[addr, value] in initial.ram.iter() {
-            bus.write_byte(addr, value as u8);
+            self.bus.write_byte(addr, value as u8);
         }
 
         Ok(())
@@ -258,9 +257,8 @@ impl Gameboy {
         }
 
         // Validate RAM contents
-        let borrowed_bus = self.bus.borrow();
         for &[addr, expected_value] in expected.ram.iter() {
-            let actual_value = borrowed_bus.read_byte(addr);
+            let actual_value = self.bus.read_byte(addr);
             if actual_value != expected_value as u8 {
                 return Err(format!(
                     "RAM mismatch at {:04X}: expected {:02X}, got {:02X}",
@@ -379,7 +377,6 @@ fn print_detailed_state_comparison(gb: &Gameboy, expected: &CPUState, initial: &
     );
 
     // Print memory differences
-    let bus = gb.bus.borrow();
     let mut has_memory_differences = false;
     println!("\nMemory State:");
     println!("Address   Initial   Expected  Actual");
@@ -409,7 +406,7 @@ fn print_detailed_state_comparison(gb: &Gameboy, expected: &CPUState, initial: &
             .find(|&&[a, _]| a == addr)
             .map(|&[_, v]| v)
             .unwrap_or(0) as u8;
-        let actual_value = bus.read_byte(addr);
+        let actual_value = gb.bus.read_byte(addr);
 
         if expected_value != actual_value || initial_value != actual_value {
             has_memory_differences = true;

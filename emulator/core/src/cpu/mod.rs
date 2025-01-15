@@ -13,7 +13,7 @@ use std::{
 use flags::Flags;
 use serde::{Deserialize, Serialize};
 
-use crate::bus::Bus;
+use crate::bus::{Bus, MemoryInterface};
 pub use execute::*;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -56,13 +56,10 @@ pub struct CPU {
 
     // cycles
     pub cycles: usize,
-
-    // Shared bus
-    bus: Rc<RefCell<Bus>>,
 }
 
 impl CPU {
-    pub fn new(bus: Rc<RefCell<Bus>>) -> Self {
+    pub fn new() -> Self {
         Self {
             a: 0,
             b: 0,
@@ -77,7 +74,6 @@ impl CPU {
             ime: false,
             halt: false,
             halt_bug: false,
-            bus,
             cycles: 0,
             ime_scheduled: false,
         }
@@ -101,7 +97,7 @@ impl CPU {
             cycles: self.cycles,
         }
     }
-    pub fn load_state(&mut self, state: CPUState, bus: Rc<RefCell<Bus>>) {
+    pub fn load_state(&mut self, state: CPUState) {
         self.a = state.a;
         self.b = state.b;
         self.c = state.c;
@@ -117,29 +113,25 @@ impl CPU {
         self.halt = state.halt;
         self.halt_bug = state.halt_bug;
         self.cycles = state.cycles;
-        self.bus = bus;
     }
 
-    pub fn tick(&mut self) {
+    pub fn tick<M: MemoryInterface>(&mut self, memory: &mut M) {
         if !self.halt {
             self.ime_instruction();
-            let mut opcode = self.fetch_byte();
+            let mut opcode = self.fetch_byte(memory);
 
             self.check_halt_bug();
             if opcode == 0xCB {
-                /*  print!("CB OPCODE: {} ", opcode); */
-                opcode = self.fetch_byte();
-                self.execute_cb(opcode);
+                opcode = self.fetch_byte(memory);
+                self.execute_cb(opcode, memory);
             } else {
-                self.execute(opcode);
+                self.execute(opcode, memory);
             }
             self.cycles = self.get_clock_cycles(opcode, opcode == 0xCB);
-            /*  println!("OPCODE: {:02X} CYCLES: {}", opcode, self.cycles); */
         } else {
-            // 4 t-cycles when halted
-            self.cycles += 4;
+            self.cycles = 4;
         }
-        self.handle_interrupts();
+        self.handle_interrupts(memory);
     }
 
     fn ime_instruction(&mut self) {

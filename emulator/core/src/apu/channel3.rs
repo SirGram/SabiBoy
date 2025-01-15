@@ -1,4 +1,4 @@
-use crate::bus::{self, io_address::IoRegister, Bus};
+use crate::bus::{self, io_address::IoRegister, Bus, MemoryInterface};
 #[derive(Debug, Clone)]
 pub struct Channel3 {
     frequency_timer: usize,
@@ -26,30 +26,30 @@ impl Channel3 {
             current_volume: 0,
         }
     }
-    pub fn tick(&mut self, bus: &mut Bus) {
+    pub fn tick <M:MemoryInterface>(&mut self, memory: &mut M) {
         let is_triggered =
-            bus.read_byte(bus::io_address::IoRegister::Nr34.address()) & 0b10000000 != 0;
+            memory.read_byte(bus::io_address::IoRegister::Nr34.address()) & 0b10000000 != 0;
         if is_triggered {
-            self.trigger(bus);
+            self.trigger(memory);
         }
         self.frequency_timer -= 1;
         if self.frequency_timer == 0 {
-            self.frequency_timer = (2048 - self.calculate_frequency(bus)) * 4;
+            self.frequency_timer = (2048 - self.calculate_frequency(memory)) * 4;
             self.wave_position = (self.wave_position + 1) % 8;
         }
     }
-    pub fn trigger(&mut self, bus: &mut Bus) {
+    pub fn trigger<M:MemoryInterface>(&mut self, memory: &mut M) {
         self.current_volume =
-            (bus.read_byte(bus::io_address::IoRegister::Nr32.address()) & 0b11110000) >> 4;
-        self.period_timer = bus.read_byte(bus::io_address::IoRegister::Nr32.address()) & 0b00000111;
+            (memory.read_byte(bus::io_address::IoRegister::Nr32.address()) & 0b11110000) >> 4;
+        self.period_timer = memory.read_byte(bus::io_address::IoRegister::Nr32.address()) & 0b00000111;
         if self.length_timer == 0 {
             self.length_timer = 64;
         }
         self.disabled = false;
     }
-    fn get_sample(&self, bus: &mut Bus) -> u8 {
+    fn get_sample<M:MemoryInterface>(&self, memory: &mut M) -> u8 {
         // 1 byte -> 2 samples
-        let wave_ram = bus.read_wave_ram();
+        let wave_ram = memory.read_wave_ram();
         let index = self.wave_position as usize / 2;
         let byte = wave_ram[index];
         if self.wave_position % 2 == 0 {
@@ -58,21 +58,21 @@ impl Channel3 {
             byte & 0xF
         }
     }
-    pub fn sample(&self, bus: &mut Bus) -> f32 {
+    pub fn sample <M:MemoryInterface>(&self, memory: &mut M) -> f32 {
         if self.disabled {
             return 0.0;
         }
-        let raw_samle = self.get_sample(bus);
-        let volume_shift = self.get_volume_shift(bus);
+        let raw_samle = self.get_sample(memory);
+        let volume_shift = self.get_volume_shift(memory);
         let dac_input = raw_samle >> volume_shift;
 
         let dac_output = (dac_input as f32 / 7.5) - 1.0;
 
         dac_output
     }
-    pub fn update_length(&mut self, bus: &Bus) {
-        self.length_timer = 256 - self.get_length(bus) as u16;
-        if bus.read_byte(bus::io_address::IoRegister::Nr31.address()) & 0b01000000 == 1 {
+    pub fn update_length<M:MemoryInterface>(&mut self, memory: &M) {
+        self.length_timer = 256 - self.get_length(memory) as u16;
+        if memory.read_byte(bus::io_address::IoRegister::Nr31.address()) & 0b01000000 == 1 {
             self.length_timer -= 1;
             if self.length_timer == 0 {
                 self.disabled = true;
@@ -80,17 +80,17 @@ impl Channel3 {
         }
     }
 
-    fn get_length(&self, bus: &Bus) -> u8 {
-        bus.read_byte(bus::io_address::IoRegister::Nr31.address()) & 0b11111111
+    fn get_length <M:MemoryInterface>(&self, memory: &M) -> u8 {
+        memory.read_byte(bus::io_address::IoRegister::Nr31.address()) & 0b11111111
     }
-    fn calculate_frequency(&self, bus: &mut Bus) -> usize {
-        let low_frequency = bus.read_byte(bus::io_address::IoRegister::Nr33.address()) as usize;
-        let high_frequency = bus.read_byte(bus::io_address::IoRegister::Nr34.address()) as usize;
+    fn calculate_frequency <M:MemoryInterface>(&self, memory: &mut M) -> usize {
+        let low_frequency = memory.read_byte(bus::io_address::IoRegister::Nr33.address()) as usize;
+        let high_frequency = memory.read_byte(bus::io_address::IoRegister::Nr34.address()) as usize;
         ((high_frequency & 7) << 8) | low_frequency
     }
-    fn get_volume_shift(&self, bus: &Bus) -> u8 {
+    fn get_volume_shift <M:MemoryInterface>(&self, memory: &M) -> u8 {
         let volume_bits =
-            (bus.read_byte(bus::io_address::IoRegister::Nr50.address()) & 0b01100000) >> 5;
+            (memory.read_byte(bus::io_address::IoRegister::Nr50.address()) & 0b01100000) >> 5;
         match volume_bits {
             0 => 4,
             1 => 0,

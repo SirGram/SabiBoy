@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use super::{pixelfifo::PixelFifo, Sprite};
-use crate::bus::{self, io_address::IoRegister};
-use std::{cell::RefCell, rc::Rc};
+use crate::bus::{self, io_address::IoRegister, MemoryInterface};
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SpriteFetcher {
     pub step: u8,
@@ -39,14 +39,14 @@ impl SpriteFetcher {
         // Start with tile number fetch
         self.fetch_tile_number(sprite);
     }
-    pub fn step(&mut self, bus: &Rc<RefCell<bus::Bus>>, pixel_fifo: &mut PixelFifo) {
+    pub fn step <M:MemoryInterface>(&mut self, memory:  &M, pixel_fifo: &mut PixelFifo) {
         match self.step {
             0 => {
-                self.tile_data_low = self.fetch_tile_data(bus, false);
+                self.tile_data_low = self.fetch_tile_data(memory, false);
                 self.step += 1;
             }
             1 => {
-                self.tile_data_high = self.fetch_tile_data(bus, true);
+                self.tile_data_high = self.fetch_tile_data(memory, true);
                 self.step += 1;
             }
             2 => {
@@ -63,12 +63,12 @@ impl SpriteFetcher {
     fn fetch_tile_number(&mut self, sprite: &Sprite) {
         self.tile_number = sprite.tile_number;
     }
-    fn fetch_tile_data(&mut self, bus: &Rc<RefCell<bus::Bus>>, is_high_byte: bool) -> u8 {
-        let ly = bus.borrow().read_byte(IoRegister::Ly.address());
+    fn fetch_tile_data<M:MemoryInterface> (&mut self, memory: &M, is_high_byte: bool) -> u8 {
+        let ly = memory.read_byte(IoRegister::Ly.address());
 
         let y_flip = self.sprite.flags & 0x40 != 0;
         let x_flip = self.sprite.flags & 0x20 != 0;
-        let sprite_size = if bus.borrow().read_byte(IoRegister::Lcdc.address()) & 0x04 != 0 {
+        let sprite_size = if memory.read_byte(IoRegister::Lcdc.address()) & 0x04 != 0 {
             16
         } else {
             8
@@ -94,8 +94,8 @@ impl SpriteFetcher {
         let base_address = 0x8000 + (actual_tile as u16 * 16);
 
         // Get the correct byte of tile data
-        let mut data = bus
-            .borrow()
+        let mut data = memory
+            
             .read_byte(base_address + y_offset + if is_high_byte { 1 } else { 0 });
 
         if x_flip {
@@ -104,7 +104,7 @@ impl SpriteFetcher {
         data
     }
     fn push_to_fifo(&mut self, pixel_fifo: &mut PixelFifo) {
-        let mut pixels = [self.tile_data_low, self.tile_data_high];
+        let pixels = [self.tile_data_low, self.tile_data_high];
 
         pixel_fifo.push_sprite_pixels(pixels, &self.sprite);
     }

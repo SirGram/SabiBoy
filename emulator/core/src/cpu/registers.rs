@@ -1,3 +1,4 @@
+use crate::bus::MemoryInterface;
 use crate::cpu::flags::Flags;
 use crate::cpu::CPU;
 
@@ -38,7 +39,7 @@ pub enum Register16Stk {
 }
 
 impl CPU {
-    pub fn get_r8(&self, register: &Register8) -> u8 {
+    pub fn get_r8<M: MemoryInterface>(&self, register: &Register8, memory: &M) -> u8 {
         match register {
             Register8::B => self.b,
             Register8::C => self.c,
@@ -48,12 +49,12 @@ impl CPU {
             Register8::L => self.l,
             Register8::HLIndirect => {
                 let hl = self.get_r16(&Register16::HL);
-                self.bus.borrow().read_byte(hl)
+                memory.read_byte(hl)
             }
             Register8::A => self.a,
         }
     }
-    pub fn set_r8(&mut self, register: &Register8, value: u8) {
+    pub fn set_r8<M: MemoryInterface>(&mut self, register: &Register8, value: u8, memory: &mut M) {
         match register {
             Register8::B => self.b = value,
             Register8::C => self.c = value,
@@ -63,7 +64,7 @@ impl CPU {
             Register8::L => self.l = value,
             Register8::HLIndirect => {
                 let hl = self.get_r16(&Register16::HL);
-                self.bus.borrow_mut().write_byte(hl, value);
+                memory.write_byte(hl, value);
             }
             Register8::A => self.a = value,
         }

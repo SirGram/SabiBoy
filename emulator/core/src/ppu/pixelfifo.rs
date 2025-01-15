@@ -1,10 +1,10 @@
-use std::{cell::RefCell, collections::VecDeque, rc::Rc};
+use std::{ collections::VecDeque};
 
 use serde::{Deserialize, Serialize};
 
-use crate::bus::{io_address::IoRegister, Bus};
+use crate::bus::{io_address::IoRegister, Bus, MemoryInterface};
 
-use super::{fetcher::{self, Fetcher}, fetcher_sprites::SpriteFetcher, Sprite};
+use super::{fetcher::{self, Fetcher},  Sprite};
 #[derive(Clone, Debug, Serialize, Deserialize, Copy)]
 pub struct Pixel {
     pub color: u8,
@@ -102,11 +102,11 @@ impl PixelFifo {
             self.fine_scroll_applied = true; 
         }
     }
-    pub fn pop_pixel(&mut self, bus: &Rc<RefCell<Bus>>, fetcher: &mut Fetcher) -> Option<u8> {
+    pub fn pop_pixel <M: MemoryInterface>(&mut self, memory: &M, fetcher: &mut Fetcher) -> Option<u8> {
         if self.bg_fifo.is_empty() {
             return None;
         } 
-       self.apply_fine_scroll(bus.borrow().read_byte(IoRegister::Scx.address()), fetcher);
+       self.apply_fine_scroll(memory.read_byte(IoRegister::Scx.address()), fetcher);
         let mut bg_pixel = self.bg_fifo.pop_front().unwrap();
         let mut sprite_pixel = self.sprite_fifo.pop_front();
 
@@ -117,13 +117,13 @@ impl PixelFifo {
         3) If none of the above conditions apply, the Sprite Pixel is pushed to the LCD.
         */
 
-        let lcdc = bus.borrow().read_byte(IoRegister::Lcdc.address());
+        let lcdc = memory.read_byte(IoRegister::Lcdc.address());
         if lcdc & 0x01 == 0 {
             // bg/window enable
             bg_pixel.color = 0;
         }
 
-        let bgp = bus.borrow().read_byte(IoRegister::Bgp.address());
+        let bgp = memory.read_byte(IoRegister::Bgp.address());
 
         let final_color = if let Some(mut sprite) = sprite_pixel {
             // object enable
@@ -137,9 +137,9 @@ impl PixelFifo {
             } else {
                 // Bit 4 = 1: Use OBP1 | Bit 4 = 0: Use OBP0
                 let palette = if sprite.palette {
-                    bus.borrow().read_byte(IoRegister::Obp1.address())
+                    memory.read_byte(IoRegister::Obp1.address())
                 } else {
-                    bus.borrow().read_byte(IoRegister::Obp0.address())
+                    memory.read_byte(IoRegister::Obp0.address())
                 };
                 (palette >> (sprite.color * 2)) & 0x03
             }

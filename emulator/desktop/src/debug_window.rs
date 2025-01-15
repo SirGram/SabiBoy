@@ -1,3 +1,4 @@
+use gameboy_core::bus::MemoryInterface;
 use minifb::{Scale, Window, WindowOptions};
 use minifb_fonts::*;
 use std::cell::RefCell;
@@ -115,7 +116,7 @@ impl DebugWindow {
     pub fn update(
         &mut self,
         cpu: &CPU,
-        bus: &Rc<RefCell<bus::Bus>>,
+        bus: &bus::Bus,
         ppu: &ppu::PPU,
         frames: usize,
     ) {
@@ -133,12 +134,12 @@ impl DebugWindow {
         self.sp = cpu.sp;
         self.pc = cpu.pc;
         self.ime = cpu.ime;
-        self.op = bus.borrow().read_byte(cpu.pc);
+        self.op = bus.read_byte(cpu.pc);
         self.ime = cpu.ime;
         self.halt = cpu.halt;
-        self.lcdc = bus.borrow().read_byte(IoRegister::Lcdc.address());
-        self.window_y = bus.borrow().read_byte(IoRegister::Wy.address());
-        self.window_x = bus.borrow().read_byte(IoRegister::Wx.address());
+        self.lcdc = bus.read_byte(IoRegister::Lcdc.address());
+        self.window_y = bus.read_byte(IoRegister::Wy.address());
+        self.window_x = bus.read_byte(IoRegister::Wx.address());
         self.last_cycle = cpu.cycles;
 
         self.mode_cycles = ppu.mode_cycles;
@@ -150,83 +151,83 @@ impl DebugWindow {
             // PPU Registers
             (
                 "LCDC".to_string(),
-                bus.borrow().read_byte(IoRegister::Lcdc.address()),
+                bus.read_byte(IoRegister::Lcdc.address()),
             ),
             (
                 "STAT".to_string(),
-                bus.borrow().read_byte(IoRegister::Stat.address()),
+                bus.read_byte(IoRegister::Stat.address()),
             ),
             (
                 "SCY".to_string(),
-                bus.borrow().read_byte(IoRegister::Scy.address()),
+                bus.read_byte(IoRegister::Scy.address()),
             ),
             (
                 "SCX".to_string(),
-                bus.borrow().read_byte(IoRegister::Scx.address()),
+                bus.read_byte(IoRegister::Scx.address()),
             ),
             (
                 "WY".to_string(),
-                bus.borrow().read_byte(IoRegister::Wy.address()),
+                bus.read_byte(IoRegister::Wy.address()),
             ),
             (
                 "WX".to_string(),
-                bus.borrow().read_byte(IoRegister::Wx.address()),
+                bus.read_byte(IoRegister::Wx.address()),
             ),
             (
                 "LY".to_string(),
-                bus.borrow().read_byte(IoRegister::Ly.address()),
+                bus.read_byte(IoRegister::Ly.address()),
             ),
             (
                 "LYC".to_string(),
-                bus.borrow().read_byte(IoRegister::Lyc.address()),
+                bus.read_byte(IoRegister::Lyc.address()),
             ),
             // Timer Registers
             (
                 "DIV".to_string(),
-                bus.borrow().read_byte(IoRegister::Div.address()),
+                bus.read_byte(IoRegister::Div.address()),
             ),
             (
                 "TIMA".to_string(),
-                bus.borrow().read_byte(IoRegister::Tima.address()),
+                bus.read_byte(IoRegister::Tima.address()),
             ),
             (
                 "TMA".to_string(),
-                bus.borrow().read_byte(IoRegister::Tma.address()),
+                bus.read_byte(IoRegister::Tma.address()),
             ),
             (
                 "TAC".to_string(),
-                bus.borrow().read_byte(IoRegister::Tac.address()),
+                bus.read_byte(IoRegister::Tac.address()),
             ),
             // Interrupt Registers
             (
                 "IF".to_string(),
-                bus.borrow().read_byte(IoRegister::If.address()),
+                bus.read_byte(IoRegister::If.address()),
             ),
             (
                 "IE".to_string(),
-                bus.borrow().read_byte(IoRegister::Ie.address()),
+                bus.read_byte(IoRegister::Ie.address()),
             ),
             // Joypad and Serial IO
             (
                 "JOY".to_string(),
-                bus.borrow().read_byte(IoRegister::Joyp.address()),
+                bus.read_byte(IoRegister::Joyp.address()),
             ),
             (
                 "SB".to_string(),
-                bus.borrow().read_byte(IoRegister::Sb.address()),
+                bus.read_byte(IoRegister::Sb.address()),
             ),
             (
                 "SC".to_string(),
-                bus.borrow().read_byte(IoRegister::Sc.address()),
+                bus.read_byte(IoRegister::Sc.address()),
             ),
             // Sound Registers (example subset)
             (
                 "NR10".to_string(),
-                bus.borrow().read_byte(IoRegister::Nr10.address()),
+                bus.read_byte(IoRegister::Nr10.address()),
             ),
             (
                 "NR11".to_string(),
-                bus.borrow().read_byte(IoRegister::Nr11.address()),
+                bus.read_byte(IoRegister::Nr11.address()),
             ),
         ];
 
@@ -237,7 +238,7 @@ impl DebugWindow {
         for chunk in (0..0x1800).step_by(CHUNK_SIZE) {
             let end = (chunk + CHUNK_SIZE).min(0x1800);
             for i in chunk..end {
-                self.tile_data[i] = bus.borrow().read_byte(0x8000 + i as u16);
+                self.tile_data[i] = bus.read_byte(0x8000 + i as u16);
             }
         }
 
@@ -254,16 +255,16 @@ impl DebugWindow {
         };
 
         for i in 0..0x800 {
-            self.bg_tilemap[i] = bus.borrow().read_byte(background_tilemap_base + i as u16);
-            self.window_tilemap[i] = bus.borrow().read_byte(window_tilemap_base + i as u16);
+            self.bg_tilemap[i] = bus.read_byte(background_tilemap_base + i as u16);
+            self.window_tilemap[i] = bus.read_byte(window_tilemap_base + i as u16);
         }
         for i in 0..0xA0 {
-            self.oam_data[i] = bus.borrow().read_byte(0xFE00 + i as u16);
+            self.oam_data[i] = bus.read_byte(0xFE00 + i as u16);
         }
 
         // Read cartridge header
         if !self.cartridge_header_read {
-            self.cartridge_header = bus.borrow().read_cartridge_header();
+            self.cartridge_header = bus.read_cartridge_header();
             let title = cartridge_header::get_title(&self.cartridge_header);
             self.cartridge_state.title = title;
             self.cartridge_state.kind =

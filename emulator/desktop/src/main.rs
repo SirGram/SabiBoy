@@ -99,12 +99,7 @@ fn run(
 
         // Get the frame buffer from PPU and convert colors
         let gb_buffer = gameboy.ppu.get_frame_buffer();
-        for (i, &color) in gb_buffer.iter().enumerate() {
-            let r = ((color >> 16) & 0xFF) as u32;
-            let g = ((color >> 8) & 0xFF) as u32;
-            let b = (color & 0xFF) as u32;
-            buffer[i] = (r << 16) | (g << 8) | b;
-        }
+        buffer.copy_from_slice(gb_buffer);
 
         // Update the window with the new frame
         window
@@ -144,7 +139,6 @@ fn run(
             debug_window.render();
         }
 
-        // Update audio (skip in turbo mode to prevent audio buffer overflow)
        
         let samples = gameboy.apu.get_samples();
         if let Some(audio) = audio_output {
@@ -172,7 +166,7 @@ fn handle_input(window: &mut Window, gameboy: &mut gameboy_core::gameboy::Gamebo
             new_keys &= !(gb_key.bit_mask()); // Set key as pressed (bit 0)
         }
     }
-    gameboy.bus.borrow_mut().joypad.update_keys(new_keys);
+    gameboy.bus.joypad.update_keys(new_keys);
 
     // Handle additional input: Save state
     if window.is_key_down(Key::Key1) {

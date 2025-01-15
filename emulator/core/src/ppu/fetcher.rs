@@ -1,8 +1,8 @@
-use std::{cell::RefCell, rc::Rc};
+
 
 use serde::{Deserialize, Serialize};
 
-use crate::bus::{self, io_address::IoRegister, Bus};
+use crate::bus::{io_address::IoRegister, MemoryInterface};
 
 use super::pixelfifo::PixelFifo;
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -47,18 +47,18 @@ impl Fetcher {
         pixel_fifo.bg_fifo.clear();
     }
 
-    pub fn step(&mut self, bus: &Rc<RefCell<Bus>>, pixel_fifo: &mut PixelFifo, mode_cycles: usize) {
+    pub fn step <M: MemoryInterface>(&mut self, memory: &mut M, pixel_fifo: &mut PixelFifo) {
         match self.step {
             0 => {
-                self.fetch_tile_number(bus);
+                self.fetch_tile_number(memory);
                 self.step += 1;
             }
             1 => {
-                self.tile_data_low = self.fetch_tile_data(bus, self.tile_number, false);
+                self.tile_data_low = self.fetch_tile_data(memory, self.tile_number, false);
                 self.step += 1;
             }
             2 => {
-                self.tile_data_high = self.fetch_tile_data(bus, self.tile_number, true);
+                self.tile_data_high = self.fetch_tile_data(memory, self.tile_number, true);
                 // Delay of 12 T-cycles before the background FIFO is first filled with pixel data
                 self.step += 1;
             }
@@ -85,11 +85,11 @@ impl Fetcher {
         }
     }
 
-    fn fetch_tile_number(&mut self, bus: &Rc<RefCell<Bus>>) {
-        let lcdc = bus.borrow().read_byte(IoRegister::Lcdc.address());
-        let scx = bus.borrow().read_byte(IoRegister::Scx.address());
-        let scy = bus.borrow().read_byte(IoRegister::Scy.address());
-        let ly = bus.borrow().read_byte(IoRegister::Ly.address());
+    fn fetch_tile_number <M: MemoryInterface>(&mut self, memory: &mut M) {
+        let lcdc = memory.read_byte(IoRegister::Lcdc.address());
+        let scx = memory.read_byte(IoRegister::Scx.address());
+        let scy = memory.read_byte(IoRegister::Scy.address());
+        let ly = memory.read_byte(IoRegister::Ly.address());
 
         // Compute coordinates in the tile map
         // Current code
@@ -110,18 +110,18 @@ impl Fetcher {
         let tile_address = tile_map_base + (tile_y * 32) + tile_x;
 
         // Read the tile number, considering VRAM access limitations
-        self.tile_number = bus.borrow().read_byte(tile_address) & 0xFF;
+        self.tile_number = memory.read_byte(tile_address) & 0xFF;
     }
 
-    fn fetch_tile_data(
+    fn fetch_tile_data <M: MemoryInterface>(
         &mut self,
-        bus: &Rc<RefCell<Bus>>,
+        memory: &mut M,
         tile_number: u8,
         is_high_byte: bool,
     ) -> u8 {
-        let ly = bus.borrow().read_byte(IoRegister::Ly.address());
-        let scy = bus.borrow().read_byte(IoRegister::Scy.address());
-        let lcdc = bus.borrow().read_byte(IoRegister::Lcdc.address());
+        let ly = memory.read_byte(IoRegister::Ly.address());
+        let scy = memory.read_byte(IoRegister::Scy.address());
+        let lcdc = memory.read_byte(IoRegister::Lcdc.address());
 
         // Calculate the offset within the tile (0-7)
         let y_offset = if self.is_window_fetch {
@@ -140,7 +140,7 @@ impl Fetcher {
         };
 
         // Get the correct byte of tile data
-        bus.borrow()
+       memory
             .read_byte(base_address + y_offset + if is_high_byte { 1 } else { 0 })
     }
 

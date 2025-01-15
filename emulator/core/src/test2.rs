@@ -1,5 +1,6 @@
 // Compares state with logs from https://github.com/wheremyfoodat/Gameboy-logs
 
+use crate::bus::MemoryInterface;
 use crate::gameboy::Gameboy;
 use regex::Regex;
 use std::fs::File;
@@ -66,7 +67,7 @@ impl TestHarness {
     }
 
     pub fn get_current_state(&self, gb: &Gameboy) -> CPUState {
-        let bus = gb.bus.borrow();
+     ;
         CPUState {
             a: gb.cpu.a,
             b: gb.cpu.b,
@@ -79,10 +80,10 @@ impl TestHarness {
             sp: gb.cpu.sp,
             pc: gb.cpu.pc,
             mem: [
-                bus.read_byte(gb.cpu.pc),
-                bus.read_byte(gb.cpu.pc.wrapping_add(1)),
-                bus.read_byte(gb.cpu.pc.wrapping_add(2)),
-                bus.read_byte(gb.cpu.pc.wrapping_add(3)),
+                gb.bus.read_byte(gb.cpu.pc),
+                gb.bus.read_byte(gb.cpu.pc.wrapping_add(1)),
+                gb.bus.read_byte(gb.cpu.pc.wrapping_add(2)),
+                gb.bus.read_byte(gb.cpu.pc.wrapping_add(3)),
             ],
         }
     }
@@ -175,14 +176,14 @@ impl TestHarness {
 
 #[cfg(test)]
 mod tests {
-    use crate::cpu::flags::Flags;
+    use crate::{bus::MemoryInterface, cpu::flags::Flags};
 
     use super::*;
     use std::path::PathBuf;
 
     #[test]
     fn test_blargg_cpu_instructions() -> io::Result<()> {
-        let mut gb = Gameboy::new();
+        let mut gb = Gameboy::new( [0xA8D08D, 0x6A8E3C, 0x3A5D1D, 0x1F3C06]);
 
         // Set initial CPU state to match test expectations
         gb.cpu.a = 0x01;
@@ -199,7 +200,7 @@ mod tests {
         gb.cpu.sp = 0xFFFE;
         gb.cpu.pc = 0x0100;
 
-        gb.bus.borrow_mut().write_byte(0xFF44, 0x90);
+        gb.bus.write_byte(0xFF44, 0x90);
 
         // Load test ROM
         let rom = std::fs::read("test/blargg/02-interrupts.gb")?;

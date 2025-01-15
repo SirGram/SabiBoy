@@ -1,6 +1,6 @@
 use crate::{
     apu::APU,
-    bus::{io_address::IoRegister, Bus, BusState},
+    bus::{io_address::IoRegister, Bus, BusState, MemoryInterface},
     cpu::{flags::Flags, CPUState, CPU},
     ppu::{self, PPUState, PPU},
     timer::{Timer, TimerState},
@@ -9,7 +9,6 @@ use bincode;
 use serde::{Deserialize, Serialize};
 use std::io::{self, Write};
 use std::{
-    cell::RefCell,
     rc::Rc,
     time::{Duration, Instant},
 };
@@ -26,17 +25,17 @@ pub struct Gameboy {
     pub cpu: CPU,
     pub timer: Timer,
     pub ppu: PPU,
-    pub bus: Rc<RefCell<Bus>>,
+    pub bus: Bus,
     pub apu: APU,
 }
 
 impl Gameboy {
     pub fn new(palette: [u32; 4]) -> Self {
-        let bus = Rc::new(RefCell::new(Bus::new()));
-        let timer = Timer::new(Rc::clone(&bus));
-        let cpu = CPU::new(Rc::clone(&bus));
-        let ppu = PPU::new(Rc::clone(&bus), palette);
-        let apu = APU::new(Rc::clone(&bus));
+        let bus = Bus::new();
+        let timer = Timer::new();
+        let cpu = CPU::new();
+        let ppu = PPU::new( palette);
+        let apu = APU::new();
 
         Self {
             cpu,
@@ -51,7 +50,7 @@ impl Gameboy {
             cpu_state: self.cpu.save_state(),
             timer_state: self.timer.save_state(),
             ppu_state: self.ppu.save_state(),
-            bus_data: self.bus.borrow().save_state(),
+            bus_data: self.bus.save_state(),
         };
 
         bincode::serialize(&serializable_state)
@@ -65,26 +64,25 @@ impl Gameboy {
             })?;
 
         self.bus
-            .borrow_mut()
             .load_state(serializable_state.bus_data);
         self.cpu
-            .load_state(serializable_state.cpu_state, Rc::clone(&self.bus));
+            .load_state(serializable_state.cpu_state);
         self.timer
-            .load_state(serializable_state.timer_state, Rc::clone(&self.bus));
+            .load_state(serializable_state.timer_state);
         self.ppu
-            .load_state(serializable_state.ppu_state, Rc::clone(&self.bus));
+            .load_state(serializable_state.ppu_state);
 
         Ok(())
     }
     pub fn reset(&mut self) {}
 
     pub fn tick(&mut self) {
-        self.cpu.tick();
+        self.cpu.tick( &mut self.bus);
         for _ in 0..self.cpu.cycles {
-            self.timer.tick();
-            self.ppu.tick();
-            self.bus.borrow_mut().mbc.tick();
-            self.apu.tick();
+            self.timer.tick( &mut self.bus);
+            self.ppu.tick(  &mut self.bus);
+            self.bus.mbc.tick();
+            self.apu.tick( &mut self.bus);
         }
     }
     pub fn run_frame(&mut self) {
@@ -98,7 +96,7 @@ impl Gameboy {
     }
 
     pub fn load_rom(&mut self, rom: &[u8]) {
-        self.bus.borrow_mut().load_rom(rom);
+        self.bus.load_rom(rom);
     }
     pub fn set_power_up_sequence(&mut self) {
         // Set initial GB state after boot
@@ -117,55 +115,54 @@ impl Gameboy {
         self.cpu.pc = 0x0100;
         self.cpu.ime = false;
 
-        let mut bus = self.bus.borrow_mut();
 
         // Hardware Registers
-        bus.write_byte(IoRegister::Joyp.address(), 0xCF);
-        bus.write_byte(IoRegister::Sb.address(), 0x00);
-        bus.write_byte(IoRegister::Sc.address(), 0x7E);
-        bus.write_byte(IoRegister::Div.address(), 0xAB);
-        bus.write_byte(IoRegister::Tima.address(), 0x00);
-        bus.write_byte(IoRegister::Tma.address(), 0x00);
-        bus.write_byte(IoRegister::Tac.address(), 0xF8);
-        bus.write_byte(IoRegister::If.address(), 0xE1);
+        self.bus.write_byte(IoRegister::Joyp.address(), 0xCF);
+        self.bus.write_byte(IoRegister::Sb.address(), 0x00);
+        self.bus.write_byte(IoRegister::Sc.address(), 0x7E);
+        self.bus.write_byte(IoRegister::Div.address(), 0xAB);
+        self.bus.write_byte(IoRegister::Tima.address(), 0x00);
+        self.bus.write_byte(IoRegister::Tma.address(), 0x00);
+        self.bus.write_byte(IoRegister::Tac.address(), 0xF8);
+        self.bus.write_byte(IoRegister::If.address(), 0xE1);
 
         // Sound Registers
-        bus.write_byte(IoRegister::Nr10.address(), 0x80);
-        bus.write_byte(IoRegister::Nr11.address(), 0xBF);
-        bus.write_byte(IoRegister::Nr12.address(), 0xF3);
-        bus.write_byte(IoRegister::Nr13.address(), 0xFF);
-        bus.write_byte(IoRegister::Nr14.address(), 0xBF);
-        bus.write_byte(IoRegister::Nr21.address(), 0x3F);
-        bus.write_byte(IoRegister::Nr22.address(), 0x00);
-        bus.write_byte(IoRegister::Nr23.address(), 0xFF);
-        bus.write_byte(IoRegister::Nr24.address(), 0xBF);
-        bus.write_byte(IoRegister::Nr30.address(), 0x7F);
-        bus.write_byte(IoRegister::Nr31.address(), 0xFF);
-        bus.write_byte(IoRegister::Nr32.address(), 0x9F);
-        bus.write_byte(IoRegister::Nr33.address(), 0xFF);
-        bus.write_byte(IoRegister::Nr34.address(), 0xBF);
-        bus.write_byte(IoRegister::Nr41.address(), 0xFF);
-        bus.write_byte(IoRegister::Nr42.address(), 0x00);
-        bus.write_byte(IoRegister::Nr43.address(), 0x00);
-        bus.write_byte(IoRegister::Nr44.address(), 0xBF);
-        bus.write_byte(IoRegister::Nr50.address(), 0x77);
-        bus.write_byte(IoRegister::Nr51.address(), 0xF3);
-        bus.write_byte(IoRegister::Nr52.address(), 0xF1);
+        self.bus.write_byte(IoRegister::Nr10.address(), 0x80);
+        self.bus.write_byte(IoRegister::Nr11.address(), 0xBF);
+        self.bus.write_byte(IoRegister::Nr12.address(), 0xF3);
+        self.bus.write_byte(IoRegister::Nr13.address(), 0xFF);
+        self.bus.write_byte(IoRegister::Nr14.address(), 0xBF);
+        self.bus.write_byte(IoRegister::Nr21.address(), 0x3F);
+        self.bus.write_byte(IoRegister::Nr22.address(), 0x00);
+        self.bus.write_byte(IoRegister::Nr23.address(), 0xFF);
+        self.bus.write_byte(IoRegister::Nr24.address(), 0xBF);
+        self.bus.write_byte(IoRegister::Nr30.address(), 0x7F);
+        self.bus.write_byte(IoRegister::Nr31.address(), 0xFF);
+        self.bus.write_byte(IoRegister::Nr32.address(), 0x9F);
+        self.bus.write_byte(IoRegister::Nr33.address(), 0xFF);
+        self.bus.write_byte(IoRegister::Nr34.address(), 0xBF);
+        self.bus.write_byte(IoRegister::Nr41.address(), 0xFF);
+        self.bus.write_byte(IoRegister::Nr42.address(), 0x00);
+        self.bus.write_byte(IoRegister::Nr43.address(), 0x00);
+        self.bus.write_byte(IoRegister::Nr44.address(), 0xBF);
+        self.bus.write_byte(IoRegister::Nr50.address(), 0x77);
+        self.bus.write_byte(IoRegister::Nr51.address(), 0xF3);
+        self.bus.write_byte(IoRegister::Nr52.address(), 0xF1);
 
         // LCD Registers
-        bus.write_byte(IoRegister::Lcdc.address(), 0x91);
-        bus.write_byte(IoRegister::Stat.address(), 0x85);
-        bus.write_byte(IoRegister::Scy.address(), 0x00);
-        bus.write_byte(IoRegister::Scx.address(), 0x00);
-        bus.write_byte(IoRegister::Ly.address(), 0x00);
-        bus.write_byte(IoRegister::Lyc.address(), 0x00);
-        bus.write_byte(IoRegister::Dma.address(), 0xFF);
-        bus.write_byte(IoRegister::Bgp.address(), 0xFC);
+        self.bus.write_byte(IoRegister::Lcdc.address(), 0x91);
+        self.bus.write_byte(IoRegister::Stat.address(), 0x85);
+        self.bus.write_byte(IoRegister::Scy.address(), 0x00);
+        self.bus.write_byte(IoRegister::Scx.address(), 0x00);
+        self.bus.write_byte(IoRegister::Ly.address(), 0x00);
+        self.bus.write_byte(IoRegister::Lyc.address(), 0x00);
+        self.bus.write_byte(IoRegister::Dma.address(), 0xFF);
+        self.bus.write_byte(IoRegister::Bgp.address(), 0xFC);
         // Note: OBP0 and OBP1 are left uninitialized as per documentation
-        bus.write_byte(IoRegister::Wy.address(), 0x00);
-        bus.write_byte(IoRegister::Wx.address(), 0x00);
+        self.bus.write_byte(IoRegister::Wy.address(), 0x00);
+        self.bus.write_byte(IoRegister::Wx.address(), 0x00);
 
         // Interrupt Enable Register
-        bus.write_byte(IoRegister::Ie.address(), 0x00);
+        self.bus.write_byte(IoRegister::Ie.address(), 0x00);
     }
 }
