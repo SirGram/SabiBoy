@@ -24,20 +24,22 @@ fn main() {
     // Initialize GameBoy
     let palette: [u32; 4] = [0x9bbc0f, 0x8bac0f, 0x306230, 0x0f380f];
     let mut gameboy = gameboy_core::gameboy::Gameboy::new(palette);
+    
     if audio_disabled {
         gameboy.apu.toggle_audio(); 
     }
     gameboy.set_power_up_sequence();
     gameboy.load_rom(include_bytes!(
-        "../../../games/dmg-acid2/rom.gb"
+        "../../../test/blargg/cpu_instrs.gb"
+      /*   "../../../games/tennis--1/rom.gb" */
     ));
 
-    if let Ok(save_state) = std::fs::read("./rom.gb.state") {
+   /*  if let Ok(save_state) = std::fs::read("./rom.gb.state") {
         if let Err(e) = gameboy.load_state(save_state) {
             println!("Failed to load state: {}", e);
         }
     }
-
+ */
     // Setup audio
     let audio_output = match AudioOutput::new() {
         Ok(audio) => Some(audio),

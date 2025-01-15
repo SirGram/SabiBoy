@@ -55,7 +55,7 @@ impl From<Vec<serde_json::Value>> for CycleState {
 impl Gameboy {
     pub fn run_tests(&mut self, from: usize, to: Option<usize>) {
         // Get the path to the sm83 test directory
-        let sm83_dir = Path::new("test/sm83");
+        let sm83_dir = Path::new("../test/sm83");
 
         let mut total_cycles = 0;
         // Check if the directory exists

@@ -73,9 +73,9 @@ impl MemoryInterface for Bus {
 
     #[inline(always)]
     fn write_byte(&mut self, address: u16, value: u8) {
-        if address == 0xFF01 {
-            println!("{}", value as char);
-        }
+        /* if  address == 0xFF02 || address == 0xFF01 {
+            print!("{} {}", value, value as char); // debug serial
+        } */
         
         match address {
             0x0000..=0x7FFF | 0xA000..=0xBFFF => self.mbc.write_byte(address, value),
@@ -164,7 +164,7 @@ impl Bus {
         self.mbc.load_state(state.mbc);
     }
 
-    #[inline]
+    #[inline]  
     pub fn load_rom(&mut self, rom: &[u8]) {
         let ram_size = match rom[0x149] {
             0x00 => 0,       // No RAM
@@ -174,13 +174,16 @@ impl Bus {
             0x05 => 0x10000, // 64 KiB
             _ => 0x2000,
         };
-        
+        println!("ram_size: {} bytes", ram_size);
+        println!("mbctype: {:04X}", rom[0x147]);
+        // Detect MBC type from ROM header
         self.mbc = match rom[0x147] {
             0x00 => MbcType::Mbc0(Mbc0::new(rom, ram_size)),
             0x01..=0x03 => MbcType::Mbc1(Mbc1::new(rom, ram_size)),
-            0x0F | 0x10 => MbcType::Mbc3(Mbc3::new(rom, ram_size, true)),
-            0x11..=0x13 => MbcType::Mbc3(Mbc3::new(rom, ram_size, false)),
+            0x0F | 0x10 => MbcType::Mbc3(Mbc3::new(rom, ram_size, true)), // RTC is present
+            0x11..=0x13 => MbcType::Mbc3(Mbc3::new(rom, ram_size, false)), // RTC is absent
             0x19..=0x1E => MbcType::Mbc5(Mbc5::new(rom, ram_size)),
+
             _ => panic!("Unsupported MBC type"),
         };
     }

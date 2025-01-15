@@ -5,11 +5,38 @@ use crate::cpu::registers::{Register16, Register16Stk, Register8};
 use crate::cpu::{RstVec, CPU};
 
 impl CPU {
-    fn arithmetic_op_imm8<M: MemoryInterface>(&mut self, op: impl Fn(u8, u8) -> u8, set_n: bool, use_carry: bool, memory: &mut M) {
+    fn arithmetic_op_imm8<M:MemoryInterface>(&mut self, op: impl Fn(u8, u8) -> u8, set_n: bool, use_carry: bool, memory: &mut M) {
         let imm8 = self.fetch_byte(memory);
-        let original_a = self.get_r8(&Register8::A, memory);
-        let carry = if use_carry && self.f.contains(Flags::C) { 1 } else { 0 };
-        let result = op(original_a, imm8.wrapping_add(carry));
+        let original_a = self.get_r8(&Register8::A , memory);
+        let carry = if use_carry {
+            self.f.contains(Flags::C) as u8
+        } else {
+            0
+        };
+
+        let result = if set_n {
+            // Subtraction
+            let temp = original_a.wrapping_sub(imm8);
+            if use_carry {
+                temp.wrapping_sub(carry)
+            } else {
+                temp
+            }
+        } else {
+            // Addition
+            let temp = original_a.wrapping_add(imm8);
+            if use_carry {
+                temp.wrapping_add(carry)
+            } else {
+                temp
+            }
+        };
+
+        if set_n {
+            self.set_sub_flags(original_a, imm8, carry);
+        } else {
+            self.set_add_flags(original_a, imm8, carry);
+        }
 
         self.set_zn_flags(result, set_n);
         self.set_r8(&Register8::A, result, memory);

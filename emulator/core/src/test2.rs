@@ -203,11 +203,11 @@ mod tests {
         gb.bus.write_byte(0xFF44, 0x90);
 
         // Load test ROM
-        let rom = std::fs::read("test/blargg/02-interrupts.gb")?;
+        let rom = std::fs::read("../../test/blargg/cpu/02-interrupts.gb")?;
         gb.load_rom(&rom);
 
         let mut harness = TestHarness::new(Path::new(
-            "test/Gameboy-logs-master/Blargg2LYStubbed/EpicLog.txt",
+            "../../test/Gameboy-logs-master/Blargg2LYStubbed/EpicLog.txt",
         ))?;
 
         let mut step_count = 0;
