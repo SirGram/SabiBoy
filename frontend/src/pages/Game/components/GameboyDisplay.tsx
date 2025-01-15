@@ -15,6 +15,7 @@ type GameboyDisplayProps = {
   isAudioEnabled: boolean;
   playAudioFrame: (audioContext: AudioContext, gainNode: GainNode) => void;
   volume: number;
+  isDoubleSpeed: boolean;
 };
 
 export default function GameboyDisplay({
@@ -27,6 +28,7 @@ export default function GameboyDisplay({
   isAudioEnabled,
   playAudioFrame,
   volume,
+  isDoubleSpeed = false,
 }: GameboyDisplayProps) {
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
   const imageDataRef = useRef<ImageData | null>(null);
@@ -34,6 +36,9 @@ export default function GameboyDisplay({
   const containerRef = useRef<HTMLDivElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
+  const framesProcessedRef = useRef(0);
+  const lastFrameTimeRef = useRef(0);
+  const frameTimeAccumulatorRef = useRef(0);
 
   const { gameboy, initGameboy, currentGame } = useGameboy();
   const { options } = useOptions();
@@ -71,9 +76,10 @@ export default function GameboyDisplay({
 
   useEffect(() => {
     if (gainNodeRef.current) {
-      gainNodeRef.current.gain.value = (volume / 100) * 0.1; // there's some weird distortion
+      gainNodeRef.current.gain.value = (volume / 100) * 0.1;
     }
   }, [volume]);
+
 
   useEffect(() => {
     if (!gameboy) return;
@@ -89,31 +95,58 @@ export default function GameboyDisplay({
 
     handleCartridgeInfo();
 
-    let frameCount = 0;
     let lastFpsUpdate = performance.now();
+    framesProcessedRef.current = 0;
 
-    const renderFrame = () => {
+    // Target frame time in milliseconds (16.67ms for 60fps)
+    const BASE_FRAME_TIME = 1000 / 60;
+    const MAX_FRAME_ACCUMULATOR = BASE_FRAME_TIME * 2; // Only allow up to 2 frames of lag
+    
+    const renderFrame = (timestamp: number) => {
       if (!gameboy || !ctx || !imageDataRef.current) return;
 
-      gameboy.run_frame();
-
-      // Only play audio if context and gain node exist and audio is enabled
-      if (audioContextRef.current && gainNodeRef.current && isAudioEnabled) {
-        playAudioFrame(audioContextRef.current, gainNodeRef.current);
+      if (!lastFrameTimeRef.current) {
+        lastFrameTimeRef.current = timestamp;
       }
 
+      // Calculate time since last frame
+      const deltaTime = Math.min(timestamp - lastFrameTimeRef.current, 50); // Cap max delta time to 50ms
+      frameTimeAccumulatorRef.current = Math.min(
+        frameTimeAccumulatorRef.current + deltaTime,
+        MAX_FRAME_ACCUMULATOR
+      );
+      
+      const targetFrameTime = isDoubleSpeed ? BASE_FRAME_TIME / 2 : BASE_FRAME_TIME;
+      let framesThisLoop = 0;
+      const maxFramesPerLoop = isDoubleSpeed ? 4 : 2; // Limit max frames per loop
+      
+      while (frameTimeAccumulatorRef.current >= targetFrameTime && 
+             framesThisLoop < maxFramesPerLoop) {
+        gameboy.run_frame();
+        framesProcessedRef.current++;
+        framesThisLoop++;
+
+        if (audioContextRef.current && gainNodeRef.current && isAudioEnabled) {
+          playAudioFrame(audioContextRef.current, gainNodeRef.current);
+        }
+
+        frameTimeAccumulatorRef.current -= targetFrameTime;
+      }
+
+      // Always render the latest frame
       const frameBuffer = gameboy.get_frame_buffer();
       imageDataRef.current.data.set(frameBuffer);
       ctx.putImageData(imageDataRef.current, 0, 0);
 
-      frameCount++;
+      // Update FPS counter
       const now = performance.now();
       if (now - lastFpsUpdate >= 1000) {
-        setFps(frameCount);
-        frameCount = 0;
+        setFps(framesProcessedRef.current);
+        framesProcessedRef.current = 0;
         lastFpsUpdate = now;
       }
 
+      lastFrameTimeRef.current = timestamp;
       animationFrameRef.current = requestAnimationFrame(renderFrame);
     };
 
@@ -137,6 +170,7 @@ export default function GameboyDisplay({
     setFps,
     isAudioEnabled,
     playAudioFrame,
+    isDoubleSpeed,
   ]);
 
   useEffect(() => {
@@ -153,7 +187,6 @@ export default function GameboyDisplay({
   const [loadingState, setLoadingState] = useState<
     "rom" | "savestate" | "error" | null
   >(null);
-  console.log(loadingState);
 
   useEffect(() => {
     const loadEmulator = async () => {

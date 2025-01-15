@@ -242,7 +242,12 @@ export default function Emulator() {
     [gameboy, isAudioEnabled]
   );
   usePreventDefaultTouch();
+  const [isDoubleSpeed, setIsDoubleSpeed] = useState(false);
 
+  const handleDoubleSpeed = () => {
+    setIsDoubleSpeed(!isDoubleSpeed);
+    console.log(isDoubleSpeed);
+  };
   return (
     <div className="flex flex-col items-center justify-center h-full min-h-screen md:p-4 bg-base-background">
       <BackButton />
@@ -273,6 +278,7 @@ export default function Emulator() {
                       isAudioEnabled={isAudioEnabled}
                       playAudioFrame={playAudioFrame}
                       volume={volume}
+                      isDoubleSpeed={isDoubleSpeed}
                     />
                   </div>
                   <GameboyOptions
@@ -287,6 +293,8 @@ export default function Emulator() {
                     handleSaveButton={handleSaveButton}
                     handleDownloadSaveState={handleDownloadSaveState}
                     handleResetSaveState={handleResetSaveState}
+                    handleDoubleSpeed={handleDoubleSpeed}
+                    isDoubleSpeed={isDoubleSpeed}
                   />
                 </div>
               </GameboyFrame>
@@ -335,6 +343,151 @@ export default function Emulator() {
             </>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function BackButton() {
+  const navigate = useNavigate();
+  const { setCurrentGame, gameboy } = useGameboy();
+  return (
+    <div className="fixed top-0 left-0 p-6">
+      <button
+        className="   font-bold text-muted hover:text-base-foreground "
+        onClick={() => {
+          gameboy?.reset();
+          setCurrentGame(null);
+
+          navigate("/");
+        }}
+      >
+        <ChevronLeft size={30} />
+      </button>
+    </div>
+  );
+}
+
+function GameboyOptions({
+  fps,
+  isGameboyPaused,
+  setIsGameboyPaused,
+  toggleFullScreen,
+  isAudioEnabled,
+  toggleAudio,
+  updateVolume,
+  volume,
+  handleSaveButton,
+  handleDownloadSaveState,
+  handleResetSaveState,
+  handleDoubleSpeed,
+  isDoubleSpeed,
+}: {
+  fps: number;
+  isGameboyPaused: boolean;
+  setIsGameboyPaused: React.Dispatch<React.SetStateAction<boolean>>;
+  toggleFullScreen: () => void;
+  isAudioEnabled: boolean;
+  toggleAudio: () => void;
+  updateVolume: (newVolume: number) => void;
+  volume: number;
+  handleSaveButton: () => void;
+  handleDownloadSaveState: () => void;
+  handleResetSaveState: () => void;
+  handleDoubleSpeed: () => void;
+  isDoubleSpeed: boolean;
+}) {
+  const { isAuthenticated } = useAuth();
+  const handleResetWithConfirmation = async () => {
+    const userConfirmed = window.confirm(
+      "Are you sure you want to reset the save state? This action cannot be undone."
+    );
+    if (userConfirmed) {
+      handleResetSaveState();
+    }
+  };
+
+  return (
+    <div className="absolute inset-0 z-10 hidden group-hover:block text-primary-foreground">
+      <div className="absolute top-2 right-2  font-semibold flex gap-2">
+        <button
+        title="Double Speed"
+          className={`${
+            isDoubleSpeed ? "bg-secondary" : "bg-transparent"
+          } hover:bg-primary p-2 rounded
+          flex gap-1 justify-center items-center`}
+          onClick={handleDoubleSpeed}
+        >
+          x2
+          <span className="text-xs">SP</span>
+        </button>
+        <span className="p-2 flex gap-1 justify-center items-center">
+          {fps}
+          <span className="text-xs">FPS</span>
+        </span>
+      </div>
+      <div className="absolute top-2 left-2 flex gap-2">
+        {isAuthenticated && (
+          <>
+            <button
+              className="p-2 rounded hover:bg-primary"
+              title="Save State to Cloud"
+              onClick={handleSaveButton}
+            >
+              <SaveIcon />
+            </button>
+            <button
+              className="p-2 rounded hover:bg-primary"
+              title="Reset Save State from Cloud"
+              onClick={handleResetWithConfirmation}
+            >
+              <SaveOff />
+            </button>
+          </>
+        )}
+        <button
+          className="p-2 rounded hover:bg-primary"
+          title="Download Save State"
+          onClick={handleDownloadSaveState}
+        >
+          <DownloadIcon />
+        </button>
+      </div>
+      <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center text-sm  font-bold">
+        <div className="flex gap-2 items-center">
+          <button
+            className=" p-2 rounded hover:bg-primary "
+            onClick={() => setIsGameboyPaused(!isGameboyPaused)}
+            title={isGameboyPaused ? "Resume" : "Pause"}
+          >
+            {isGameboyPaused ? <PlayIcon /> : <PauseIcon />}
+          </button>
+          <button
+            className=" p-2 rounded hover:bg-primary"
+            onClick={() => toggleAudio()}
+            title={isAudioEnabled ? "Disable Audio" : "Enable Audio"}
+          >
+            {isAudioEnabled ? <Volume2 /> : <VolumeOff />}
+          </button>{" "}
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={volume}
+            onChange={(e) => updateVolume(Number(e.target.value))}
+            className="w-20 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+            style={{
+              backgroundImage: `linear-gradient(to right, white ${volume}%, gray ${volume}%)`,
+            }}
+          />
+        </div>
+        <button
+          className=" p-2 rounded hover:bg-primary"
+          onClick={toggleFullScreen}
+          title="Toggle Fullscreen"
+        >
+          <MaximizeIcon size={25} />
+        </button>
       </div>
     </div>
   );
@@ -1271,128 +1424,3 @@ const BusInfo = ({ isGameboyPaused }: { isGameboyPaused: boolean }) => {
     </div>
   );
 };
-
-function BackButton() {
-  const navigate = useNavigate();
-  const { setCurrentGame, gameboy } = useGameboy();
-  return (
-    <div className="fixed top-0 left-0 p-6">
-      <button
-        className="   font-bold text-muted hover:text-base-foreground "
-        onClick={() => {
-          gameboy?.reset();
-          setCurrentGame(null);
-
-          navigate("/");
-        }}
-      >
-        <ChevronLeft size={30} />
-      </button>
-    </div>
-  );
-}
-
-function GameboyOptions({
-  fps,
-  isGameboyPaused,
-  setIsGameboyPaused,
-  toggleFullScreen,
-  isAudioEnabled,
-  toggleAudio,
-  updateVolume,
-  volume,
-  handleSaveButton,
-  handleDownloadSaveState,
-  handleResetSaveState,
-}: {
-  fps: number;
-  isGameboyPaused: boolean;
-  setIsGameboyPaused: React.Dispatch<React.SetStateAction<boolean>>;
-  toggleFullScreen: () => void;
-  isAudioEnabled: boolean;
-  toggleAudio: () => void;
-  updateVolume: (newVolume: number) => void;
-  volume: number;
-  handleSaveButton: () => void;
-  handleDownloadSaveState: () => void;
-  handleResetSaveState: () => void;
-}) {
-  const { isAuthenticated } = useAuth();
-  const handleResetWithConfirmation = async () => {
-    const userConfirmed = window.confirm(
-      "Are you sure you want to reset the save state? This action cannot be undone."
-    );
-    if (userConfirmed) {
-      handleResetSaveState();
-    }
-  };
-
-  return (
-    <div className="absolute inset-0 z-10 hidden group-hover:block text-primary-foreground">
-      <div className="absolute top-2 right-2  font-semibold">{fps}</div>
-      <div className="absolute top-2 left-2 flex gap-2">
-        {isAuthenticated && (
-          <>
-            <button
-              className="p-2 rounded hover:bg-primary"
-              title="Save State to Cloud"
-              onClick={handleSaveButton}
-            >
-              <SaveIcon />
-            </button>
-            <button
-              className="p-2 rounded hover:bg-primary"
-              title="Reset Save State from Cloud"
-              onClick={handleResetWithConfirmation}
-            >
-              <SaveOff />
-            </button>
-          </>
-        )}
-        <button
-          className="p-2 rounded hover:bg-primary"
-          title="Download Save State"
-          onClick={handleDownloadSaveState}
-        >
-          <DownloadIcon />
-        </button>
-      </div>
-      <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center text-sm  font-bold">
-        <div className="flex gap-2 items-center">
-          <button
-            className=" p-2 rounded hover:bg-primary "
-            onClick={() => setIsGameboyPaused(!isGameboyPaused)}
-            title={isGameboyPaused ? "Resume" : "Pause"}
-          >
-            {isGameboyPaused ? <PlayIcon /> : <PauseIcon />}
-          </button>
-          <button
-            className=" p-2 rounded hover:bg-primary"
-            onClick={() => toggleAudio()}
-            title={isAudioEnabled ? "Disable Audio" : "Enable Audio"}
-          >
-            {isAudioEnabled ? <Volume2 /> : <VolumeOff />}
-          </button>{" "}
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={volume}
-            onChange={(e) => updateVolume(Number(e.target.value))}
-            className="w-20 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-            style={{
-              backgroundImage: `linear-gradient(to right, white ${volume}%, gray ${volume}%)`,
-            }}
-          />
-        </div>
-        <button
-          className=" p-2 rounded hover:bg-primary"
-          onClick={toggleFullScreen}
-          title="Toggle Fullscreen"
-        >
-          <MaximizeIcon size={25} />
-        </button>
-      </div>
-    </div>
-  );
-}
