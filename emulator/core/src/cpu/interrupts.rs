@@ -1,10 +1,13 @@
-use crate::{bus::{io_address::IoRegister, MemoryInterface}, cpu::CPU};
+use crate::{
+    bus::{io_address::IoRegister, MemoryInterface},
+    cpu::CPU,
+};
 
 impl CPU {
     pub fn handle_interrupts<M: MemoryInterface>(&mut self, memory: &mut M) {
         let ie_register = memory.read_byte(IoRegister::Ie.address());
         let if_register = memory.read_byte(IoRegister::If.address());
-       // Interrupts enabled and requested
+        // Interrupts enabled and requested
         let interrupts = ie_register & if_register;
         /*
         0000 0001 - V-Blank
@@ -44,7 +47,6 @@ impl CPU {
         let if_register = memory.read_byte(IoRegister::If.address());
         let value = if_register & !(1 << bit);
         memory.write_byte(IoRegister::If.address(), value);
-
 
         self.push_stack(self.pc, memory);
         self.pc = address;

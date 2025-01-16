@@ -113,13 +113,7 @@ impl DebugWindow {
             .unwrap();
     }
 
-    pub fn update(
-        &mut self,
-        cpu: &CPU,
-        bus: &bus::Bus,
-        ppu: &ppu::PPU,
-        frames: usize,
-    ) {
+    pub fn update(&mut self, cpu: &CPU, bus: &bus::Bus, ppu: &ppu::PPU, frames: usize) {
         // CPU registers
         self.cpu_registers = [
             cpu.a,
@@ -157,69 +151,27 @@ impl DebugWindow {
                 "STAT".to_string(),
                 bus.read_byte(IoRegister::Stat.address()),
             ),
-            (
-                "SCY".to_string(),
-                bus.read_byte(IoRegister::Scy.address()),
-            ),
-            (
-                "SCX".to_string(),
-                bus.read_byte(IoRegister::Scx.address()),
-            ),
-            (
-                "WY".to_string(),
-                bus.read_byte(IoRegister::Wy.address()),
-            ),
-            (
-                "WX".to_string(),
-                bus.read_byte(IoRegister::Wx.address()),
-            ),
-            (
-                "LY".to_string(),
-                bus.read_byte(IoRegister::Ly.address()),
-            ),
-            (
-                "LYC".to_string(),
-                bus.read_byte(IoRegister::Lyc.address()),
-            ),
+            ("SCY".to_string(), bus.read_byte(IoRegister::Scy.address())),
+            ("SCX".to_string(), bus.read_byte(IoRegister::Scx.address())),
+            ("WY".to_string(), bus.read_byte(IoRegister::Wy.address())),
+            ("WX".to_string(), bus.read_byte(IoRegister::Wx.address())),
+            ("LY".to_string(), bus.read_byte(IoRegister::Ly.address())),
+            ("LYC".to_string(), bus.read_byte(IoRegister::Lyc.address())),
             // Timer Registers
-            (
-                "DIV".to_string(),
-                bus.read_byte(IoRegister::Div.address()),
-            ),
+            ("DIV".to_string(), bus.read_byte(IoRegister::Div.address())),
             (
                 "TIMA".to_string(),
                 bus.read_byte(IoRegister::Tima.address()),
             ),
-            (
-                "TMA".to_string(),
-                bus.read_byte(IoRegister::Tma.address()),
-            ),
-            (
-                "TAC".to_string(),
-                bus.read_byte(IoRegister::Tac.address()),
-            ),
+            ("TMA".to_string(), bus.read_byte(IoRegister::Tma.address())),
+            ("TAC".to_string(), bus.read_byte(IoRegister::Tac.address())),
             // Interrupt Registers
-            (
-                "IF".to_string(),
-                bus.read_byte(IoRegister::If.address()),
-            ),
-            (
-                "IE".to_string(),
-                bus.read_byte(IoRegister::Ie.address()),
-            ),
+            ("IF".to_string(), bus.read_byte(IoRegister::If.address())),
+            ("IE".to_string(), bus.read_byte(IoRegister::Ie.address())),
             // Joypad and Serial IO
-            (
-                "JOY".to_string(),
-                bus.read_byte(IoRegister::Joyp.address()),
-            ),
-            (
-                "SB".to_string(),
-                bus.read_byte(IoRegister::Sb.address()),
-            ),
-            (
-                "SC".to_string(),
-                bus.read_byte(IoRegister::Sc.address()),
-            ),
+            ("JOY".to_string(), bus.read_byte(IoRegister::Joyp.address())),
+            ("SB".to_string(), bus.read_byte(IoRegister::Sb.address())),
+            ("SC".to_string(), bus.read_byte(IoRegister::Sc.address())),
             // Sound Registers (example subset)
             (
                 "NR10".to_string(),

@@ -5,7 +5,12 @@ use crate::cpu::registers::Register8;
 use crate::cpu::CPU;
 
 impl CPU {
-    pub fn ld_r8_r8<M: MemoryInterface>(&mut self, register1: Register8, register2: Register8, memory: &mut M) {
+    pub fn ld_r8_r8<M: MemoryInterface>(
+        &mut self,
+        register1: Register8,
+        register2: Register8,
+        memory: &mut M,
+    ) {
         self.set_r8(&register1, self.get_r8(&register2, memory), memory);
     }
 
@@ -137,7 +142,12 @@ impl CPU {
         self.set_r8(&register, result, memory);
     }
 
-    pub fn bit_b3_r8<M: MemoryInterface>(&mut self, register: Register8, selected_bit: u8, memory: &mut M) {
+    pub fn bit_b3_r8<M: MemoryInterface>(
+        &mut self,
+        register: Register8,
+        selected_bit: u8,
+        memory: &mut M,
+    ) {
         // Z=0 if bit selected is set, otherwise Z=1
         let value = self.get_r8(&register, memory);
         let bit_zero = value & (1 << selected_bit) == 0;
@@ -146,14 +156,24 @@ impl CPU {
         self.f.insert(Flags::H);
     }
 
-    pub fn res_b3_r8<M: MemoryInterface>(&mut self, register: Register8, selected_bit: u8, memory: &mut M) {
+    pub fn res_b3_r8<M: MemoryInterface>(
+        &mut self,
+        register: Register8,
+        selected_bit: u8,
+        memory: &mut M,
+    ) {
         // reset bit selected
         let value = self.get_r8(&register, memory);
         let result = value & !(1 << selected_bit);
         self.set_r8(&register, result, memory);
     }
 
-    pub fn set_b3_r8<M: MemoryInterface>(&mut self, register: Register8, selected_bit: u8, memory: &mut M) {
+    pub fn set_b3_r8<M: MemoryInterface>(
+        &mut self,
+        register: Register8,
+        selected_bit: u8,
+        memory: &mut M,
+    ) {
         // set bit selected
         let value = self.get_r8(&register, memory);
         let result = value | (1 << selected_bit);

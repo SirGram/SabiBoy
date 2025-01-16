@@ -16,10 +16,9 @@ pub enum RstVec {
     RST38 = 0x38,
 }
 
-
 impl CPU {
     pub fn execute<M: MemoryInterface>(&mut self, opcode: u8, memory: &mut M) {
-        match opcode {           
+        match opcode {
             //opcode file https://izik1.github.io/gbops/
             0x00 => self.nop(),
             0x01 => self.ld_r16_imm16(Register16::BC, memory),
@@ -37,7 +36,7 @@ impl CPU {
             0x0D => self.dec_r8(Register8::C, memory),
             0x0E => self.ld_r8_imm8(Register8::C, memory),
             0x0F => self.rrca(),
-    
+
             0x10 => self.stop(),
             0x11 => self.ld_r16_imm16(Register16::DE, memory),
             0x12 => self.ld_r16mem_a(Register16Mem::DE, memory),
@@ -54,7 +53,7 @@ impl CPU {
             0x1D => self.dec_r8(Register8::E, memory),
             0x1E => self.ld_r8_imm8(Register8::E, memory),
             0x1F => self.rra(),
-    
+
             0x20 => self.jr_cond_imm8(Condition::NZ, memory),
             0x21 => self.ld_r16_imm16(Register16::HL, memory),
             0x22 => self.ld_r16mem_a(Register16Mem::HLi, memory),
@@ -71,7 +70,7 @@ impl CPU {
             0x2D => self.dec_r8(Register8::L, memory),
             0x2E => self.ld_r8_imm8(Register8::L, memory),
             0x2F => self.cpl(),
-    
+
             0x30 => self.jr_cond_imm8(Condition::NC, memory),
             0x31 => self.ld_r16_imm16(Register16::SP, memory),
             0x32 => self.ld_r16mem_a(Register16Mem::HLd, memory),
@@ -88,7 +87,7 @@ impl CPU {
             0x3D => self.dec_r8(Register8::A, memory),
             0x3E => self.ld_r8_imm8(Register8::A, memory),
             0x3F => self.ccf(),
-    
+
             0x40 => self.ld_r8_r8(Register8::B, Register8::B, memory), // NOP
             0x41 => self.ld_r8_r8(Register8::B, Register8::C, memory),
             0x42 => self.ld_r8_r8(Register8::B, Register8::D, memory),
@@ -105,7 +104,7 @@ impl CPU {
             0x4D => self.ld_r8_r8(Register8::C, Register8::L, memory),
             0x4E => self.ld_r8_r8(Register8::C, Register8::HLIndirect, memory),
             0x4F => self.ld_r8_r8(Register8::C, Register8::A, memory),
-    
+
             0x50 => self.ld_r8_r8(Register8::D, Register8::B, memory),
             0x51 => self.ld_r8_r8(Register8::D, Register8::C, memory),
             0x52 => self.ld_r8_r8(Register8::D, Register8::D, memory), // NOP
@@ -122,7 +121,7 @@ impl CPU {
             0x5D => self.ld_r8_r8(Register8::E, Register8::L, memory),
             0x5E => self.ld_r8_r8(Register8::E, Register8::HLIndirect, memory),
             0x5F => self.ld_r8_r8(Register8::E, Register8::A, memory),
-    
+
             0x60 => self.ld_r8_r8(Register8::H, Register8::B, memory),
             0x61 => self.ld_r8_r8(Register8::H, Register8::C, memory),
             0x62 => self.ld_r8_r8(Register8::H, Register8::D, memory),
@@ -139,7 +138,7 @@ impl CPU {
             0x6D => self.ld_r8_r8(Register8::L, Register8::L, memory), // NOP
             0x6E => self.ld_r8_r8(Register8::L, Register8::HLIndirect, memory),
             0x6F => self.ld_r8_r8(Register8::L, Register8::A, memory),
-    
+
             0x70 => self.ld_r8_r8(Register8::HLIndirect, Register8::B, memory),
             0x71 => self.ld_r8_r8(Register8::HLIndirect, Register8::C, memory),
             0x72 => self.ld_r8_r8(Register8::HLIndirect, Register8::D, memory),
@@ -156,7 +155,7 @@ impl CPU {
             0x7D => self.ld_r8_r8(Register8::A, Register8::L, memory),
             0x7E => self.ld_r8_r8(Register8::A, Register8::HLIndirect, memory),
             0x7F => self.ld_r8_r8(Register8::A, Register8::A, memory), // NOP
-    
+
             0x80 => self.add_a_r8(Register8::B, memory),
             0x81 => self.add_a_r8(Register8::C, memory),
             0x82 => self.add_a_r8(Register8::D, memory),
@@ -173,7 +172,7 @@ impl CPU {
             0x8D => self.adc_a_r8(Register8::L, memory),
             0x8E => self.adc_a_r8(Register8::HLIndirect, memory),
             0x8F => self.adc_a_r8(Register8::A, memory),
-    
+
             0x90 => self.sub_a_r8(Register8::B, memory),
             0x91 => self.sub_a_r8(Register8::C, memory),
             0x92 => self.sub_a_r8(Register8::D, memory),
@@ -190,7 +189,7 @@ impl CPU {
             0x9D => self.sbc_a_r8(Register8::L, memory),
             0x9E => self.sbc_a_r8(Register8::HLIndirect, memory),
             0x9F => self.sbc_a_r8(Register8::A, memory),
-    
+
             0xA0 => self.and_a_r8(Register8::B, memory),
             0xA1 => self.and_a_r8(Register8::C, memory),
             0xA2 => self.and_a_r8(Register8::D, memory),
@@ -207,7 +206,7 @@ impl CPU {
             0xAD => self.xor_a_r8(Register8::L, memory),
             0xAE => self.xor_a_r8(Register8::HLIndirect, memory),
             0xAF => self.xor_a_r8(Register8::A, memory),
-    
+
             0xB0 => self.or_a_r8(Register8::B, memory),
             0xB1 => self.or_a_r8(Register8::C, memory),
             0xB2 => self.or_a_r8(Register8::D, memory),
@@ -224,7 +223,7 @@ impl CPU {
             0xBD => self.cp_a_r8(Register8::L, memory),
             0xBE => self.cp_a_r8(Register8::HLIndirect, memory),
             0xBF => self.cp_a_r8(Register8::A, memory),
-    
+
             0xC0 => self.ret_cc(Condition::NZ, memory),
             0xC1 => self.pop_r16stk(Register16Stk::BC, memory),
             0xC2 => self.jp_cond_imm16(Condition::NZ, memory),
@@ -237,12 +236,12 @@ impl CPU {
             0xC9 => self.ret(memory),
             0xCA => self.jp_cond_imm16(Condition::Z, memory),
             0xCB => unreachable!(),
-          
+
             0xCC => self.call_cond_imm16(Condition::Z, memory),
             0xCD => self.call_imm16(memory),
             0xCE => self.adc_a_imm8(memory),
             0xCF => self.rst_tgt3(RstVec::RST08, memory),
-            
+
             0xD0 => self.ret_cc(Condition::NC, memory),
             0xD1 => self.pop_r16stk(Register16Stk::DE, memory),
             0xD2 => self.jp_cond_imm16(Condition::NC, memory),
@@ -259,7 +258,7 @@ impl CPU {
             // $DD invalid
             0xDE => self.sbc_a_imm8(memory),
             0xDF => self.rst_tgt3(RstVec::RST18, memory),
-            
+
             0xE0 => self.ldh_imm8_a(memory),
             0xE1 => self.pop_r16stk(Register16Stk::HL, memory),
             0xE2 => self.ldh_c_a(memory),
@@ -276,7 +275,7 @@ impl CPU {
             // $ED invalid
             0xEE => self.xor_a_imm8(memory),
             0xEF => self.rst_tgt3(RstVec::RST28, memory),
-            
+
             0xF0 => self.ldh_a_imm8(memory),
             0xF1 => self.pop_r16stk(Register16Stk::AF, memory),
             0xF2 => self.ldh_a_c(memory),
@@ -293,7 +292,7 @@ impl CPU {
             // $FD invalid
             0xFE => self.cp_a_imm8(memory),
             0xFF => self.rst_tgt3(RstVec::RST38, memory),
-            
+
             // The following opcodes are invalid, and hard-lock the CPU until the console is powered off:
             // $D3, $DB, $DD, $E3, $E4, $EB, $EC, $ED, $F4, $FC, and $FD.
             _ => {
@@ -320,7 +319,7 @@ impl CPU {
             0x0D => self.rrc_r8(Register8::L, memory),
             0x0E => self.rrc_r8(Register8::HLIndirect, memory),
             0x0F => self.rrc_r8(Register8::A, memory),
-    
+
             0x10 => self.rl_r8(Register8::B, memory),
             0x11 => self.rl_r8(Register8::C, memory),
             0x12 => self.rl_r8(Register8::D, memory),
@@ -337,7 +336,7 @@ impl CPU {
             0x1D => self.rr_r8(Register8::L, memory),
             0x1E => self.rr_r8(Register8::HLIndirect, memory),
             0x1F => self.rr_r8(Register8::A, memory),
-    
+
             0x20 => self.sla_r8(Register8::B, memory),
             0x21 => self.sla_r8(Register8::C, memory),
             0x22 => self.sla_r8(Register8::D, memory),
@@ -354,7 +353,7 @@ impl CPU {
             0x2D => self.sra_r8(Register8::L, memory),
             0x2E => self.sra_r8(Register8::HLIndirect, memory),
             0x2F => self.sra_r8(Register8::A, memory),
-    
+
             0x30 => self.swap_r8(Register8::B, memory),
             0x31 => self.swap_r8(Register8::C, memory),
             0x32 => self.swap_r8(Register8::D, memory),
@@ -371,7 +370,7 @@ impl CPU {
             0x3D => self.srl_r8(Register8::L, memory),
             0x3E => self.srl_r8(Register8::HLIndirect, memory),
             0x3F => self.srl_r8(Register8::A, memory),
-    
+
             0x40 => self.bit_b3_r8(Register8::B, 0, memory),
             0x41 => self.bit_b3_r8(Register8::C, 0, memory),
             0x42 => self.bit_b3_r8(Register8::D, 0, memory),
@@ -388,7 +387,7 @@ impl CPU {
             0x4D => self.bit_b3_r8(Register8::L, 1, memory),
             0x4E => self.bit_b3_r8(Register8::HLIndirect, 1, memory),
             0x4F => self.bit_b3_r8(Register8::A, 1, memory),
-    
+
             0x50 => self.bit_b3_r8(Register8::B, 2, memory),
             0x51 => self.bit_b3_r8(Register8::C, 2, memory),
             0x52 => self.bit_b3_r8(Register8::D, 2, memory),
@@ -405,7 +404,7 @@ impl CPU {
             0x5D => self.bit_b3_r8(Register8::L, 3, memory),
             0x5E => self.bit_b3_r8(Register8::HLIndirect, 3, memory),
             0x5F => self.bit_b3_r8(Register8::A, 3, memory),
-    
+
             0x60 => self.bit_b3_r8(Register8::B, 4, memory),
             0x61 => self.bit_b3_r8(Register8::C, 4, memory),
             0x62 => self.bit_b3_r8(Register8::D, 4, memory),
@@ -422,7 +421,7 @@ impl CPU {
             0x6D => self.bit_b3_r8(Register8::L, 5, memory),
             0x6E => self.bit_b3_r8(Register8::HLIndirect, 5, memory),
             0x6F => self.bit_b3_r8(Register8::A, 5, memory),
-    
+
             0x70 => self.bit_b3_r8(Register8::B, 6, memory),
             0x71 => self.bit_b3_r8(Register8::C, 6, memory),
             0x72 => self.bit_b3_r8(Register8::D, 6, memory),
@@ -439,7 +438,7 @@ impl CPU {
             0x7D => self.bit_b3_r8(Register8::L, 7, memory),
             0x7E => self.bit_b3_r8(Register8::HLIndirect, 7, memory),
             0x7F => self.bit_b3_r8(Register8::A, 7, memory),
-    
+
             0x80 => self.res_b3_r8(Register8::B, 0, memory),
             0x81 => self.res_b3_r8(Register8::C, 0, memory),
             0x82 => self.res_b3_r8(Register8::D, 0, memory),
@@ -456,7 +455,7 @@ impl CPU {
             0x8D => self.res_b3_r8(Register8::L, 1, memory),
             0x8E => self.res_b3_r8(Register8::HLIndirect, 1, memory),
             0x8F => self.res_b3_r8(Register8::A, 1, memory),
-    
+
             0x90 => self.res_b3_r8(Register8::B, 2, memory),
             0x91 => self.res_b3_r8(Register8::C, 2, memory),
             0x92 => self.res_b3_r8(Register8::D, 2, memory),
@@ -473,7 +472,7 @@ impl CPU {
             0x9D => self.res_b3_r8(Register8::L, 3, memory),
             0x9E => self.res_b3_r8(Register8::HLIndirect, 3, memory),
             0x9F => self.res_b3_r8(Register8::A, 3, memory),
-    
+
             0xA0 => self.res_b3_r8(Register8::B, 4, memory),
             0xA1 => self.res_b3_r8(Register8::C, 4, memory),
             0xA2 => self.res_b3_r8(Register8::D, 4, memory),
@@ -506,7 +505,7 @@ impl CPU {
             0xBD => self.res_b3_r8(Register8::L, 7, memory),
             0xBE => self.res_b3_r8(Register8::HLIndirect, 7, memory),
             0xBF => self.res_b3_r8(Register8::A, 7, memory),
-    
+
             0xC0 => self.set_b3_r8(Register8::B, 0, memory),
             0xC1 => self.set_b3_r8(Register8::C, 0, memory),
             0xC2 => self.set_b3_r8(Register8::D, 0, memory),
@@ -523,7 +522,7 @@ impl CPU {
             0xCD => self.set_b3_r8(Register8::L, 1, memory),
             0xCE => self.set_b3_r8(Register8::HLIndirect, 1, memory),
             0xCF => self.set_b3_r8(Register8::A, 1, memory),
-    
+
             0xD0 => self.set_b3_r8(Register8::B, 2, memory),
             0xD1 => self.set_b3_r8(Register8::C, 2, memory),
             0xD2 => self.set_b3_r8(Register8::D, 2, memory),
@@ -540,7 +539,7 @@ impl CPU {
             0xDD => self.set_b3_r8(Register8::L, 3, memory),
             0xDE => self.set_b3_r8(Register8::HLIndirect, 3, memory),
             0xDF => self.set_b3_r8(Register8::A, 3, memory),
-    
+
             0xE0 => self.set_b3_r8(Register8::B, 4, memory),
             0xE1 => self.set_b3_r8(Register8::C, 4, memory),
             0xE2 => self.set_b3_r8(Register8::D, 4, memory),
@@ -557,7 +556,7 @@ impl CPU {
             0xED => self.set_b3_r8(Register8::L, 5, memory),
             0xEE => self.set_b3_r8(Register8::HLIndirect, 5, memory),
             0xEF => self.set_b3_r8(Register8::A, 5, memory),
-    
+
             0xF0 => self.set_b3_r8(Register8::B, 6, memory),
             0xF1 => self.set_b3_r8(Register8::C, 6, memory),
             0xF2 => self.set_b3_r8(Register8::D, 6, memory),
@@ -576,4 +575,4 @@ impl CPU {
             0xFF => self.set_b3_r8(Register8::A, 7, memory),
         }
     }
-    }
+}

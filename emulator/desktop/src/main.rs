@@ -1,6 +1,6 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{Device, SampleRate, Stream, StreamConfig};
-use gameboy_core::{self, gameboy, joyp::JoyPadKey};
+use cpal::{Device, SampleRate, StreamConfig};
+use gameboy_core::{self};
 use minifb::{Key, Window, WindowOptions};
 use std::sync::{Arc, Mutex};
 use std::{
@@ -24,22 +24,21 @@ fn main() {
     // Initialize GameBoy
     let palette: [u32; 4] = [0x9bbc0f, 0x8bac0f, 0x306230, 0x0f380f];
     let mut gameboy = gameboy_core::gameboy::Gameboy::new(palette);
-    
+
     if audio_disabled {
-        gameboy.apu.toggle_audio(); 
+        gameboy.apu.toggle_audio();
     }
     gameboy.set_power_up_sequence();
     gameboy.load_rom(include_bytes!(
-        "../../../test/blargg/cpu_instrs.gb"
-      /*   "../../../games/tennis--1/rom.gb" */
+        "../../../test/cgb-acid2.gbc" /*   "../../../games/tennis--1/rom.gb" */
     ));
 
-   /*  if let Ok(save_state) = std::fs::read("./rom.gb.state") {
-        if let Err(e) = gameboy.load_state(save_state) {
-            println!("Failed to load state: {}", e);
-        }
-    }
- */
+    /*  if let Ok(save_state) = std::fs::read("./rom.gb.state") {
+           if let Err(e) = gameboy.load_state(save_state) {
+               println!("Failed to load state: {}", e);
+           }
+       }
+    */
     // Setup audio
     let audio_output = match AudioOutput::new() {
         Ok(audio) => Some(audio),
@@ -49,7 +48,13 @@ fn main() {
         }
     };
 
-    run(&mut window, &mut gameboy, &mut debug_window, audio_output.as_ref(), turbo_mode);
+    run(
+        &mut window,
+        &mut gameboy,
+        &mut debug_window,
+        audio_output.as_ref(),
+        turbo_mode,
+    );
 }
 fn set_up_window(turbo_mode: bool) -> Window {
     let width = 160;
@@ -81,7 +86,7 @@ fn run(
     } else {
         Duration::from_micros(16_667)
     };
-    
+
     let mut last_fps_check = Instant::now();
     let mut frames = 0;
     let mut current_fps = 0;
@@ -89,10 +94,11 @@ fn run(
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let frame_start_time = Instant::now();
-        
+
         // In turbo mode, run multiple frames per iteration
         if turbo_mode {
-            for _ in 0..4 { // Run 4 frames at once for higher speed
+            for _ in 0..4 {
+                // Run 4 frames at once for higher speed
                 gameboy.run_frame();
             }
         } else {
@@ -114,7 +120,7 @@ fn run(
             current_fps = frames;
             frames = 0;
             last_fps_check = Instant::now();
-            
+
             // Update window title with FPS
             let title = if turbo_mode {
                 format!("SabiBoy - {} FPS (Turbo)", current_fps)
@@ -141,12 +147,10 @@ fn run(
             debug_window.render();
         }
 
-       
         let samples = gameboy.apu.get_samples();
         if let Some(audio) = audio_output {
             audio.add_samples(&samples);
         }
-       
     }
 }
 

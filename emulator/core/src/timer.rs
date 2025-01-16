@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::bus::{io_address::IoRegister,  MemoryInterface};
+use crate::bus::{io_address::IoRegister, MemoryInterface};
 
 #[derive(Clone, Debug)]
 pub struct Timer {
@@ -32,39 +32,37 @@ impl Timer {
     }
 
     // Read timer registers from bus
-    fn div<M:MemoryInterface>(&self, memory: &M) -> u8 {
+    fn div<M: MemoryInterface>(&self, memory: &M) -> u8 {
         memory.read_byte(IoRegister::Div.address())
     }
 
-    fn tima<M:MemoryInterface>(&self, memory: &M) -> u8 {
+    fn tima<M: MemoryInterface>(&self, memory: &M) -> u8 {
         memory.read_byte(IoRegister::Tima.address())
     }
 
-    fn tma<M:MemoryInterface>(&self, memory: &M) -> u8 {
+    fn tma<M: MemoryInterface>(&self, memory: &M) -> u8 {
         memory.read_byte(IoRegister::Tma.address())
     }
 
-    fn tac<M:MemoryInterface>(&self, memory: &M) -> u8 {
+    fn tac<M: MemoryInterface>(&self, memory: &M) -> u8 {
         memory.read_byte(IoRegister::Tac.address())
     }
 
     // Write timer registers to bus
-    fn set_div<M:MemoryInterface>(&self, value: u8, memory: &mut M) {
-        memory
-            .write_byte(IoRegister::Div.address(), value);
+    fn set_div<M: MemoryInterface>(&self, value: u8, memory: &mut M) {
+        memory.write_byte(IoRegister::Div.address(), value);
     }
 
-    fn set_tima<M:MemoryInterface>(&self, value: u8, memory: &mut M) {
-        memory
-            .write_byte(IoRegister::Tima.address(), value);
+    fn set_tima<M: MemoryInterface>(&self, value: u8, memory: &mut M) {
+        memory.write_byte(IoRegister::Tima.address(), value);
     }
 
-    fn request_timer_interrupt<M:MemoryInterface>(&self, memory: &mut M) {
+    fn request_timer_interrupt<M: MemoryInterface>(&self, memory: &mut M) {
         let if_reg = memory.read_byte(IoRegister::If.address());
         memory.write_byte(IoRegister::If.address(), if_reg | 0b0000_0100);
     }
 
-    fn increment_div<M:MemoryInterface>(&mut self, memory: &mut M) {
+    fn increment_div<M: MemoryInterface>(&mut self, memory: &mut M) {
         self.div_counter += 1;
         if self.div_counter >= 256 {
             self.div_counter = 0;
@@ -73,7 +71,7 @@ impl Timer {
         }
     }
 
-    fn get_tima_frequency<M:MemoryInterface>(&self, memory: &M) -> usize {
+    fn get_tima_frequency<M: MemoryInterface>(&self, memory: &M) -> usize {
         match self.tac(memory) & 0x03 {
             0 => 1024,
             1 => 16,
@@ -83,7 +81,7 @@ impl Timer {
         }
     }
 
-    fn increment_tima<M:MemoryInterface>(&mut self, memory: &mut M) {
+    fn increment_tima<M: MemoryInterface>(&mut self, memory: &mut M) {
         // Check if timer is enabled (TAC bit 2)
         if self.tac(memory) & 0b0000_0100 == 0 {
             return;
@@ -99,7 +97,7 @@ impl Timer {
 
             // Handle TIMA overflow
             if new_tima == 0 {
-                self.set_tima(self.tma(memory),memory); // Reset to TMA value
+                self.set_tima(self.tma(memory), memory); // Reset to TMA value
                 self.request_timer_interrupt(memory);
             } else {
                 self.set_tima(new_tima, memory);
@@ -107,8 +105,8 @@ impl Timer {
         }
     }
 
-    pub fn tick <M:MemoryInterface>(&mut self, memory: &mut M) {
-        self.increment_div( memory);
-        self.increment_tima( memory);
+    pub fn tick<M: MemoryInterface>(&mut self, memory: &mut M) {
+        self.increment_div(memory);
+        self.increment_tima(memory);
     }
 }

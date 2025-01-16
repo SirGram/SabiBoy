@@ -34,7 +34,7 @@ impl Gameboy {
         let bus = Bus::new();
         let timer = Timer::new();
         let cpu = CPU::new();
-        let ppu = PPU::new( palette);
+        let ppu = PPU::new(palette);
         let apu = APU::new();
 
         Self {
@@ -63,26 +63,22 @@ impl Gameboy {
                 std::io::Error::new(std::io::ErrorKind::Other, "Deserialization failed")
             })?;
 
-        self.bus
-            .load_state(serializable_state.bus_data);
-        self.cpu
-            .load_state(serializable_state.cpu_state);
-        self.timer
-            .load_state(serializable_state.timer_state);
-        self.ppu
-            .load_state(serializable_state.ppu_state);
+        self.bus.load_state(serializable_state.bus_data);
+        self.cpu.load_state(serializable_state.cpu_state);
+        self.timer.load_state(serializable_state.timer_state);
+        self.ppu.load_state(serializable_state.ppu_state);
 
         Ok(())
     }
     pub fn reset(&mut self) {}
 
     pub fn tick(&mut self) {
-        self.cpu.tick( &mut self.bus);
+        self.cpu.tick(&mut self.bus);
         for _ in 0..self.cpu.cycles {
-            self.timer.tick( &mut self.bus);
-            self.ppu.tick(  &mut self.bus);
+            self.timer.tick(&mut self.bus);
+            self.ppu.tick(&mut self.bus);
             self.bus.mbc.tick();
-            self.apu.tick( &mut self.bus);
+            self.apu.tick(&mut self.bus);
         }
     }
     pub fn run_frame(&mut self) {
@@ -114,7 +110,6 @@ impl Gameboy {
         self.cpu.sp = 0xFFFE;
         self.cpu.pc = 0x0100;
         self.cpu.ime = false;
-
 
         // Hardware Registers
         self.bus.write_byte(IoRegister::Joyp.address(), 0xCF);

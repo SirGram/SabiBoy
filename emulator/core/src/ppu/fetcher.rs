@@ -1,5 +1,3 @@
-
-
 use serde::{Deserialize, Serialize};
 
 use crate::bus::{io_address::IoRegister, MemoryInterface};
@@ -17,7 +15,6 @@ pub struct Fetcher {
     pub window_line_counter: u16,
     pub pause: bool,
     pub delay: usize,
-    
 }
 impl Fetcher {
     pub fn new() -> Self {
@@ -42,12 +39,12 @@ impl Fetcher {
     pub fn window_trigger(&mut self, pixel_fifo: &mut PixelFifo) {
         self.step = 0;
         self.is_window_fetch = true;
-        self.x_pos_counter = 7; 
+        self.x_pos_counter = 7;
 
         pixel_fifo.bg_fifo.clear();
     }
 
-    pub fn step <M: MemoryInterface>(&mut self, memory: &mut M, pixel_fifo: &mut PixelFifo) {
+    pub fn step<M: MemoryInterface>(&mut self, memory: &mut M, pixel_fifo: &mut PixelFifo) {
         match self.step {
             0 => {
                 self.fetch_tile_number(memory);
@@ -85,7 +82,7 @@ impl Fetcher {
         }
     }
 
-    fn fetch_tile_number <M: MemoryInterface>(&mut self, memory: &mut M) {
+    fn fetch_tile_number<M: MemoryInterface>(&mut self, memory: &mut M) {
         let lcdc = memory.read_byte(IoRegister::Lcdc.address());
         let scx = memory.read_byte(IoRegister::Scx.address());
         let scy = memory.read_byte(IoRegister::Scy.address());
@@ -102,7 +99,7 @@ impl Fetcher {
         let tile_x = if self.is_window_fetch {
             self.x_pos_counter / 8
         } else {
-            ((scx as u16 /8)+ (self.x_pos_counter )/ 8) & 0x1F
+            ((scx as u16 / 8) + (self.x_pos_counter) / 8) & 0x1F
         };
 
         // Calculate the address of the tile number in VRAM
@@ -113,7 +110,7 @@ impl Fetcher {
         self.tile_number = memory.read_byte(tile_address) & 0xFF;
     }
 
-    fn fetch_tile_data <M: MemoryInterface>(
+    fn fetch_tile_data<M: MemoryInterface>(
         &mut self,
         memory: &mut M,
         tile_number: u8,
@@ -136,12 +133,11 @@ impl Fetcher {
             0x8000 + (tile_number as u16 * 16)
         } else {
             // 8800 method: signed addressing
-            0x9000u16.wrapping_add((tile_number  as i8 as i16 * 16) as u16)
+            0x9000u16.wrapping_add((tile_number as i8 as i16 * 16) as u16)
         };
 
         // Get the correct byte of tile data
-       memory
-            .read_byte(base_address + y_offset + if is_high_byte { 1 } else { 0 })
+        memory.read_byte(base_address + y_offset + if is_high_byte { 1 } else { 0 })
     }
 
     fn push_to_fifo(&mut self, pixel_fifo: &mut PixelFifo) {

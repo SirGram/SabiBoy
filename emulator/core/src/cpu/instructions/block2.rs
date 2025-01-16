@@ -1,7 +1,7 @@
+use crate::bus::MemoryInterface;
 use crate::cpu::flags::Flags;
 use crate::cpu::registers::Register8;
 use crate::cpu::CPU;
-use crate::bus::MemoryInterface;
 
 impl CPU {
     fn arithmetic_op_r8<M: MemoryInterface>(
@@ -41,7 +41,13 @@ impl CPU {
     }
 
     // Generic function for logical operations
-    fn logical_op_r8<M: MemoryInterface>(&mut self, register: Register8, op: impl Fn(u8, u8) -> u8, set_h: bool, memory: &mut M) {
+    fn logical_op_r8<M: MemoryInterface>(
+        &mut self,
+        register: Register8,
+        op: impl Fn(u8, u8) -> u8,
+        set_h: bool,
+        memory: &mut M,
+    ) {
         let original_a = self.get_r8(&Register8::A, memory);
         let value = self.get_r8(&register, memory);
         let result = op(original_a, value);

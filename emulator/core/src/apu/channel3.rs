@@ -26,7 +26,7 @@ impl Channel3 {
             current_volume: 0,
         }
     }
-    pub fn tick <M:MemoryInterface>(&mut self, memory: &mut M) {
+    pub fn tick<M: MemoryInterface>(&mut self, memory: &mut M) {
         let is_triggered =
             memory.read_byte(bus::io_address::IoRegister::Nr34.address()) & 0b10000000 != 0;
         if is_triggered {
@@ -38,16 +38,17 @@ impl Channel3 {
             self.wave_position = (self.wave_position + 1) % 8;
         }
     }
-    pub fn trigger<M:MemoryInterface>(&mut self, memory: &mut M) {
+    pub fn trigger<M: MemoryInterface>(&mut self, memory: &mut M) {
         self.current_volume =
             (memory.read_byte(bus::io_address::IoRegister::Nr32.address()) & 0b11110000) >> 4;
-        self.period_timer = memory.read_byte(bus::io_address::IoRegister::Nr32.address()) & 0b00000111;
+        self.period_timer =
+            memory.read_byte(bus::io_address::IoRegister::Nr32.address()) & 0b00000111;
         if self.length_timer == 0 {
             self.length_timer = 64;
         }
         self.disabled = false;
     }
-    fn get_sample<M:MemoryInterface>(&self, memory: &mut M) -> u8 {
+    fn get_sample<M: MemoryInterface>(&self, memory: &mut M) -> u8 {
         // 1 byte -> 2 samples
         let wave_ram = memory.read_wave_ram();
         let index = self.wave_position as usize / 2;
@@ -58,7 +59,7 @@ impl Channel3 {
             byte & 0xF
         }
     }
-    pub fn sample <M:MemoryInterface>(&self, memory: &mut M) -> f32 {
+    pub fn sample<M: MemoryInterface>(&self, memory: &mut M) -> f32 {
         if self.disabled {
             return 0.0;
         }
@@ -70,7 +71,7 @@ impl Channel3 {
 
         dac_output
     }
-    pub fn update_length<M:MemoryInterface>(&mut self, memory: &M) {
+    pub fn update_length<M: MemoryInterface>(&mut self, memory: &M) {
         self.length_timer = 256 - self.get_length(memory) as u16;
         if memory.read_byte(bus::io_address::IoRegister::Nr31.address()) & 0b01000000 == 1 {
             self.length_timer -= 1;
@@ -80,15 +81,15 @@ impl Channel3 {
         }
     }
 
-    fn get_length <M:MemoryInterface>(&self, memory: &M) -> u8 {
+    fn get_length<M: MemoryInterface>(&self, memory: &M) -> u8 {
         memory.read_byte(bus::io_address::IoRegister::Nr31.address()) & 0b11111111
     }
-    fn calculate_frequency <M:MemoryInterface>(&self, memory: &mut M) -> usize {
+    fn calculate_frequency<M: MemoryInterface>(&self, memory: &mut M) -> usize {
         let low_frequency = memory.read_byte(bus::io_address::IoRegister::Nr33.address()) as usize;
         let high_frequency = memory.read_byte(bus::io_address::IoRegister::Nr34.address()) as usize;
         ((high_frequency & 7) << 8) | low_frequency
     }
-    fn get_volume_shift <M:MemoryInterface>(&self, memory: &M) -> u8 {
+    fn get_volume_shift<M: MemoryInterface>(&self, memory: &M) -> u8 {
         let volume_bits =
             (memory.read_byte(bus::io_address::IoRegister::Nr50.address()) & 0b01100000) >> 5;
         match volume_bits {

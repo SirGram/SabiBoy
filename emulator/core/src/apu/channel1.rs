@@ -33,7 +33,7 @@ impl Channel1 {
             sweep_enabled: false,
         }
     }
-    pub fn tick<M:MemoryInterface>(&mut self, memory: &mut M) {
+    pub fn tick<M: MemoryInterface>(&mut self, memory: &mut M) {
         let is_triggered =
             memory.read_byte(bus::io_address::IoRegister::Nr14.address()) & 0b10000000 != 0;
         if is_triggered {
@@ -45,20 +45,23 @@ impl Channel1 {
             self.wave_position = (self.wave_position + 1) % 8;
         }
     }
-    pub fn trigger<M:MemoryInterface>(&mut self, memory: &mut M) {
+    pub fn trigger<M: MemoryInterface>(&mut self, memory: &mut M) {
         self.current_volume =
             (memory.read_byte(bus::io_address::IoRegister::Nr12.address()) & 0b11110000) >> 4;
-        self.period_timer = memory.read_byte(bus::io_address::IoRegister::Nr12.address()) & 0b00000111;
+        self.period_timer =
+            memory.read_byte(bus::io_address::IoRegister::Nr12.address()) & 0b00000111;
         if self.length_timer == 0 {
             self.length_timer = 64;
         }
         self.disabled = false;
 
         // sweep
-        let sweep_period = memory.read_byte(bus::io_address::IoRegister::Nr10.address()) & 0b01110000;
+        let sweep_period =
+            memory.read_byte(bus::io_address::IoRegister::Nr10.address()) & 0b01110000;
         let sweep_direction =
-        memory.read_byte(bus::io_address::IoRegister::Nr10.address()) & 0b00001000;
-        let sweep_shift = memory.read_byte(bus::io_address::IoRegister::Nr10.address()) & 0b00000111;
+            memory.read_byte(bus::io_address::IoRegister::Nr10.address()) & 0b00001000;
+        let sweep_shift =
+            memory.read_byte(bus::io_address::IoRegister::Nr10.address()) & 0b00000111;
         self.shadow_frequency = self.calculate_frequency(memory);
         self.sweep_timer = if sweep_period == 0 { 8 } else { sweep_period };
         self.sweep_enabled = sweep_period != 0 || sweep_shift != 0;
@@ -69,7 +72,7 @@ impl Channel1 {
             }
         }
     }
-    pub fn sample <M:MemoryInterface>(&self, memory: &mut M) -> f32 {
+    pub fn sample<M: MemoryInterface>(&self, memory: &mut M) -> f32 {
         if self.disabled {
             return 0.0;
         }
@@ -80,10 +83,10 @@ impl Channel1 {
 
         dac_output
     }
-    pub fn update_envelope <M:MemoryInterface>(&mut self, memory: &mut M) {
+    pub fn update_envelope<M: MemoryInterface>(&mut self, memory: &mut M) {
         let period = memory.read_byte(bus::io_address::IoRegister::Nr12.address()) & 0b00000111;
         let is_upwards =
-        memory.read_byte(bus::io_address::IoRegister::Nr12.address()) & 0b00001000 == 1;
+            memory.read_byte(bus::io_address::IoRegister::Nr12.address()) & 0b00001000 == 1;
         if period != 0 {
             if self.period_timer > 0 {
                 self.period_timer -= 1
@@ -104,7 +107,7 @@ impl Channel1 {
             }
         }
     }
-    pub fn update_length <M:MemoryInterface>(&mut self, memory: &M) {
+    pub fn update_length<M: MemoryInterface>(&mut self, memory: &M) {
         self.length_timer = 64 - self.get_length(memory);
         // Whenever a length clock is provided by the frame sequencer AND bit 6 of NR24 register is set, the length timer is decremented by one.
         if memory.read_byte(bus::io_address::IoRegister::Nr11.address()) & 0b01000000 == 1 {
@@ -114,11 +117,13 @@ impl Channel1 {
             }
         }
     }
-    pub fn update_sweep <M:MemoryInterface>(&mut self, memory: &mut M) {
-        let sweep_period = memory.read_byte(bus::io_address::IoRegister::Nr10.address()) & 0b01110000;
+    pub fn update_sweep<M: MemoryInterface>(&mut self, memory: &mut M) {
+        let sweep_period =
+            memory.read_byte(bus::io_address::IoRegister::Nr10.address()) & 0b01110000;
         let sweep_direction =
-        memory.read_byte(bus::io_address::IoRegister::Nr10.address()) & 0b00001000;
-        let sweep_shift = memory.read_byte(bus::io_address::IoRegister::Nr10.address()) & 0b00000111;
+            memory.read_byte(bus::io_address::IoRegister::Nr10.address()) & 0b00001000;
+        let sweep_shift =
+            memory.read_byte(bus::io_address::IoRegister::Nr10.address()) & 0b00000111;
 
         if self.sweep_timer > 0 {
             self.sweep_timer -= 1;
@@ -153,16 +158,17 @@ impl Channel1 {
         new_frequency
     }
 
-    fn get_length <M:MemoryInterface>(&self, memory: &M) -> u8 {
+    fn get_length<M: MemoryInterface>(&self, memory: &M) -> u8 {
         memory.read_byte(bus::io_address::IoRegister::Nr11.address()) & 0b00111111
     }
-    fn calculate_frequency <M:MemoryInterface>(&self, memory: &mut M) -> usize {
+    fn calculate_frequency<M: MemoryInterface>(&self, memory: &mut M) -> usize {
         let low_frequency = memory.read_byte(bus::io_address::IoRegister::Nr13.address()) as usize;
         let high_frequency = memory.read_byte(bus::io_address::IoRegister::Nr14.address()) as usize;
         ((high_frequency & 7) << 8) | low_frequency
     }
-    fn get_wave_duty <M:MemoryInterface>(&self, memory: &mut M) -> u8 {
-        let duty = (memory.read_byte(bus::io_address::IoRegister::Nr11.address()) & 0b11000000) >> 6;
+    fn get_wave_duty<M: MemoryInterface>(&self, memory: &mut M) -> u8 {
+        let duty =
+            (memory.read_byte(bus::io_address::IoRegister::Nr11.address()) & 0b11000000) >> 6;
         match duty {
             0 => 0b00000001,
             1 => 0b00000011,

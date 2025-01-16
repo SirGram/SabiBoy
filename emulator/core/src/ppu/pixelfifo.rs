@@ -1,10 +1,13 @@
-use std::{ collections::VecDeque};
+use std::collections::VecDeque;
 
 use serde::{Deserialize, Serialize};
 
 use crate::bus::{io_address::IoRegister, Bus, MemoryInterface};
 
-use super::{fetcher::{self, Fetcher},  Sprite};
+use super::{
+    fetcher::{self, Fetcher},
+    Sprite,
+};
 #[derive(Clone, Debug, Serialize, Deserialize, Copy)]
 pub struct Pixel {
     pub color: u8,
@@ -65,17 +68,17 @@ impl PixelFifo {
     pub fn push_sprite_pixels(&mut self, tile_data: [u8; 2], sprite: &Sprite) {
         // Instead of clearing, we'll overlay the new sprite pixels
         let current_len = self.sprite_fifo.len();
-        
+
         for bit in 0..8 {
             let low_bit = tile_data[0] >> (7 - bit) & 0x1;
             let high_bit = tile_data[1] >> (7 - bit) & 0x1;
             let color = high_bit << 1 | low_bit;
-            
+
             let bg_priority = sprite.flags & 0x80 != 0;
             let palette = sprite.flags & 0x10 != 0;
-            
+
             let pixel = Pixel::new_sprite(color, bg_priority, palette);
-            
+
             if bit < current_len {
                 // Only replace existing sprite pixel if:
                 // 1. New sprite pixel is not transparent (color != 0)
@@ -99,14 +102,18 @@ impl PixelFifo {
                     fetcher.x_pos_counter += 1;
                 }
             }
-            self.fine_scroll_applied = true; 
+            self.fine_scroll_applied = true;
         }
     }
-    pub fn pop_pixel <M: MemoryInterface>(&mut self, memory: &M, fetcher: &mut Fetcher) -> Option<u8> {
+    pub fn pop_pixel<M: MemoryInterface>(
+        &mut self,
+        memory: &M,
+        fetcher: &mut Fetcher,
+    ) -> Option<u8> {
         if self.bg_fifo.is_empty() {
             return None;
-        } 
-       self.apply_fine_scroll(memory.read_byte(IoRegister::Scx.address()), fetcher);
+        }
+        self.apply_fine_scroll(memory.read_byte(IoRegister::Scx.address()), fetcher);
         let mut bg_pixel = self.bg_fifo.pop_front().unwrap();
         let mut sprite_pixel = self.sprite_fifo.pop_front();
 

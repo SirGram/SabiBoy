@@ -74,7 +74,7 @@ impl APU {
             _ => {}
         }
     }
-    pub fn tick<M:MemoryInterface>(&mut self, memory: &mut M) {
+    pub fn tick<M: MemoryInterface>(&mut self, memory: &mut M) {
         if !self.enabled {
             return;
         }
@@ -96,26 +96,21 @@ impl APU {
     }
     pub fn get_samples(&mut self) -> Vec<f32> {
         const SAMPLE_BUFFER_SIZE: usize = 1600;
-        
+
         // Preallocate to avoid repeated allocations
         let mut samples = Vec::with_capacity(SAMPLE_BUFFER_SIZE);
-        
+
         // Drain samples more efficiently
-        samples.extend(
-            self.samples
-                .drain(..)
-                .take(SAMPLE_BUFFER_SIZE)
-        );
-        
+        samples.extend(self.samples.drain(..).take(SAMPLE_BUFFER_SIZE));
+
         // Pad with silence if needed
         if samples.len() < SAMPLE_BUFFER_SIZE {
             samples.resize(SAMPLE_BUFFER_SIZE, 0.0);
         }
-        
+
         samples
     }
     fn generate_sample<M: MemoryInterface>(&mut self, memory: &mut M) {
-     
         // Read panning and volume registers
         let nr50 = memory.read_byte(bus::io_address::IoRegister::Nr50.address());
         let nr51 = memory.read_byte(bus::io_address::IoRegister::Nr51.address());
@@ -128,10 +123,26 @@ impl APU {
             return;
         }
 
-        let ch1_sample = if self.ch1_enabled { self.channel1.sample(memory) } else { 0.0 };
-        let ch2_sample = if self.ch2_enabled { self.channel2.sample(memory) } else { 0.0 };
-        let ch3_sample = if self.ch3_enabled { self.channel3.sample(memory) } else { 0.0 };
-        let ch4_sample = if self.ch4_enabled { self.channel4.sample(memory) } else { 0.0 };
+        let ch1_sample = if self.ch1_enabled {
+            self.channel1.sample(memory)
+        } else {
+            0.0
+        };
+        let ch2_sample = if self.ch2_enabled {
+            self.channel2.sample(memory)
+        } else {
+            0.0
+        };
+        let ch3_sample = if self.ch3_enabled {
+            self.channel3.sample(memory)
+        } else {
+            0.0
+        };
+        let ch4_sample = if self.ch4_enabled {
+            self.channel4.sample(memory)
+        } else {
+            0.0
+        };
 
         // Panning for left and right channels
         let mut left_amplitude = 0.0;
@@ -174,10 +185,10 @@ impl APU {
         self.samples.push(right_sample);
 
         // debug
-        self.current_ch1_output = ch1_sample ;
-        self.current_ch2_output = ch2_sample ;
-        self.current_ch3_output = ch3_sample ;
-        self.current_ch4_output = ch4_sample ; 
+        self.current_ch1_output = ch1_sample;
+        self.current_ch2_output = ch2_sample;
+        self.current_ch3_output = ch3_sample;
+        self.current_ch4_output = ch4_sample;
     }
     fn update_lengths<M: MemoryInterface>(&mut self, memory: &M) {
         self.channel1.update_length(memory);
@@ -196,7 +207,7 @@ impl APU {
         self.channel4.update_envelope(memory);
     }
 
-    fn step_frame_sequencer<M:MemoryInterface>(&mut self, memory: &mut M) {
+    fn step_frame_sequencer<M: MemoryInterface>(&mut self, memory: &mut M) {
         /* TODO: get from DIV register
         Step   Length Ctr  Vol Env     Sweep
         ---------------------------------------

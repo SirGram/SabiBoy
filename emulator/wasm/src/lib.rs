@@ -1,9 +1,9 @@
 use std::collections::VecDeque;
 
 use gameboy_core::{
-    self as GameboyCore,
-    cartridge::{self}, ppu::{fetcher::Fetcher, PPUMode}, 
+    self as GameboyCore, bus::GameboyMode, cartridge::{self}, ppu::{fetcher::Fetcher, PPUMode}
 };
+use wasm_bindgen::convert::IntoWasmAbi;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -29,7 +29,7 @@ impl GameboyWasm {
     pub fn init(&mut self, rom: &[u8], state: Option<Vec<u8>>) -> Result<(), String> {
         self.gameboy.set_power_up_sequence();
         self.gameboy.load_rom(rom);
-    
+
         if let Some(state) = state {
             match self.gameboy.load_state(state) {
                 Ok(_) => {}
@@ -39,7 +39,7 @@ impl GameboyWasm {
                 }
             }
         }
-    
+
         Ok(())
     }
     pub fn reset(&mut self) {
@@ -105,7 +105,7 @@ impl GameboyWasm {
         self.gameboy.apu.toggle_channel(channel);
     }
 
-    pub fn get_apu_state(&self) -> WasmApuState {    
+    pub fn get_apu_state(&self) -> WasmApuState {
         WasmApuState {
             apu_enabled: self.gameboy.apu.enabled,
             ch1_enabled: self.gameboy.apu.ch1_enabled,
@@ -136,9 +136,9 @@ impl GameboyWasm {
             cycles: cpu_state.cycles,
         }
     }
-    pub fn get_timer_state(&self)-> WasmTimerState{
-        let timer_state =self.gameboy.timer.save_state();
-        WasmTimerState{
+    pub fn get_timer_state(&self) -> WasmTimerState {
+        let timer_state = self.gameboy.timer.save_state();
+        WasmTimerState {
             div_counter: timer_state.div_counter,
             tima_counter: timer_state.tima_counter,
         }
@@ -146,14 +146,20 @@ impl GameboyWasm {
     pub fn get_bus_state(&self) -> WasmBusState {
         let bus_state = self.gameboy.bus.save_state();
         let joypad_state = self.gameboy.bus.joypad.clone();
+        
         WasmBusState {
-            joypad:  WasmJoypad { register: joypad_state.register, keys: joypad_state.keys},         
+            joypad: WasmJoypad {
+                register: joypad_state.register,
+                keys: joypad_state.keys,
+            },
             io_registers: bus_state.io_registers,
             hram: bus_state.hram,
             ie_register: bus_state.ie_register,
-            vram: bus_state.vram,
-            ram_bank_0: bus_state.ram_bank_0,
-            ram_bank_n: bus_state.ram_bank_n,
+            vram_data: bus_state.vram_data,
+            wram_data: bus_state.wram_data,
+            current_wram_bank: bus_state.current_wram_bank,
+            debug: bus_state.debug,
+            gb_mode: bus_state.gb_mode as u8,
         }
     }
     pub fn get_ppu_state(&self) -> WasmPpuState {
@@ -166,8 +172,8 @@ impl GameboyWasm {
                 PPUMode::DRAWING => WasmPPUMode::DRAWING,
             },
             mode_cycles: ppu_state.mode_cycles,
-          
-            fetcher: WasmFetcher{
+
+            fetcher: WasmFetcher {
                 step: ppu_state.fetcher.step,
                 is_window_fetch: ppu_state.fetcher.is_window_fetch,
                 x_pos_counter: ppu_state.fetcher.x_pos_counter,
@@ -176,7 +182,7 @@ impl GameboyWasm {
             },
             sprite_fetcher: WasmSpriteFetcher {
                 step: ppu_state.sprite_fetcher.step,
-             
+
                 active: ppu_state.sprite_fetcher.active,
                 remaining_pixels: ppu_state.sprite_fetcher.remaining_pixels,
                 sprite: WasmSprite {
@@ -186,11 +192,12 @@ impl GameboyWasm {
                     flags: ppu_state.sprite_fetcher.sprite.flags,
                 },
             },
-           
+
             window_triggered_this_frame: ppu_state.window_triggered_this_frame,
-            
+
             x_render_counter: ppu_state.x_render_counter,
-            window_line_counter_incremented_this_scanline: ppu_state.window_line_counter_incremented_this_scanline,
+            window_line_counter_incremented_this_scanline: ppu_state
+                .window_line_counter_incremented_this_scanline,
             new_frame: ppu_state.new_frame,
             debug_config: WasmDebugConfig {
                 sprite_debug_enabled: ppu_state.debug_config.sprite_debug_enabled,
@@ -310,13 +317,15 @@ pub struct WasmJoypad {
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct WasmBusState {
-    pub joypad: WasmJoypad, 
+    pub joypad: WasmJoypad,
     io_registers: [u8; 0x7F],
     hram: [u8; 0x7F],
     pub ie_register: u8,
-    vram: [u8; 0x2000],
-    ram_bank_0: [u8; 0x1000],
-    ram_bank_n: [u8; 0x1000],
+    vram_data: Vec<u8>,
+    wram_data: Vec<u8>,
+    current_wram_bank: usize,
+    debug: [u8; 0x100],
+    pub gb_mode: u8,
 }
 
 #[wasm_bindgen]
@@ -325,22 +334,18 @@ impl WasmBusState {
     pub fn io_registers(&self) -> Vec<u8> {
         self.io_registers.to_vec()
     }
+    
     #[wasm_bindgen(getter)]
     pub fn hram(&self) -> Vec<u8> {
         self.hram.to_vec()
     }
+    
     #[wasm_bindgen(getter)]
     pub fn vram(&self) -> Vec<u8> {
-        self.vram.to_vec()
+        self.vram_data.to_vec()
     }
-    #[wasm_bindgen(getter)]
-    pub fn ram_bank_0(&self) -> Vec<u8> {
-        self.ram_bank_0.to_vec()
-    }
-    #[wasm_bindgen(getter)]
-    pub fn ram_bank_n(&self) -> Vec<u8> {
-        self.ram_bank_n.to_vec()
-    }
+    
+
 }
 
 #[wasm_bindgen]
@@ -384,18 +389,18 @@ pub struct WasmSprite {
 #[derive(Clone, Debug, Copy)]
 pub struct WasmFetcher {
     pub step: u8,
-   
+
     pub is_window_fetch: bool,
 
     pub x_pos_counter: u16,
     pub window_line_counter: u16,
-    pub pause: bool,    
+    pub pause: bool,
 }
 #[wasm_bindgen]
 #[derive(Clone, Debug, Copy)]
 pub struct WasmSpriteFetcher {
     pub step: u8,
-    
+
     pub active: bool,
     pub remaining_pixels: u8,
     pub sprite: WasmSprite,

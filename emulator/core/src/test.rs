@@ -1,6 +1,9 @@
 use std::{fs, path::Path};
 
-use crate::{bus::{io_address::IoRegister, MemoryInterface}, gameboy::Gameboy};
+use crate::{
+    bus::{io_address::IoRegister, MemoryInterface},
+    gameboy::Gameboy,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]

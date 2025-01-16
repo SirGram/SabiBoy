@@ -46,7 +46,8 @@ impl Channel4 {
     pub fn trigger<M: MemoryInterface>(&mut self, memory: &mut M) {
         self.current_volume =
             (memory.read_byte(bus::io_address::IoRegister::Nr42.address()) & 0b11110000) >> 4;
-        self.period_timer = memory.read_byte(bus::io_address::IoRegister::Nr42.address()) & 0b00000111;
+        self.period_timer =
+            memory.read_byte(bus::io_address::IoRegister::Nr42.address()) & 0b00000111;
         if self.length_timer == 0 {
             self.length_timer = 64;
         }
@@ -107,7 +108,8 @@ impl Channel4 {
 
     fn calculate_period<M: MemoryInterface>(&self, memory: &mut M) -> u8 {
         let shift = memory.read_byte(bus::io_address::IoRegister::Nr43.address()) >> 4;
-        let divisor_code = memory.read_byte(bus::io_address::IoRegister::Nr43.address()) & 0b00000111;
+        let divisor_code =
+            memory.read_byte(bus::io_address::IoRegister::Nr43.address()) & 0b00000111;
         let divisor = match divisor_code {
             0 => 8,
             1 => 16,

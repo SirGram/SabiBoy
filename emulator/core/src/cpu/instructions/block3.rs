@@ -1,13 +1,18 @@
-
 use crate::bus::MemoryInterface;
 use crate::cpu::flags::{Condition, Flags};
 use crate::cpu::registers::{Register16, Register16Stk, Register8};
 use crate::cpu::{RstVec, CPU};
 
 impl CPU {
-    fn arithmetic_op_imm8<M:MemoryInterface>(&mut self, op: impl Fn(u8, u8) -> u8, set_n: bool, use_carry: bool, memory: &mut M) {
+    fn arithmetic_op_imm8<M: MemoryInterface>(
+        &mut self,
+        op: impl Fn(u8, u8) -> u8,
+        set_n: bool,
+        use_carry: bool,
+        memory: &mut M,
+    ) {
         let imm8 = self.fetch_byte(memory);
-        let original_a = self.get_r8(&Register8::A , memory);
+        let original_a = self.get_r8(&Register8::A, memory);
         let carry = if use_carry {
             self.f.contains(Flags::C) as u8
         } else {
@@ -47,7 +52,7 @@ impl CPU {
             |a, b| a.wrapping_add(b),
             false, // N flag
             false, // don't use carry
-            memory
+            memory,
         );
     }
 
@@ -56,7 +61,7 @@ impl CPU {
             |a, b| a.wrapping_add(b),
             false, // N flag
             true,  // use carry
-            memory
+            memory,
         );
     }
 
@@ -65,7 +70,7 @@ impl CPU {
             |a, b| a.wrapping_sub(b),
             true,  // N flag
             false, // don't use carry
-            memory
+            memory,
         );
     }
 
@@ -74,11 +79,16 @@ impl CPU {
             |a, b| a.wrapping_sub(b),
             true, // N flag
             true, // use carry
-            memory
+            memory,
         );
     }
 
-    fn logical_op_imm8<M: MemoryInterface>(&mut self, op: impl Fn(u8, u8) -> u8, set_h: bool, memory: &mut M) {
+    fn logical_op_imm8<M: MemoryInterface>(
+        &mut self,
+        op: impl Fn(u8, u8) -> u8,
+        set_h: bool,
+        memory: &mut M,
+    ) {
         let imm8 = self.fetch_byte(memory);
         let original_a = self.get_r8(&Register8::A, memory);
         let result = op(original_a, imm8);

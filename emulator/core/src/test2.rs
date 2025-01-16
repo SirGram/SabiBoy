@@ -67,7 +67,6 @@ impl TestHarness {
     }
 
     pub fn get_current_state(&self, gb: &Gameboy) -> CPUState {
-     ;
         CPUState {
             a: gb.cpu.a,
             b: gb.cpu.b,
@@ -183,7 +182,7 @@ mod tests {
 
     #[test]
     fn test_blargg_cpu_instructions() -> io::Result<()> {
-        let mut gb = Gameboy::new( [0xA8D08D, 0x6A8E3C, 0x3A5D1D, 0x1F3C06]);
+        let mut gb = Gameboy::new([0xA8D08D, 0x6A8E3C, 0x3A5D1D, 0x1F3C06]);
 
         // Set initial CPU state to match test expectations
         gb.cpu.a = 0x01;

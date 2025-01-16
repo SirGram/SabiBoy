@@ -31,7 +31,6 @@ impl SpriteFetcher {
         self.remaining_pixels = 0;
     }
     pub fn start_fetch(&mut self, sprite: &Sprite) {
-
         self.step = 0;
         self.sprite = sprite.clone();
         self.active = true;
@@ -39,7 +38,7 @@ impl SpriteFetcher {
         // Start with tile number fetch
         self.fetch_tile_number(sprite);
     }
-    pub fn step <M:MemoryInterface>(&mut self, memory:  &M, pixel_fifo: &mut PixelFifo) {
+    pub fn step<M: MemoryInterface>(&mut self, memory: &M, pixel_fifo: &mut PixelFifo) {
         match self.step {
             0 => {
                 self.tile_data_low = self.fetch_tile_data(memory, false);
@@ -63,7 +62,7 @@ impl SpriteFetcher {
     fn fetch_tile_number(&mut self, sprite: &Sprite) {
         self.tile_number = sprite.tile_number;
     }
-    fn fetch_tile_data<M:MemoryInterface> (&mut self, memory: &M, is_high_byte: bool) -> u8 {
+    fn fetch_tile_data<M: MemoryInterface>(&mut self, memory: &M, is_high_byte: bool) -> u8 {
         let ly = memory.read_byte(IoRegister::Ly.address());
 
         let y_flip = self.sprite.flags & 0x40 != 0;
@@ -94,9 +93,7 @@ impl SpriteFetcher {
         let base_address = 0x8000 + (actual_tile as u16 * 16);
 
         // Get the correct byte of tile data
-        let mut data = memory
-            
-            .read_byte(base_address + y_offset + if is_high_byte { 1 } else { 0 });
+        let mut data = memory.read_byte(base_address + y_offset + if is_high_byte { 1 } else { 0 });
 
         if x_flip {
             data = data.reverse_bits();

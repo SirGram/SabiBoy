@@ -45,7 +45,8 @@ impl Channel2 {
     pub fn trigger<M: MemoryInterface>(&mut self, memory: &mut M) {
         self.current_volume =
             (memory.read_byte(bus::io_address::IoRegister::Nr22.address()) & 0b11110000) >> 4;
-        self.period_timer = memory.read_byte(bus::io_address::IoRegister::Nr22.address()) & 0b00000111;
+        self.period_timer =
+            memory.read_byte(bus::io_address::IoRegister::Nr22.address()) & 0b00000111;
         if self.length_timer == 0 {
             self.length_timer = 64;
         }
@@ -113,7 +114,8 @@ impl Channel2 {
     }
 
     fn get_wave_duty<M: MemoryInterface>(&self, memory: &mut M) -> u8 {
-        let duty = (memory.read_byte(bus::io_address::IoRegister::Nr21.address()) & 0b11000000) >> 6;
+        let duty =
+            (memory.read_byte(bus::io_address::IoRegister::Nr21.address()) & 0b11000000) >> 6;
         match duty {
             0 => 0b00000001,
             1 => 0b00000011,

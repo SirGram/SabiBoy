@@ -1,4 +1,7 @@
-use crate::{bus::{Bus, MemoryInterface}, cpu::CPU};
+use crate::{
+    bus::{Bus, MemoryInterface},
+    cpu::CPU,
+};
 
 impl CPU {
     pub fn fetch_byte<M: MemoryInterface>(&mut self, memory: &M) -> u8 {
