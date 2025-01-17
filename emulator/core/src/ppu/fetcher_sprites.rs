@@ -103,6 +103,6 @@ impl SpriteFetcher {
     fn push_to_fifo(&mut self, pixel_fifo: &mut PixelFifo) {
         let pixels = [self.tile_data_low, self.tile_data_high];
 
-        pixel_fifo.push_sprite_pixels(pixels, &self.sprite);
+        /*   pixel_fifo.push_sprite_pixels(pixels, &self.sprite); */
     }
 }

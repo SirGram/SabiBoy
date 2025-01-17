@@ -1,21 +1,21 @@
+use super::pixelfifo::PixelFifo;
+use crate::bus::{io_address::IoRegister, GameboyMode, MemoryInterface};
 use serde::{Deserialize, Serialize};
 
-use crate::bus::{io_address::IoRegister, MemoryInterface};
-
-use super::pixelfifo::PixelFifo;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Fetcher {
     pub step: u8,
     pub tile_number: u8,
     tile_data_low: u8,
     tile_data_high: u8,
+    tile_attrs: u8, // Added for CGB attributes
     pub is_window_fetch: bool,
-
     pub x_pos_counter: u16,
     pub window_line_counter: u16,
     pub pause: bool,
     pub delay: usize,
 }
+
 impl Fetcher {
     pub fn new() -> Self {
         Self {
@@ -23,6 +23,7 @@ impl Fetcher {
             tile_number: 0,
             tile_data_low: 0,
             tile_data_high: 0,
+            tile_attrs: 0,
             is_window_fetch: false,
             x_pos_counter: 0,
             window_line_counter: 0,
@@ -30,17 +31,18 @@ impl Fetcher {
             delay: 0,
         }
     }
+
     pub fn scanline_reset(&mut self) {
         self.step = 0;
         self.is_window_fetch = false;
         self.x_pos_counter = 0;
         self.pause = false;
     }
+
     pub fn window_trigger(&mut self, pixel_fifo: &mut PixelFifo) {
         self.step = 0;
         self.is_window_fetch = true;
         self.x_pos_counter = 7;
-
         pixel_fifo.bg_fifo.clear();
     }
 
@@ -56,11 +58,10 @@ impl Fetcher {
             }
             2 => {
                 self.tile_data_high = self.fetch_tile_data(memory, self.tile_number, true);
-                // Delay of 12 T-cycles before the background FIFO is first filled with pixel data
                 self.step += 1;
             }
             3 => {
-                self.push_to_fifo(pixel_fifo);
+                self.push_to_fifo(memory, pixel_fifo);
             }
             _ => self.step = 0,
         }
@@ -88,8 +89,6 @@ impl Fetcher {
         let scy = memory.read_byte(IoRegister::Scy.address());
         let ly = memory.read_byte(IoRegister::Ly.address());
 
-        // Compute coordinates in the tile map
-        // Current code
         let tile_y = if self.is_window_fetch {
             (self.window_line_counter / 8) & 0x1F
         } else {
@@ -102,12 +101,21 @@ impl Fetcher {
             ((scx as u16 / 8) + (self.x_pos_counter) / 8) & 0x1F
         };
 
-        // Calculate the address of the tile number in VRAM
         let tile_map_base = self.get_tile_map_base(lcdc);
         let tile_address = tile_map_base + (tile_y * 32) + tile_x;
 
-        // Read the tile number, considering VRAM access limitations
-        self.tile_number = memory.read_byte(tile_address) & 0xFF;
+        // Read tile number and attributes based on mode
+        match memory.gb_mode() {
+            GameboyMode::DMG => {
+                self.tile_number = memory.read_byte(tile_address);
+                self.tile_attrs = 0;
+            }
+            GameboyMode::CGB => {
+                self.tile_number = memory.read_byte(tile_address);
+                // Read attributes from VRAM bank 1
+                self.tile_attrs = memory.read_byte(tile_address | 0x2000);
+            }
+        }
     }
 
     fn fetch_tile_data<M: MemoryInterface>(
@@ -120,37 +128,60 @@ impl Fetcher {
         let scy = memory.read_byte(IoRegister::Scy.address());
         let lcdc = memory.read_byte(IoRegister::Lcdc.address());
 
-        // Calculate the offset within the tile (0-7)
         let y_offset = if self.is_window_fetch {
             (self.window_line_counter % 8) * 2
         } else {
             ((ly as u16 + scy as u16) % 8) * 2
         };
 
-        // LCDC Bit4 selects Tile Data method
         let base_address = if (lcdc & 0x10) != 0 {
-            // 8000 method: unsigned addressing
             0x8000 + (tile_number as u16 * 16)
         } else {
-            // 8800 method: signed addressing
             0x9000u16.wrapping_add((tile_number as i8 as i16 * 16) as u16)
         };
 
-        // Get the correct byte of tile data
-        memory.read_byte(base_address + y_offset + if is_high_byte { 1 } else { 0 })
+        let address = base_address + y_offset + if is_high_byte { 1 } else { 0 };
+
+        // For CGB, consider VRAM bank selection from attributes
+        if memory.gb_mode() == GameboyMode::CGB && (self.tile_attrs & 0x08) != 0 {
+            memory.read_byte(address | 0x2000)
+        } else {
+            memory.read_byte(address)
+        }
     }
 
-    fn push_to_fifo(&mut self, pixel_fifo: &mut PixelFifo) {
+    fn push_to_fifo<M: MemoryInterface>(&mut self, memory: &M, pixel_fifo: &mut PixelFifo) {
         if pixel_fifo.bg_pixel_count() != 0 || self.pause {
             return;
         }
-        let pixels = [self.tile_data_low, self.tile_data_high];
-        pixel_fifo.push_bg_pixels(pixels);
+
+        // Decode tile data into pixels
+        let mut pixels = Vec::with_capacity(8);
+        for bit in 0..8 {
+            let low_bit = (self.tile_data_low >> (7 - bit)) & 0x1;
+            let high_bit = (self.tile_data_high >> (7 - bit)) & 0x1;
+            let color = (high_bit << 1) | low_bit;
+            pixels.push(color);
+        }
+
+        // If horizontal flip is enabled in CGB mode, reverse the pixels
+        if memory.gb_mode() == GameboyMode::CGB && (self.tile_attrs & 0x20) != 0 {
+            pixels.reverse();
+        }
+
+        // Push pixels to FIFO with appropriate attributes
+        for color in pixels {
+            let pixel = super::pixelfifo::Pixel::new_bg(memory, color, self.tile_attrs);
+            pixel_fifo.bg_fifo.push_back(pixel);
+        }
+
         self.step = 0;
     }
+
     pub fn pause(&mut self) {
         self.pause = true;
     }
+
     pub fn unpause(&mut self) {
         self.pause = false;
     }

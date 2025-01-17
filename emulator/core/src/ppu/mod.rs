@@ -3,7 +3,7 @@ pub mod fetcher_sprites;
 mod helper;
 pub mod pixelfifo;
 
-use crate::bus::{io_address::IoRegister, Bus, MemoryInterface};
+use crate::bus::{io_address::IoRegister, Bus, GameboyMode, MemoryInterface};
 use fetcher::Fetcher;
 use fetcher_sprites::SpriteFetcher;
 use helper::{should_add_sprite, should_fetch_sprite};
@@ -313,37 +313,35 @@ impl PPU {
             return;
         }
 
-        // Pixel shifting
-        if !self
-            .pixel_fifo
-            .is_paused(self.sprite_fetcher.active, self.fetcher.pause)
-        {
-            if let Some(color) = self.pixel_fifo.pop_pixel(memory, &mut self.fetcher) {
-                let ly = self.get_io_register(memory, IoRegister::Ly);
-                // Fine scroll
-                /*   let scx = self.get_io_register(IoRegister::Scx);
-                if (scx & 7) as u16>    self.fetcher.x_pos_counter   {
-
-                self.fetcher.x_pos_counter += 1;
-                return;
-                }  */
-
-                // Only draw if within screen bounds. Discard 1st tile.
-                if self.x_render_counter >= 0
-                    && self.x_render_counter < SCREEN_WIDTH as i16
-                    && (ly as usize) < SCREEN_HEIGHT as usize
-                {
-                    let buffer_index =
-                        ly as usize * SCREEN_WIDTH as usize + self.x_render_counter as usize;
-
-                    let color = self.palette[color as usize];
-
-                    self.buffer[buffer_index] = color;
-                }
-                self.fetcher.x_pos_counter += 1;
-                self.x_render_counter += 1;
+         // Pixel shifting
+      // Pixel shifting
+      if !self.pixel_fifo.is_paused(self.sprite_fetcher.active, self.fetcher.pause) {
+        if let Some(color_index) = self.pixel_fifo.pop_pixel(memory, &mut self.fetcher) {
+            let ly = self.get_io_register(memory, IoRegister::Ly);
+        
+            if self.x_render_counter >= 0 
+                && self.x_render_counter < SCREEN_WIDTH as i16 
+                && (ly as usize) < SCREEN_HEIGHT as usize 
+            {
+                let buffer_index = ly as usize * SCREEN_WIDTH as usize + self.x_render_counter as usize;
+                
+                let final_color = match memory.gb_mode() {
+                    GameboyMode::DMG => {
+                        // For DMG mode, directly use the palette lookup
+                        self.palette[color_index as usize & 0x03]
+                    },
+                    GameboyMode::CGB => {
+                        // For CGB mode, we need to convert the grayscale value back to RGB
+                        color_index as u32
+                    }
+                };
+        
+                self.buffer[buffer_index] = final_color;
             }
+            self.fetcher.x_pos_counter += 1;
+            self.x_render_counter += 1;
         }
+    }
         // Window check
         if !self.fetcher.is_window_fetch {
             if self.check_window(memory) {
@@ -390,7 +388,7 @@ impl PPU {
     }
 
     fn handle_vblank<M: MemoryInterface>(&mut self, memory: &mut M) {
-        // pads 10 vertical scanlines
+        // pads 10 vertical scanlinesf
 
         //request vblank interrupt
         let if_register = self.get_io_register(memory, IoRegister::If);
@@ -440,7 +438,7 @@ impl PPU {
         stat |= ppu_mode; // Set the current mode bits
 
         // Update the coincidence flag
-        let ly = self.get_io_register(memory, IoRegister::Ly) + 1; // 1 ly offset bug fix
+        let ly = self.get_io_register(memory, IoRegister::Ly) ; 
         let lyc = self.get_io_register(memory, IoRegister::Lyc);
         let coincidence_flag = if ly == lyc { 1 } else { 0 };
         stat &= 0b11111011; // Clear the coincidence flag bit

@@ -1,7 +1,10 @@
 use std::collections::VecDeque;
 
 use gameboy_core::{
-    self as GameboyCore, bus::GameboyMode, cartridge::{self}, ppu::{fetcher::Fetcher, PPUMode}
+    self as GameboyCore,
+    bus::GameboyMode,
+    cartridge::{self},
+    ppu::{fetcher::Fetcher, PPUMode},
 };
 use wasm_bindgen::convert::IntoWasmAbi;
 use wasm_bindgen::prelude::*;
@@ -146,7 +149,7 @@ impl GameboyWasm {
     pub fn get_bus_state(&self) -> WasmBusState {
         let bus_state = self.gameboy.bus.save_state();
         let joypad_state = self.gameboy.bus.joypad.clone();
-        
+
         WasmBusState {
             joypad: WasmJoypad {
                 register: joypad_state.register,
@@ -334,18 +337,16 @@ impl WasmBusState {
     pub fn io_registers(&self) -> Vec<u8> {
         self.io_registers.to_vec()
     }
-    
+
     #[wasm_bindgen(getter)]
     pub fn hram(&self) -> Vec<u8> {
         self.hram.to_vec()
     }
-    
+
     #[wasm_bindgen(getter)]
     pub fn vram(&self) -> Vec<u8> {
         self.vram_data.to_vec()
     }
-    
-
 }
 
 #[wasm_bindgen]
