@@ -29,6 +29,8 @@ pub trait MemoryInterface {
 
     #[inline(always)]
     fn read_wave_ram(&self) -> [u8; 16];
+
+    fn gb_mode(&self) -> GameboyMode;
 }
 
 #[derive(Clone, Debug)]
@@ -44,13 +46,22 @@ pub struct Bus {
     debug: [u8; 0x100],
     pub mbc: MbcType,
     pub gb_mode: GameboyMode,
+
+    // CGB-specific
+    pub bg_palette_ram: [u8; 64],
+    pub obj_palette_ram: [u8; 64],
+    bg_palette_index: u8,
+    obj_palette_index: u8,
+    hdma_active: bool,
+    hdma_length: u16,
+    hdma_source: u16,
+    hdma_dest: u16,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Copy)]
 pub enum GameboyMode {
     DMG,
     CGB,
-    Both,
 }
 
 impl MemoryInterface for Bus {
@@ -61,10 +72,11 @@ impl MemoryInterface for Bus {
             0x8000..=0x9FFF => self.read_vram(address - 0x8000),
             0xC000..=0xCFFF => self.wram_banks[0][(address - 0xC000) as usize],
             0xD000..=0xDFFF => self.wram_banks[self.current_wram_bank][(address - 0xD000) as usize],
-           0xE000..=0xFDFF => self.read_byte(address - 0x2000), // Echo RAM
+            0xE000..=0xFDFF => self.read_byte(address - 0x2000), // Echo RAM
             0xFE00..=0xFE9F => self.oam[(address - 0xFE00) as usize],
             0xFEA0..=0xFEFF => self.debug[(address - 0xFEA0) as usize],
             0xFF00 => self.joypad.read(),
+            0xFF68..=0xFF6B if self.gb_mode == GameboyMode::CGB => self.read_cgb_registers(address),
             0xFF01..=0xFF7F => self.io_registers[(address - 0xFF01) as usize],
             0xFF80..=0xFFFE => self.hram[(address - 0xFF80) as usize],
             0xFFFF => self.ie_register,
@@ -82,11 +94,17 @@ impl MemoryInterface for Bus {
             0x0000..=0x7FFF | 0xA000..=0xBFFF => self.mbc.write_byte(address, value),
             0x8000..=0x9FFF => self.write_vram(address - 0x8000, value),
             0xC000..=0xCFFF => self.wram_banks[0][(address - 0xC000) as usize] = value,
-            0xD000..=0xDFFF => self.wram_banks[self.current_wram_bank][(address - 0xD000) as usize] = value,
+            0xD000..=0xDFFF => {
+                self.wram_banks[self.current_wram_bank][(address - 0xD000) as usize] = value
+            }
             0xE000..=0xFDFF => self.write_byte(address - 0x2000, value),
             0xFE00..=0xFE9F => self.oam[(address - 0xFE00) as usize] = value,
             0xFEA0..=0xFEFF => self.debug[(address - 0xFEA0) as usize] = value,
             0xFF00 => self.joypad.write(value),
+            0xFF68..=0xFF6B if self.gb_mode == GameboyMode::CGB => {
+                self.write_cgb_registers(address, value)
+            }
+
             0xFF01..=0xFF45 => self.io_registers[(address - 0xFF01) as usize] = value,
             0xFF46 => self.dma_oam_transfer(value),
             0xFF47..=0xFF7F => self.io_registers[(address - 0xFF01) as usize] = value,
@@ -105,6 +123,10 @@ impl MemoryInterface for Bus {
         }
         wave_ram
     }
+
+    fn gb_mode(&self) -> GameboyMode {
+        self.gb_mode
+    }
 }
 
 impl Bus {
@@ -122,6 +144,14 @@ impl Bus {
             debug: [0; 0x100],
             mbc: MbcType::None,
             gb_mode: GameboyMode::DMG,
+            bg_palette_ram: [0xFF; 64], 
+            obj_palette_ram: [0xFF; 64],
+            bg_palette_index: 0,
+            obj_palette_index: 0,
+            hdma_active: false,
+            hdma_length: 0,
+            hdma_source: 0,
+            hdma_dest: 0,
         }
     }
 
@@ -159,7 +189,7 @@ impl Bus {
         self.io_registers = state.io_registers;
         self.hram = state.hram;
         self.ie_register = state.ie_register;
-        
+
         // Reconstruct VRAM banks
         let vram_banks_count = state.vram_data.len() / 0x2000;
         self.vram_banks.clear();
@@ -170,7 +200,7 @@ impl Bus {
             bank.copy_from_slice(&state.vram_data[start..end]);
             self.vram_banks.push(bank);
         }
-        
+
         // Reconstruct WRAM banks
         let wram_banks_count = state.wram_data.len() / 0x1000;
         self.wram_banks.clear();
@@ -181,7 +211,7 @@ impl Bus {
             bank.copy_from_slice(&state.wram_data[start..end]);
             self.wram_banks.push(bank);
         }
-        
+
         self.current_wram_bank = state.current_wram_bank;
         self.debug = state.debug;
         self.mbc.load_state(state.mbc);
@@ -201,9 +231,8 @@ impl Bus {
         println!("ram_size: {} bytes", ram_size);
         println!("mbctype: {:04X}", rom[0x147]);
         let gb_mode = match rom[0x143] {
-            0x80 => GameboyMode::DMG,
             0xC0 => GameboyMode::CGB,
-            _ => GameboyMode::Both,
+            _ => GameboyMode::DMG,
         };
         self.gb_mode = gb_mode;
         println!("gb_mode: {:?}", self.gb_mode);
@@ -234,9 +263,9 @@ impl Bus {
             self.oam[i as usize] = value;
         }
     }
-      
+
     #[inline(always)]
-    pub fn read_cartridge_header(&self) -> [u8; 0x50]{
+    pub fn read_cartridge_header(&self) -> [u8; 0x50] {
         let mut header = [0; 0x50];
         for i in 0..0x50 {
             header[i] = self.read_byte(i as u16);
@@ -263,6 +292,45 @@ impl Bus {
         };
         self.vram_banks[bank][address as usize] = value;
     }
+    #[inline(always)]
+    fn write_cgb_registers(&mut self, address: u16, value: u8) {
+        match address {
+            0xFF68 => {
+                println!("Writing BCPS: {:02X}", value);
+                self.bg_palette_index = value;
+            }
+            0xFF69 => {
+                println!("Writing BCPD[{}]: {:02X}", self.bg_palette_index & 0x3F, value);
+                let index = (self.bg_palette_index & 0b111111) as usize;
+                self.bg_palette_ram[index] = value;
+                // auto-increment enabled
+                if self.bg_palette_index & 0b10000000 != 0 {
+                    self.bg_palette_index = (self.bg_palette_index + 1) & 0x3F;
+                };
+            }
+            0xFF6A => self.obj_palette_index = value,
+            0xFF6B => {
+                let index = (self.obj_palette_index & 0b111111) as usize;
+                self.obj_palette_ram[index] = value;
+                // auto-increment enabled
+                if self.obj_palette_index & 0b10000000 != 0 {
+                    self.obj_palette_index = (self.obj_palette_index + 1) & 0x3F;
+                };
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    #[inline(always)]
+    fn read_cgb_registers(&self, address: u16) -> u8 {
+        match address {
+            0xFF68 => self.bg_palette_index,
+            0xFF69 => self.bg_palette_ram[(self.bg_palette_index & 0b111111) as usize],
+            0xFF6A => self.obj_palette_index,
+            0xFF6B => self.obj_palette_ram[(self.obj_palette_index & 0b111111) as usize],
+            _ => unreachable!(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -276,8 +344,8 @@ pub struct BusState {
     pub hram: [u8; 0x7F],
     pub ie_register: u8,
     // Use serialized arrays for VRAM/WRAM data
-    pub vram_data: Vec<u8>,  // Will store flattened VRAM data
-    pub wram_data: Vec<u8>,  // Will store flattened WRAM data
+    pub vram_data: Vec<u8>, // Will store flattened VRAM data
+    pub wram_data: Vec<u8>, // Will store flattened WRAM data
     pub current_wram_bank: usize,
     #[serde(with = "serde_arrays")]
     pub debug: [u8; 0x100],
