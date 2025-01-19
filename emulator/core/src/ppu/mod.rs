@@ -7,7 +7,7 @@ use crate::bus::{io_address::IoRegister, Bus, GameboyMode, MemoryInterface};
 use fetcher::Fetcher;
 use fetcher_sprites::SpriteFetcher;
 use helper::{should_add_sprite, should_fetch_sprite};
-use pixelfifo::PixelFifo;
+use pixelfifo::{ColorValue, PixelFifo};
 use serde::{Deserialize, Serialize};
 use std::{
     cell::{Ref, RefCell},
@@ -166,9 +166,11 @@ impl PPU {
         The condition WY = LY has been true at any point in the currently rendered frame.
         The current X-position of the shifter is greater than or equal to WX - 7
         */
-        let lcdc = memory.read_byte(IoRegister::Lcdc.address());
-        if lcdc & 0b0010_0000 == 0 {
-            return false;
+        if memory.gb_mode() == GameboyMode::DMG {
+            let lcdc = memory.read_byte(IoRegister::Lcdc.address());
+            if lcdc & 0b0010_0000 == 0 {
+                return false;
+            }
         }
         let wy = memory.read_byte(IoRegister::Wy.address());
         let wx = memory.read_byte(IoRegister::Wx.address());
@@ -209,9 +211,11 @@ impl PPU {
 
     pub fn tick<M: MemoryInterface>(&mut self, memory: &mut M) {
         // Check if LCD is enabled
-        let lcdc = self.get_io_register(memory, IoRegister::Lcdc);
-        if (lcdc & 0x80) == 0 {
-            return;
+        if memory.gb_mode() == GameboyMode::DMG {
+            let lcdc = self.get_io_register(memory, IoRegister::Lcdc);
+            if (lcdc & 0x80) == 0 {
+                return;
+            }
         }
 
         let ly = self.get_io_register(memory, IoRegister::Ly);
@@ -318,7 +322,7 @@ impl PPU {
             .pixel_fifo
             .is_paused(self.sprite_fetcher.active, self.fetcher.pause)
         {
-            if let Some(color_index) = self.pixel_fifo.pop_pixel(memory, &mut self.fetcher) {
+            if let Some(color_value) = self.pixel_fifo.pop_pixel(memory, &mut self.fetcher) {
                 let ly = self.get_io_register(memory, IoRegister::Ly);
 
                 if self.x_render_counter >= 0
@@ -328,13 +332,12 @@ impl PPU {
                     let buffer_index =
                         ly as usize * SCREEN_WIDTH as usize + self.x_render_counter as usize;
 
-                    let final_color = match memory.gb_mode() {
-                        GameboyMode::DMG => self.palette[color_index as usize & 0x03],
-                        GameboyMode::CGB => {
-                            self.palette[color_index as usize & 0x03]
-                            /* color_index as u32 */
-                        },
-                    };
+                        let final_color = match color_value {
+                            ColorValue::Dmg(color_index) => self.palette[color_index as usize & 0x03],
+                            ColorValue::Cgb((r, g, b)) => {
+                                ((r as u32) << 16) | ((g as u32) << 8) | (b as u32) | (0xFF << 24)
+                            }
+                        };
 
                     self.buffer[buffer_index] = final_color;
                 }
@@ -396,7 +399,6 @@ impl PPU {
         // update window per frame
         self.new_frame = true;
     }
-
     fn get_io_register<M: MemoryInterface>(&self, memory: &mut M, register: IoRegister) -> u8 {
         memory.read_byte(register.address())
     }

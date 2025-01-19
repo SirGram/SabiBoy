@@ -25,8 +25,8 @@ impl Default for CgbRegisters {
             wram_bank: 1,
             bg_palette_index: 0,
             obj_palette_index: 0,
-            bg_palette_ram: [0xFF; 64],
-            obj_palette_ram: [0xFF; 64],
+            bg_palette_ram: [0; 64],
+            obj_palette_ram: [0; 64],
             speed_switch: 0,
             dma_source: 0,
             dma_dest: 0,
@@ -38,6 +38,7 @@ impl Default for CgbRegisters {
 }
 
 impl CgbRegisters {
+    #[inline(always)]
     pub fn read_register(&self, addr: u16) -> u8 {
         match addr {
             0xFF4F => self.vram_bank | 0xFE, // Reading returns other bits as 1
@@ -64,8 +65,9 @@ impl CgbRegisters {
         }
     }
 
+    #[inline(always)]
     pub fn write_register(&mut self, addr: u16, value: u8) {
-        println!("CGB write register {:04X} = {:02X}", addr, value);
+        /* println!("CGB write register {:04X} = {:02X}", addr, value); */
         match addr {
             0xFF4F => self.vram_bank = value & 0x01,
             0xFF4D => self.handle_speed_switch(value),
@@ -96,15 +98,15 @@ impl CgbRegisters {
             _ => unreachable!(),
         }
     }
-
+    #[inline(always)]
     pub fn write_bg_palette(&mut self, value: u8) {
         let index = (self.bg_palette_index & 0x3F) as usize;
-        println!(
+       /*  println!(
             "Writing BG palette: value={:02X}, index={}, auto_increment={}",
             value,
             index,
             self.bg_palette_index & 0x80 != 0
-        );
+        ); */
 
         self.bg_palette_ram[index] = value;
 
@@ -126,7 +128,7 @@ impl CgbRegisters {
             self.bg_palette_index = 0x80 | ((self.bg_palette_index.wrapping_add(1)) & 0x3F);
         }
     }
-
+    #[inline(always)]
     pub fn write_obj_palette(&mut self, value: u8) {
         let index = (self.obj_palette_index & 0x3F) as usize;
         println!(
@@ -203,13 +205,15 @@ impl CgbRegisters {
 
         let low = self.bg_palette_ram[index];
         let high = self.bg_palette_ram[index + 1];
-
-        println!(
+        
+  /*println!("palette {} id {}", palette, color_id);
+       println!(
             "Reading BG Color - Palette: {}, Color ID: {}, Index: {}, Bytes: {:02X}{:02X}",
             palette, color_id, index, low, high
-        );
+        );  */
 
-        Self::convert_color(low, high)
+        let color = Self::convert_color(low, high);
+        color
     }
 
     pub fn get_obj_color(&self, palette: u8, color_id: u8) -> (u8, u8, u8) {
@@ -221,26 +225,28 @@ impl CgbRegisters {
         let low = self.obj_palette_ram[index];
         let high = self.obj_palette_ram[index + 1];
 
-        println!(
+   /*      println!(
             "Reading OBJ Color - Palette: {}, Color ID: {}, Index: {}, Bytes: {:02X}{:02X}",
             palette, color_id, index, low, high
-        );
+        ); */
 
         Self::convert_color(low, high)
     }
 
     fn convert_color(low: u8, high: u8) -> (u8, u8, u8) {
         let color = ((high as u16) << 8) | (low as u16);
-        // Convert 5-bit colors to 8-bit
-        let r = (color & 0x1F) as u8;
-        let g = ((color >> 5) & 0x1F) as u8;
-        let b = ((color >> 10) & 0x1F) as u8;
-
-        // Convert from 5-bit to 8-bit color depth
-        (
-            (r << 3) | (r >> 2),
-            (g << 3) | (g >> 2),
-            (b << 3) | (b >> 2),
-        )
+        // Extract 5-bit color components (15-bit format: 0RRRRRGGGGGBBBBB)
+        let b = (color & 0x1F) as u8;           
+        let g = ((color >> 5) & 0x1F) as u8;   
+        let r = ((color >> 10) & 0x1F) as u8;  
+    
+        // Convert 5-bit to 8-bit color depth (e.g., 0b11111 -> 0xFF)
+        let r_8bit = (r << 3) | (r >> 2);     
+        let g_8bit = (g << 3) | (g >> 2);      
+        let b_8bit = (b << 3) | (b >> 2);     
+    
+        let color = (r_8bit, g_8bit, b_8bit);
+        color
     }
+    
 }

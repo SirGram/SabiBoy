@@ -19,16 +19,11 @@ pub struct Pixel {
 #[derive(Clone, Debug, Serialize, Deserialize, Copy)]
 pub struct CgbAttributes {
     pub vram_bank: u8,
-    pub palette_number: u8,
-    pub priority: bool,
 }
 
 impl Pixel {
     pub fn new_bg<M: MemoryInterface>(memory: &M, color: u8, attrs: u8) -> Self {
-      /*   println!(
-            "Creating BG pixel with color={:02X}, attrs={:02X}",
-            color, attrs
-        ); */
+      
         match memory.gb_mode() {
             GameboyMode::DMG => Self {
                 color,
@@ -46,8 +41,6 @@ impl Pixel {
                 is_sprite: false,
                 cgb_attrs: Some(CgbAttributes {
                     vram_bank: (attrs >> 3) & 1,
-                    palette_number: attrs & 0x07,
-                    priority: attrs & 0x80 != 0,
                 }),
             },
         }
@@ -71,8 +64,6 @@ impl Pixel {
                 is_sprite: true,
                 cgb_attrs: Some(CgbAttributes {
                     vram_bank: (attrs >> 3) & 1,
-                    palette_number: attrs & 0x07,
-                    priority: attrs & 0x80 != 0,
                 }),
             },
         }
@@ -105,22 +96,20 @@ impl PixelFifo {
         &mut self,
         memory: &M,
         fetcher: &mut Fetcher,
-    ) -> Option<u8> {
+    ) -> Option<ColorValue> {
         if self.bg_fifo.is_empty() {
             return None;
         }
-
+    
         self.apply_fine_scroll(memory.read_byte(IoRegister::Scx.address()), fetcher);
         let bg_pixel = self.bg_fifo.pop_front().unwrap();
         let sprite_pixel = self.sprite_fifo.pop_front();
-
+    
         match memory.gb_mode() {
-            GameboyMode::DMG => self.mix_dmg_pixels(memory, bg_pixel, sprite_pixel),
+            GameboyMode::DMG => self.mix_dmg_pixels(memory, bg_pixel, sprite_pixel).map(ColorValue::Dmg),
             GameboyMode::CGB => {
-                self.mix_dmg_pixels(memory, bg_pixel, sprite_pixel)
-                /* let (r, g, b) = self.mix_cgb_pixels(memory, bg_pixel, sprite_pixel);
-                // Convert RGB to grayscale for compatibility with DMG output
-                Some(((r as u16 + g as u16 + b as u16) / 3) as u8) */
+                let rgb = self.mix_cgb_pixels(memory, bg_pixel, sprite_pixel);
+                Some(ColorValue::Cgb(rgb))
             }
         }
     }
@@ -163,47 +152,29 @@ impl PixelFifo {
         bg_pixel: Pixel,
         sprite_pixel: Option<Pixel>,
     ) -> (u8, u8, u8) {
+        
+        
+        
+                // In CGB mode, background is always rendered unless explicitly disabled
         let lcdc = memory.read_byte(IoRegister::Lcdc.address());
-
-        // Debug print background pixel info
-        println!(
-            "BG Pixel - color: {}, palette: {}, attrs: {:?}",
-            bg_pixel.color, bg_pixel.palette, bg_pixel.cgb_attrs
-        );
-
-        // In CGB mode, background is always rendered unless explicitly disabled
         if lcdc & 0x01 == 0 {
-            println!("Background disabled");
             return (255, 255, 255);
-        }
+        } 
 
-        // Get the background color from CGB palette
-        let bg_color = if let Some(cgb_attrs) = bg_pixel.cgb_attrs {
-            let color = memory
+        let bg_color =  memory
                 .cgb()
-                .get_bg_color(cgb_attrs.palette_number, bg_pixel.color);
-            println!(
-                "BG Color from palette {} color {}: RGB({}, {}, {})",
-                cgb_attrs.palette_number, bg_pixel.color, color.0, color.1, color.2
-            );
-            color
-        } else {
-            println!("No CGB attributes for background pixel!");
-            (255, 255, 255)
-        };
+                .get_bg_color(bg_pixel.palette, bg_pixel.color);
+          
+       
 
-        // If no sprite or sprites are disabled, return background color
+      /*   // If no sprite or sprites are disabled, return background color
         if let Some(sprite) = &sprite_pixel {
-            println!(
-                "Sprite Pixel - color: {}, palette: {}, attrs: {:?}",
-                sprite.color, sprite.palette, sprite.cgb_attrs
-            );
+           
         }
 
         let sprite = match sprite_pixel {
             None => return bg_color,
             Some(s) if lcdc & 0x02 == 0 => {
-                println!("Sprites disabled");
                 return bg_color;
             }
             Some(s) => s,
@@ -211,7 +182,6 @@ impl PixelFifo {
 
         // If sprite color is 0, it's transparent
         if sprite.color == 0 {
-            println!("Transparent sprite pixel");
             return bg_color;
         }
 
@@ -220,13 +190,9 @@ impl PixelFifo {
             let color = memory
                 .cgb()
                 .get_obj_color(cgb_attrs.palette_number, sprite.color);
-            println!(
-                "Sprite Color from palette {} color {}: RGB({}, {}, {})",
-                cgb_attrs.palette_number, sprite.color, color.0, color.1, color.2
-            );
+          
             color
         } else {
-            println!("No CGB attributes for sprite pixel!");
             return bg_color;
         };
 
@@ -235,19 +201,14 @@ impl PixelFifo {
             || (sprite.bg_priority && bg_pixel.color != 0);
 
         let final_color = if use_bg {
-            println!("Using BG color due to priority");
             bg_color
         } else {
-            println!("Using sprite color");
             sprite_color
         };
 
-        println!(
-            "Final color: RGB({}, {}, {})",
-            final_color.0, final_color.1, final_color.2
-        );
+        final_color  */
+        bg_color
 
-        final_color
     }
     pub fn bg_pixel_count(&self) -> usize {
         self.bg_fifo.len()
@@ -274,4 +235,10 @@ impl PixelFifo {
             self.fine_scroll_applied = true;
         }
     }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum ColorValue {
+    Dmg(u8),
+    Cgb((u8, u8, u8)),
 }

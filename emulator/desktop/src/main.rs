@@ -30,7 +30,7 @@ fn main() {
     }
     gameboy.set_power_up_sequence();
     gameboy.load_rom(include_bytes!(
-        "../../../games/tennis--1/rom.gb" /*   "../../../games/tennis--1/rom.gb" */
+        "../../../test/cgb-acid2.gbc" /*   "../../../games/tennis--1/rom.gb" */
     ));
 
     /*  if let Ok(save_state) = std::fs::read("./rom.gb.state") {
