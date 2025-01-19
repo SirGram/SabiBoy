@@ -112,9 +112,12 @@ impl Fetcher {
             }
             GameboyMode::CGB => {
                 self.tile_number = memory.read_byte(tile_address);
+                self.tile_attrs = 0;
+                /* self.tile_number = memory.read_byte(tile_address);
                 // Read attributes from VRAM bank 1
                 self.tile_attrs = memory.read_byte(tile_address | 0x2000);
-            }
+                println!("Reading tile attributes: {:02X} for tile index: {:02X} Tile map base: {:04X} Tile address: {:04X}", self.tile_attrs, self.tile_number, tile_map_base, tile_address);
+          */   }
         }
     }
 
@@ -144,7 +147,8 @@ impl Fetcher {
 
         // For CGB, consider VRAM bank selection from attributes
         if memory.gb_mode() == GameboyMode::CGB && (self.tile_attrs & 0x08) != 0 {
-            memory.read_byte(address | 0x2000)
+            memory.read_byte(address )
+          /*   memory.read_byte(address | 0x2000) */
         } else {
             memory.read_byte(address)
         }

@@ -40,12 +40,18 @@ impl Default for CgbRegisters {
 impl CgbRegisters {
     pub fn read_register(&self, addr: u16) -> u8 {
         match addr {
-            0xFF4F => self.vram_bank,
+            0xFF4F => self.vram_bank | 0xFE, // Reading returns other bits as 1
             0xFF4D => self.speed_switch,
             0xFF68 => self.bg_palette_index,
-            0xFF69 => self.bg_palette_ram[(self.bg_palette_index & 0x3F) as usize],
+            0xFF69 => {
+                let index = (self.bg_palette_index & 0x3F) as usize;
+                self.bg_palette_ram[index]
+            }
             0xFF6A => self.obj_palette_index,
-            0xFF6B => self.obj_palette_ram[(self.obj_palette_index & 0x3F) as usize],
+            0xFF6B => {
+                let index = (self.obj_palette_index & 0x3F) as usize;
+                self.obj_palette_ram[index]
+            }
             0xFF70 => self.wram_bank,
             0xFF55 => {
                 if self.hdma_active {
@@ -54,16 +60,31 @@ impl CgbRegisters {
                     0xFF
                 }
             }
-            _ => 0xFF,
+            _ => unreachable!(),
         }
     }
 
     pub fn write_register(&mut self, addr: u16, value: u8) {
+        println!("CGB write register {:04X} = {:02X}", addr, value);
         match addr {
             0xFF4F => self.vram_bank = value & 0x01,
             0xFF4D => self.handle_speed_switch(value),
-            0xFF68 => self.bg_palette_index = value,
-            0xFF69 => self.write_bg_palette(value),
+            0xFF68 => {
+                println!(
+                    "Writing to BG palette index: {:02X}, auto-increment: {}",
+                    value & 0x3F,
+                    if value & 0x80 != 0 { "yes" } else { "no" }
+                );
+                self.bg_palette_index = value;
+            }
+            0xFF69 => {
+                println!(
+                    "Writing to BG palette data: {:02X} at index {:02X}",
+                    value,
+                    self.bg_palette_index & 0x3F
+                );
+                self.write_bg_palette(value);
+            }
             0xFF6A => self.obj_palette_index = value,
             0xFF6B => self.write_obj_palette(value),
             0xFF70 => self.set_wram_bank(value),
@@ -72,41 +93,67 @@ impl CgbRegisters {
             0xFF53 => self.dma_dest = (self.dma_dest & 0x00FF) | (((value as u16) & 0x1F) << 8),
             0xFF54 => self.dma_dest = (self.dma_dest & 0xFF00) | ((value as u16) & 0xF0),
             0xFF55 => return self.handle_hdma(value),
-            _ => {}
+            _ => unreachable!(),
         }
     }
 
     pub fn write_bg_palette(&mut self, value: u8) {
         let index = (self.bg_palette_index & 0x3F) as usize;
+        println!(
+            "Writing BG palette: value={:02X}, index={}, auto_increment={}",
+            value,
+            index,
+            self.bg_palette_index & 0x80 != 0
+        );
+
         self.bg_palette_ram[index] = value;
 
-        // Debug print when writing a complete color (every 2 bytes)
+        // If this completed a color (every 2 bytes), log the full color
         if index % 2 == 1 {
+            let palette_num = (index / 8) as u8;
+            let color_num = ((index % 8) / 2) as u8;
             let low = self.bg_palette_ram[index - 1];
             let high = value;
             let (r, g, b) = Self::convert_color(low, high);
             println!(
-                "BG Palette {}, Color {}: RGB({}, {}, {})",
-                index / 8,       // Palette number
-                (index % 8) / 2, // Color number in palette
-                r,
-                g,
-                b
+                "Set BG Palette {}, Color {}: bytes={:02X}{:02X} RGB({}, {}, {})",
+                palette_num, color_num, low, high, r, g, b
             );
         }
 
+        // Auto-increment if enabled
         if self.bg_palette_index & 0x80 != 0 {
-            self.bg_palette_index =
-                (self.bg_palette_index & 0x80) | ((self.bg_palette_index.wrapping_add(1)) & 0x3F);
+            self.bg_palette_index = 0x80 | ((self.bg_palette_index.wrapping_add(1)) & 0x3F);
         }
     }
 
-    fn write_obj_palette(&mut self, value: u8) {
+    pub fn write_obj_palette(&mut self, value: u8) {
         let index = (self.obj_palette_index & 0x3F) as usize;
+        println!(
+            "Writing OBJ palette: value={:02X}, index={}, auto_increment={}",
+            value,
+            index,
+            self.obj_palette_index & 0x80 != 0
+        );
+
         self.obj_palette_ram[index] = value;
+
+        // If this completed a color (every 2 bytes), log the full color
+        if index % 2 == 1 {
+            let palette_num = (index / 8) as u8;
+            let color_num = ((index % 8) / 2) as u8;
+            let low = self.obj_palette_ram[index - 1];
+            let high = value;
+            let (r, g, b) = Self::convert_color(low, high);
+            println!(
+                "Set OBJ Palette {}, Color {}: bytes={:02X}{:02X} RGB({}, {}, {})",
+                palette_num, color_num, low, high, r, g, b
+            );
+        }
+
+        // Auto-increment if enabled
         if self.obj_palette_index & 0x80 != 0 {
-            self.obj_palette_index =
-                (self.obj_palette_index & 0x80) | ((self.obj_palette_index.wrapping_add(1)) & 0x3F);
+            self.obj_palette_index = 0x80 | ((self.obj_palette_index.wrapping_add(1)) & 0x3F);
         }
     }
 
@@ -115,7 +162,7 @@ impl CgbRegisters {
     }
 
     fn handle_speed_switch(&mut self, value: u8) {
-        self.speed_switch = (self.speed_switch & 0x80) | (value & 0x7F);
+        self.speed_switch = (self.speed_switch & 0x80) | (value & 0x01);
         // Note: Actual speed switch occurs after STOP instruction
     }
 
@@ -147,31 +194,53 @@ impl CgbRegisters {
     }
 
     pub fn get_bg_color(&self, palette: u8, color_id: u8) -> (u8, u8, u8) {
-        let index = ((palette & 0x07) * 8 + (color_id & 0x03) * 2) as usize;
+        // Calculate the byte index into palette RAM
+        // Each palette has 8 bytes (4 colors × 2 bytes per color)
+        let base_index = (palette & 0x07) * 8;
+        // Each color takes 2 bytes
+        let color_offset = (color_id & 0x03) * 2;
+        let index = (base_index + color_offset) as usize;
+
         let low = self.bg_palette_ram[index];
         let high = self.bg_palette_ram[index + 1];
+
+        println!(
+            "Reading BG Color - Palette: {}, Color ID: {}, Index: {}, Bytes: {:02X}{:02X}",
+            palette, color_id, index, low, high
+        );
+
         Self::convert_color(low, high)
     }
 
     pub fn get_obj_color(&self, palette: u8, color_id: u8) -> (u8, u8, u8) {
-        let index = (((palette & 0x07) << 3) | (color_id & 0x03)) << 1;
-        let low = self.obj_palette_ram[index as usize];
-        let high = self.obj_palette_ram[(index + 1) as usize];
+        // Same indexing scheme as BG colors
+        let base_index = (palette & 0x07) * 8;
+        let color_offset = (color_id & 0x03) * 2;
+        let index = (base_index + color_offset) as usize;
+
+        let low = self.obj_palette_ram[index];
+        let high = self.obj_palette_ram[index + 1];
+
+        println!(
+            "Reading OBJ Color - Palette: {}, Color ID: {}, Index: {}, Bytes: {:02X}{:02X}",
+            palette, color_id, index, low, high
+        );
+
         Self::convert_color(low, high)
     }
 
-  fn convert_color(low: u8, high: u8) -> (u8, u8, u8) {
-    let color = ((high as u16) << 8) | (low as u16);
-    // CGB uses 5 bits per color channel
-    let r = (color & 0x1F) as u8;
-    let g = ((color >> 5) & 0x1F) as u8;
-    let b = ((color >> 10) & 0x1F) as u8;
+    fn convert_color(low: u8, high: u8) -> (u8, u8, u8) {
+        let color = ((high as u16) << 8) | (low as u16);
+        // Convert 5-bit colors to 8-bit
+        let r = (color & 0x1F) as u8;
+        let g = ((color >> 5) & 0x1F) as u8;
+        let b = ((color >> 10) & 0x1F) as u8;
 
-    // Convert 5-bit to 8-bit color (multiply by 8)
-    (
-        (r << 3) | (r >> 2),
-        (g << 3) | (g >> 2),
-        (b << 3) | (b >> 2),
-    )
-}
+        // Convert from 5-bit to 8-bit color depth
+        (
+            (r << 3) | (r >> 2),
+            (g << 3) | (g >> 2),
+            (b << 3) | (b >> 2),
+        )
+    }
 }

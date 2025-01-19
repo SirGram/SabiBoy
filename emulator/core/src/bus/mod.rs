@@ -85,11 +85,14 @@ impl MemoryInterface for Bus {
             0xFE00..=0xFE9F => self.oam[(address - 0xFE00) as usize],
             0xFEA0..=0xFEFF => self.debug[(address - 0xFEA0) as usize],
             0xFF00 => self.joypad.read(),
-            0xFF4D..=0xFF77 if self.gb_mode == GameboyMode::CGB => self.cgb.read_register(address),
+            0xFF4D | 0xFF4F | 0xFF55 | 0xFF68 | 0xFF69 | 0xFF6A | 0xFF6B | 0xFF70
+                if self.gb_mode == GameboyMode::CGB =>
+            {
+                self.cgb.read_register(address)
+            }
             0xFF01..=0xFF7F => self.io_registers[(address - 0xFF01) as usize],
             0xFF80..=0xFFFE => self.hram[(address - 0xFF80) as usize],
             0xFFFF => self.ie_register,
-            _ => 0xFF,
         }
     }
 
@@ -118,15 +121,16 @@ impl MemoryInterface for Bus {
             0xFE00..=0xFE9F => self.oam[(address - 0xFE00) as usize] = value,
             0xFEA0..=0xFEFF => self.debug[(address - 0xFEA0) as usize] = value,
             0xFF00 => self.joypad.write(value),
-            0xFF4D..=0xFF77 if self.gb_mode == GameboyMode::CGB => {
-                self.cgb.write_register(address, value);
+            0xFF4D | 0xFF4F | 0xFF51..=0xFF55 | 0xFF68 | 0xFF69 | 0xFF6A | 0xFF6B | 0xFF70
+                if self.gb_mode == GameboyMode::CGB =>
+            {
+                self.cgb.write_register(address, value)
             }
             0xFF01..=0xFF45 => self.io_registers[(address - 0xFF01) as usize] = value,
             0xFF46 => self.dma_oam_transfer(value),
             0xFF47..=0xFF7F => self.io_registers[(address - 0xFF01) as usize] = value,
             0xFF80..=0xFFFE => self.hram[(address - 0xFF80) as usize] = value,
             0xFFFF => self.ie_register = value,
-            _ => {}
         }
     }
 

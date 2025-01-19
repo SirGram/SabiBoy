@@ -25,6 +25,10 @@ pub struct CgbAttributes {
 
 impl Pixel {
     pub fn new_bg<M: MemoryInterface>(memory: &M, color: u8, attrs: u8) -> Self {
+      /*   println!(
+            "Creating BG pixel with color={:02X}, attrs={:02X}",
+            color, attrs
+        ); */
         match memory.gb_mode() {
             GameboyMode::DMG => Self {
                 color,
@@ -113,9 +117,10 @@ impl PixelFifo {
         match memory.gb_mode() {
             GameboyMode::DMG => self.mix_dmg_pixels(memory, bg_pixel, sprite_pixel),
             GameboyMode::CGB => {
-                let (r, g, b) = self.mix_cgb_pixels(memory, bg_pixel, sprite_pixel);
+                self.mix_dmg_pixels(memory, bg_pixel, sprite_pixel)
+                /* let (r, g, b) = self.mix_cgb_pixels(memory, bg_pixel, sprite_pixel);
                 // Convert RGB to grayscale for compatibility with DMG output
-                Some(((r as u16 + g as u16 + b as u16) / 3) as u8)
+                Some(((r as u16 + g as u16 + b as u16) / 3) as u8) */
             }
         }
     }
@@ -158,44 +163,92 @@ impl PixelFifo {
         bg_pixel: Pixel,
         sprite_pixel: Option<Pixel>,
     ) -> (u8, u8, u8) {
-        // Returns RGB color
         let lcdc = memory.read_byte(IoRegister::Lcdc.address());
+
+        // Debug print background pixel info
+        println!(
+            "BG Pixel - color: {}, palette: {}, attrs: {:?}",
+            bg_pixel.color, bg_pixel.palette, bg_pixel.cgb_attrs
+        );
 
         // In CGB mode, background is always rendered unless explicitly disabled
         if lcdc & 0x01 == 0 {
-            return (255, 255, 255); // White screen when background is disabled
+            println!("Background disabled");
+            return (255, 255, 255);
         }
 
-        // Get the background color first
-        let bg_color = if bg_pixel.color == 0 {
-            (255, 255, 255) // White for color 0
+        // Get the background color from CGB palette
+        let bg_color = if let Some(cgb_attrs) = bg_pixel.cgb_attrs {
+            let color = memory
+                .cgb()
+                .get_bg_color(cgb_attrs.palette_number, bg_pixel.color);
+            println!(
+                "BG Color from palette {} color {}: RGB({}, {}, {})",
+                cgb_attrs.palette_number, bg_pixel.color, color.0, color.1, color.2
+            );
+            color
         } else {
-            memory.cgb().get_bg_color(bg_pixel.palette, bg_pixel.color)
+            println!("No CGB attributes for background pixel!");
+            (255, 255, 255)
         };
 
         // If no sprite or sprites are disabled, return background color
-        if sprite_pixel.is_none() || lcdc & 0x02 == 0 {
-            return bg_color;
+        if let Some(sprite) = &sprite_pixel {
+            println!(
+                "Sprite Pixel - color: {}, palette: {}, attrs: {:?}",
+                sprite.color, sprite.palette, sprite.cgb_attrs
+            );
         }
 
-        let sprite = sprite_pixel.unwrap();
+        let sprite = match sprite_pixel {
+            None => return bg_color,
+            Some(s) if lcdc & 0x02 == 0 => {
+                println!("Sprites disabled");
+                return bg_color;
+            }
+            Some(s) => s,
+        };
 
         // If sprite color is 0, it's transparent
         if sprite.color == 0 {
+            println!("Transparent sprite pixel");
             return bg_color;
         }
 
-        // Check sprite priority rules
-        let use_bg = (bg_pixel.bg_priority && bg_pixel.color != 0) || // BG priority bit set and BG not transparent
-                     (sprite.bg_priority && bg_pixel.color != 0); // Sprite priority bit set and BG not transparent
+        // Get sprite color from CGB palette
+        let sprite_color = if let Some(cgb_attrs) = sprite.cgb_attrs {
+            let color = memory
+                .cgb()
+                .get_obj_color(cgb_attrs.palette_number, sprite.color);
+            println!(
+                "Sprite Color from palette {} color {}: RGB({}, {}, {})",
+                cgb_attrs.palette_number, sprite.color, color.0, color.1, color.2
+            );
+            color
+        } else {
+            println!("No CGB attributes for sprite pixel!");
+            return bg_color;
+        };
 
-        if use_bg {
+        // Check sprite priority rules
+        let use_bg = (bg_pixel.bg_priority && bg_pixel.color != 0)
+            || (sprite.bg_priority && bg_pixel.color != 0);
+
+        let final_color = if use_bg {
+            println!("Using BG color due to priority");
             bg_color
         } else {
-            memory.cgb().get_obj_color(sprite.palette, sprite.color)
-        }
-    }
+            println!("Using sprite color");
+            sprite_color
+        };
 
+        println!(
+            "Final color: RGB({}, {}, {})",
+            final_color.0, final_color.1, final_color.2
+        );
+
+        final_color
+    }
     pub fn bg_pixel_count(&self) -> usize {
         self.bg_fifo.len()
     }

@@ -50,7 +50,7 @@ impl SpriteFetcher {
             }
             2 => {
                 // Load sprite pixels while preserving existing sprite pixels in FIFO
-                self.push_to_fifo(pixel_fifo);
+                self.push_to_fifo(memory,pixel_fifo);
 
                 self.scanline_reset();
             }
@@ -100,9 +100,43 @@ impl SpriteFetcher {
         }
         data
     }
-    fn push_to_fifo(&mut self, pixel_fifo: &mut PixelFifo) {
-        let pixels = [self.tile_data_low, self.tile_data_high];
-
-        /*   pixel_fifo.push_sprite_pixels(pixels, &self.sprite); */
+    fn push_to_fifo<M: MemoryInterface>(&self, memory: &M, pixel_fifo: &mut PixelFifo) {
+        for bit in 0..8 {
+            let low_bit = (self.tile_data_low >> (7 - bit)) & 0x1;
+            let high_bit = (self.tile_data_high >> (7 - bit)) & 0x1;
+            let color = (high_bit << 1) | low_bit;
+            
+            // Ensure we have space in the sprite FIFO
+            while pixel_fifo.sprite_fifo.len() <= bit {
+                pixel_fifo.sprite_fifo.push_back(super::pixelfifo::Pixel::new_sprite(
+                    memory,
+                    0,  // Transparent pixel
+                    0,  // No flags
+                ));
+            }
+            
+            // Only override existing pixels if the new pixel is not transparent
+            if color != 0 {
+                if let Some(existing_pixel) = pixel_fifo.sprite_fifo.get_mut(bit) {
+                    let new_pixel = match memory.gb_mode() {
+                        bus::GameboyMode::DMG => super::pixelfifo::Pixel::new_sprite(
+                            memory,
+                            color,
+                            self.sprite.flags,
+                        ),
+                        bus::GameboyMode::CGB => {
+                            super::pixelfifo::Pixel::new_sprite(memory, color, self.sprite.flags)
+                        }
+                    };
+                    
+                    // Replace the pixel only if:
+                    // 1. The existing pixel is transparent (color == 0), or
+                    // 2. The new sprite has priority (based on x position)
+                    if existing_pixel.color == 0 {
+                        *existing_pixel = new_pixel;
+                    }
+                }
+            }
+        }
     }
 }

@@ -313,35 +313,35 @@ impl PPU {
             return;
         }
 
-         // Pixel shifting
-      // Pixel shifting
-      if !self.pixel_fifo.is_paused(self.sprite_fetcher.active, self.fetcher.pause) {
-        if let Some(color_index) = self.pixel_fifo.pop_pixel(memory, &mut self.fetcher) {
-            let ly = self.get_io_register(memory, IoRegister::Ly);
-        
-            if self.x_render_counter >= 0 
-                && self.x_render_counter < SCREEN_WIDTH as i16 
-                && (ly as usize) < SCREEN_HEIGHT as usize 
-            {
-                let buffer_index = ly as usize * SCREEN_WIDTH as usize + self.x_render_counter as usize;
-                
-                let final_color = match memory.gb_mode() {
-                    GameboyMode::DMG => {
-                        // For DMG mode, directly use the palette lookup
-                        self.palette[color_index as usize & 0x03]
-                    },
-                    GameboyMode::CGB => {
-                        // For CGB mode, we need to convert the grayscale value back to RGB
-                        color_index as u32
-                    }
-                };
-        
-                self.buffer[buffer_index] = final_color;
+        // Pixel shifting
+        if !self
+            .pixel_fifo
+            .is_paused(self.sprite_fetcher.active, self.fetcher.pause)
+        {
+            if let Some(color_index) = self.pixel_fifo.pop_pixel(memory, &mut self.fetcher) {
+                let ly = self.get_io_register(memory, IoRegister::Ly);
+
+                if self.x_render_counter >= 0
+                    && self.x_render_counter < SCREEN_WIDTH as i16
+                    && (ly as usize) < SCREEN_HEIGHT as usize
+                {
+                    let buffer_index =
+                        ly as usize * SCREEN_WIDTH as usize + self.x_render_counter as usize;
+
+                    let final_color = match memory.gb_mode() {
+                        GameboyMode::DMG => self.palette[color_index as usize & 0x03],
+                        GameboyMode::CGB => {
+                            self.palette[color_index as usize & 0x03]
+                            /* color_index as u32 */
+                        },
+                    };
+
+                    self.buffer[buffer_index] = final_color;
+                }
+                self.fetcher.x_pos_counter += 1;
+                self.x_render_counter += 1;
             }
-            self.fetcher.x_pos_counter += 1;
-            self.x_render_counter += 1;
         }
-    }
         // Window check
         if !self.fetcher.is_window_fetch {
             if self.check_window(memory) {
@@ -438,7 +438,7 @@ impl PPU {
         stat |= ppu_mode; // Set the current mode bits
 
         // Update the coincidence flag
-        let ly = self.get_io_register(memory, IoRegister::Ly) ; 
+        let ly = self.get_io_register(memory, IoRegister::Ly);
         let lyc = self.get_io_register(memory, IoRegister::Lyc);
         let coincidence_flag = if ly == lyc { 1 } else { 0 };
         stat &= 0b11111011; // Clear the coincidence flag bit
