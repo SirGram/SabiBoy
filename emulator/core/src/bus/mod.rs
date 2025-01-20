@@ -247,7 +247,7 @@ impl Bus {
         println!("ram_size: {} bytes", ram_size);
         println!("mbctype: {:04X}", rom[0x147]);
         let gb_mode = match rom[0x143] {
-            0xC0 => GameboyMode::CGB,
+            0xC0 | 0x80 => GameboyMode::CGB,
             _ => GameboyMode::DMG,
         };
         self.gb_mode = gb_mode;

@@ -25,8 +25,8 @@ impl Default for CgbRegisters {
             wram_bank: 1,
             bg_palette_index: 0,
             obj_palette_index: 0,
-            bg_palette_ram: [0xFF; 64],
-            obj_palette_ram: [0xFF; 64],
+            bg_palette_ram: [0x0; 64],
+            obj_palette_ram: [0x0; 64],
             speed_switch: 0,
             dma_source: 0,
             dma_dest: 0,
@@ -178,7 +178,7 @@ impl CgbRegisters {
         let low = self.bg_palette_ram[index];
         let high = self.bg_palette_ram[index + 1];
 
-        /*println!("palette {} id {}", palette, color_id);
+        /*println!("palette {} id {}", palette, coalor_id);
         println!(
              "Reading BG Color - Palette: {}, Color ID: {}, Index: {}, Bytes: {:02X}{:02X}",
              palette, color_id, index, low, high
