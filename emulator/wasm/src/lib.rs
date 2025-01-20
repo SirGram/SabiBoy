@@ -30,7 +30,7 @@ impl GameboyWasm {
     }
 
     pub fn init(&mut self, rom: &[u8], state: Option<Vec<u8>>) -> Result<(), String> {
-        self.gameboy.set_power_up_sequence();
+       
         self.gameboy.load_rom(rom);
 
         if let Some(state) = state {
@@ -46,7 +46,7 @@ impl GameboyWasm {
         Ok(())
     }
     pub fn reset(&mut self) {
-        self.gameboy.set_power_up_sequence();
+        self.gameboy.reset();
     }
     pub fn save_state(&self) -> Vec<u8> {
         match self.gameboy.save_state() {
@@ -81,19 +81,8 @@ impl GameboyWasm {
         }
     }
 
-    pub fn get_frame_buffer(&self) -> Vec<u8> {
-        let buffer = self.gameboy.ppu.get_frame_buffer();
-        let mut rgba = Vec::with_capacity(160 * 144 * 4);
-
-        for &color in buffer {
-            // Convert u32 ARGB to RGBA bytes
-            let r = ((color >> 16) & 0xFF) as u8;
-            let g = ((color >> 8) & 0xFF) as u8;
-            let b = (color & 0xFF) as u8;
-            rgba.extend_from_slice(&[r, g, b, 255]); // Full alpha
-        }
-
-        rgba
+    pub fn get_frame_buffer(&self) -> Vec<u32> {
+        self.gameboy.ppu.get_frame_buffer().to_vec()
     }
     pub fn handle_keys(&mut self, keys: u8) {
         self.gameboy.bus.joypad.update_keys(keys);

@@ -282,13 +282,6 @@ impl PPU {
             let current_entry = self.mode_cycles / 2;
             let sprite = self.read_sprite(memory, 0xFE00 + (current_entry as u16 * 4));
 
-            /*  if sprite.tile_number != 0  && sprite.y_pos>=64 && sprite.y_pos <= 72 {  // Only log non-zero sprites
-                println!(
-                    "Sprite found: y_pos={}, x_pos={}, tile_number={}, flags={:b}",
-                    sprite.y_pos, sprite.x_pos, sprite.tile_number, sprite.flags
-                );
-            } */
-
             if should_add_sprite(
                 &sprite,
                 self.get_io_register(memory, IoRegister::Ly),
@@ -300,12 +293,13 @@ impl PPU {
         }
         if self.mode_cycles >= 80 {
             self.mode = PPUMode::DRAWING;
-            self.sprite_buffer.sort_by(|a, b| {
-                match a.x_pos.cmp(&b.x_pos) {
-                    Ordering::Equal => b.flags.cmp(&a.flags), //  Higher OAM  index
-                    ordering => ordering,
-                }
-            });
+            if memory.gb_mode() == GameboyMode::DMG {
+                self.sprite_buffer
+                    .sort_by(|a, b| match a.x_pos.cmp(&b.x_pos) {
+                        Ordering::Equal => b.flags.cmp(&a.flags),
+                        ordering => ordering,
+                    });
+            }
         }
     }
 

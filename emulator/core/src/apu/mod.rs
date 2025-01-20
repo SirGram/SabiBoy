@@ -6,7 +6,6 @@ use channel3::Channel3;
 use channel4::Channel4;
 
 use crate::bus::{self, io_address::IoRegister, Bus, MemoryInterface};
-use std::{cell::RefCell, rc::Rc};
 
 const SAMPLE_RATE: usize = 48_000;
 const CPU_FREQ: usize = 4_194_304;

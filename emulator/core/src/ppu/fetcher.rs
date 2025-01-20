@@ -113,14 +113,8 @@ impl Fetcher {
             }
             GameboyMode::CGB => {
                 // Tile number from bank 0
-                let original_bank = memory.read_byte(0xFF4F);
-                memory.write_byte(0xFF4F, 0);
-                self.tile_number = memory.read_byte(tile_address);
-
-                // Attributes from bank 1
-                memory.write_byte(0xFF4F, 1);
-                self.tile_attrs = memory.read_byte(tile_address);
-                memory.write_byte(0xFF4F, original_bank);
+                self.tile_number = memory.read_byte_vram_bank(tile_address, 0);
+                self.tile_attrs = memory.read_byte_vram_bank(tile_address, 1);
             }
         }
     }
@@ -155,24 +149,16 @@ impl Fetcher {
 
         let address = base_address + y_offset + if is_high_byte { 1 } else { 0 };
 
-        // Save current VRAM bank
-        let original_bank = if memory.gb_mode() == GameboyMode::CGB {
-            let curr = memory.read_byte(0xFF4F);
-            // Set bank from tile attributes
-            memory.write_byte(0xFF4F, (self.tile_attrs >> 3) & 1);
-            Some(curr)
-        } else {
-            None
-        };
-
-        // Read the data
-        let data = memory.read_byte(address);
-
-        // Restore original VRAM bank
-        if let Some(bank) = original_bank {
-            memory.write_byte(0xFF4F, bank);
+        let data;
+        match memory.gb_mode() {
+            GameboyMode::DMG => {
+                data = memory.read_byte(address);
+            }
+            GameboyMode::CGB => {
+                let selected_bank = self.tile_attrs >> 3 & 0b1;
+                data = memory.read_byte_vram_bank(address, selected_bank as usize);
+            }
         }
-
         data
     }
 
@@ -195,10 +181,6 @@ impl Fetcher {
             pixels.reverse();
         }
 
-        // Apply vertical flip if needed (CGB mode)
-        if memory.gb_mode() == GameboyMode::CGB && (self.tile_attrs & 0x40) != 0 {
-            // For vertical flip, we need to fetch the opposite row of the tile
-        }
 
         // Push pixels to FIFO with appropriate attributes
         for color in pixels {

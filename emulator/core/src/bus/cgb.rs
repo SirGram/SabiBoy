@@ -2,20 +2,20 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CgbRegisters {
-    vram_bank: u8,
-    wram_bank: u8,
-    bg_palette_index: u8,
-    obj_palette_index: u8,
+    pub vram_bank: u8,
+    pub wram_bank: u8,
+    pub bg_palette_index: u8,
+    pub obj_palette_index: u8,
     #[serde(with = "serde_arrays")]
-    bg_palette_ram: [u8; 64],
+    pub bg_palette_ram: [u8; 64],
     #[serde(with = "serde_arrays")]
-    obj_palette_ram: [u8; 64],
+    pub obj_palette_ram: [u8; 64],
     speed_switch: u8,
     dma_source: u16,
     dma_dest: u16,
     dma_length: u16,
-    dma_active: bool,
-    hdma_active: bool,
+    pub dma_active: bool,
+    pub hdma_active: bool,
 }
 
 impl Default for CgbRegisters {
@@ -72,19 +72,9 @@ impl CgbRegisters {
             0xFF4F => self.vram_bank = value & 0x01,
             0xFF4D => self.handle_speed_switch(value),
             0xFF68 => {
-                println!(
-                    "Writing to BG palette index: {:02X}, auto-increment: {}",
-                    value & 0x3F,
-                    if value & 0x80 != 0 { "yes" } else { "no" }
-                );
                 self.bg_palette_index = value;
             }
             0xFF69 => {
-                println!(
-                    "Writing to BG palette data: {:02X} at index {:02X}",
-                    value,
-                    self.bg_palette_index & 0x3F
-                );
                 self.write_bg_palette(value);
             }
             0xFF6A => self.obj_palette_index = value,
@@ -118,12 +108,6 @@ impl CgbRegisters {
     #[inline(always)]
     pub fn write_obj_palette(&mut self, value: u8) {
         let index = (self.obj_palette_index & 0x3F) as usize;
-        println!(
-            "Writing OBJ palette: value={:02X}, index={}, auto_increment={}",
-            value,
-            index,
-            self.obj_palette_index & 0x80 != 0
-        );
 
         self.obj_palette_ram[index] = value;
         // Auto-increment if enabled

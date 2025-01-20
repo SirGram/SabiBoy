@@ -6,7 +6,7 @@ import {
   useState,
 } from "react";
 import { GameboyWasm } from "../wasm/pkg/gameboy_wasm";
-import {  TGameDetailsWithSaveState } from "../types";
+import { TGameDetailsWithSaveState } from "../types";
 
 const GameboyContext = createContext<{
   gameboy: GameboyWasm | null;

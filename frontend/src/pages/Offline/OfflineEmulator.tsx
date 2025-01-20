@@ -122,7 +122,7 @@ export default function OfflineEmulator() {
                   type="file"
                   ref={romInputRef}
                   onChange={handleRomUpload}
-                  accept=".gb"
+                  accept = ".gb, .gbc"
                   className="hidden"
                 />
                 {romFileName && (

@@ -35,6 +35,9 @@ pub trait MemoryInterface {
     fn gb_mode(&self) -> GameboyMode;
     #[inline(always)]
     fn cgb(&self) -> &cgb::CgbRegisters;
+
+    fn read_byte_vram_bank(&self, address: u16, bank: usize) -> u8;
+    fn write_byte_vram_bank(&mut self, address: u16, value: u8, bank: usize);
 }
 
 #[derive(Clone, Debug)]
@@ -60,6 +63,14 @@ pub enum GameboyMode {
 }
 
 impl MemoryInterface for Bus {
+    #[inline(always)]
+    fn read_byte_vram_bank(&self, address: u16, bank: usize) -> u8 {
+        self.vram_banks[bank][(address - 0x8000) as usize]
+    }
+    #[inline(always)]
+    fn write_byte_vram_bank(&mut self, address: u16, value: u8, bank: usize) {
+        self.vram_banks[bank][(address - 0x8000) as usize] = value;
+    }
     #[inline(always)]
     fn read_byte(&self, address: u16) -> u8 {
         match address {
@@ -234,6 +245,13 @@ impl Bus {
         self.gb_mode = state.gb_mode;
     }
 
+    pub fn check__gb_mode(&mut self, byte: u8) {
+        let gb_mode = match byte {
+            0xC0 | 0x80 => GameboyMode::CGB,
+            _ => GameboyMode::DMG,
+        };
+        self.gb_mode = gb_mode;
+    }
     #[inline]
     pub fn load_rom(&mut self, rom: &[u8]) {
         let ram_size = match rom[0x149] {
@@ -246,17 +264,13 @@ impl Bus {
         };
         println!("ram_size: {} bytes", ram_size);
         println!("mbctype: {:04X}", rom[0x147]);
-        let gb_mode = match rom[0x143] {
-            0xC0 | 0x80 => GameboyMode::CGB,
-            _ => GameboyMode::DMG,
-        };
-        self.gb_mode = gb_mode;
         println!("gb_mode: {:?}", self.gb_mode);
         if self.gb_mode != GameboyMode::DMG {
             self.vram_banks = vec![[0; 0x2000], [0; 0x2000]];
             self.wram_banks = vec![[0; 0x1000]; 8];
             self.current_wram_bank = 1;
         }
+        // power up sequence here?
 
         // Detect MBC type from ROM header
         self.mbc = match rom[0x147] {

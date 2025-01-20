@@ -260,7 +260,7 @@ const UploadNewGame: React.FC = () => {
   │   └── ...
   ├── cover/ (optional)
   │   └── cover.jpg
-  └── rom.gb (required)`}
+  └── rom.gb(c) (required)`}
         </pre>
       </div>
 

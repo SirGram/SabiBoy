@@ -28,9 +28,9 @@ fn main() {
     if audio_disabled {
         gameboy.apu.toggle_audio();
     }
-    gameboy.set_power_up_sequence();
+
     gameboy.load_rom(include_bytes!(
-        "../../../test/cgb-acid2.gbc" /*   "../../../games/tennis--1/rom.gb" */
+        "../../../test/awakening.gbc" /*   "../../../games/tennis--1/rom.gb" */
     ));
 
     /*  if let Ok(save_state) = std::fs::read("./rom.gb.state") {

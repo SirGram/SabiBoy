@@ -70,7 +70,9 @@ impl Gameboy {
 
         Ok(())
     }
-    pub fn reset(&mut self) {}
+    pub fn reset(&mut self) {
+        self.set_power_up_sequence();
+    }
 
     pub fn tick(&mut self) {
         self.cpu.tick(&mut self.bus);
@@ -92,15 +94,17 @@ impl Gameboy {
     }
 
     pub fn load_rom(&mut self, rom: &[u8]) {
+        self.bus.check__gb_mode(rom[0x143]);
+        self.set_power_up_sequence();
         self.bus.load_rom(rom);
     }
-    pub fn set_power_up_sequence( &mut self) {
+    pub fn set_power_up_sequence(&mut self) {
         match self.bus.gb_mode() {
             GameboyMode::DMG => self.set_power_up_sequence_dmg(),
             GameboyMode::CGB => self.set_power_up_sequence_cgb(),
         }
     }
-    pub fn set_power_up_sequence_dmg(&mut self) {
+    fn set_power_up_sequence_dmg(&mut self) {
         // Set initial GB state after boot
         self.cpu.a = 0x01;
         self.cpu.f.set(Flags::N, false);
@@ -166,7 +170,7 @@ impl Gameboy {
         // Interrupt Enable Register
         self.bus.write_byte(IoRegister::Ie.address(), 0x00);
     }
-    pub fn set_power_up_sequence_cgb(&mut self) {
+    fn set_power_up_sequence_cgb(&mut self) {
         // Set initial GB state after boot
         self.cpu.a = 0x11;
         self.cpu.f.set(Flags::N, true);
@@ -232,21 +236,39 @@ impl Gameboy {
         // Interrupt Enable Register
         self.bus.write_byte(IoRegister::Ie.address(), 0x00);
 
-        // CGB Registers
-        self.bus.write_byte(IoRegister::Key1.address(), 0x7E);
-        self.bus.write_byte(IoRegister::Vbk.address(), 0xFE);
+        // Modified CGB Register initialization
+        self.bus.write_byte(IoRegister::Key1.address(), 0x7E); // Speed switch register
+        self.bus.write_byte(IoRegister::Vbk.address(), 0x00); // Start with VRAM bank 0
+
+        // Initialize HDMA registers to 0xFF (disabled state)
         self.bus.write_byte(IoRegister::Hdma1.address(), 0xFF);
         self.bus.write_byte(IoRegister::Hdma2.address(), 0xFF);
         self.bus.write_byte(IoRegister::Hdma3.address(), 0xFF);
         self.bus.write_byte(IoRegister::Hdma4.address(), 0xFF);
         self.bus.write_byte(IoRegister::Hdma5.address(), 0xFF);
-        self.bus.write_byte(IoRegister::Rp.address(), 0x3E);
-        self.bus.write_byte(IoRegister::Bcps.address(), 0x00); //??
-        self.bus.write_byte(IoRegister::Bcpd.address(), 0x00); //??
-        self.bus.write_byte(IoRegister::Ocps.address(), 0x00); //??
-        self.bus.write_byte(IoRegister::Ocpd.address(), 0x00); //??
-        self.bus.write_byte(IoRegister::Svbk.address(), 0xF8);
 
+        // Initialize palette registers
+        self.bus.write_byte(IoRegister::Bcps.address(), 0x00); // Background palette index
+        self.bus.write_byte(IoRegister::Bcpd.address(), 0xFF); // Initialize with white
+        self.bus.write_byte(IoRegister::Ocps.address(), 0x00); // Object palette index
+        self.bus.write_byte(IoRegister::Ocpd.address(), 0xFF); // Initialize with white
+
+        // WRAM bank register (SVBK)
+        self.bus.write_byte(IoRegister::Svbk.address(), 0x01); // Start with WRAM bank 1
+
+        // Initialize both background and object palettes to white
+        for i in 0..64 {
+            self.bus.cgb.bg_palette_ram[i] = 0xFF;
+            self.bus.cgb.obj_palette_ram[i] = 0xFF;
+        }
+
+        // Make sure CGB-specific variables are properly initialized
+        self.bus.cgb.vram_bank = 0;
+        self.bus.cgb.wram_bank = 1;
+        self.bus.cgb.bg_palette_index = 0;
+        self.bus.cgb.obj_palette_index = 0;
+        self.bus.cgb.dma_active = false;
+        self.bus.cgb.hdma_active = false;
     }
 
 }

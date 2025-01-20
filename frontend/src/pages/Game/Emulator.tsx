@@ -411,7 +411,7 @@ function GameboyOptions({
     <div className="absolute inset-0 z-10 hidden group-hover:block text-primary-foreground">
       <div className="absolute top-2 right-2  font-semibold flex gap-2">
         <button
-        title="Double Speed"
+          title="Double Speed"
           className={`${
             isDoubleSpeed ? "bg-secondary" : "bg-transparent"
           } hover:bg-primary p-2 rounded

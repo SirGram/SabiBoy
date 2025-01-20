@@ -39,6 +39,7 @@ export default function GameboyDisplay({
   const framesProcessedRef = useRef(0);
   const lastFrameTimeRef = useRef(0);
   const frameTimeAccumulatorRef = useRef(0);
+  const frameTimesRef = useRef<number[]>([]);
 
   const { gameboy, initGameboy, currentGame } = useGameboy();
   const { options } = useOptions();
@@ -80,7 +81,6 @@ export default function GameboyDisplay({
     }
   }, [volume]);
 
-
   useEffect(() => {
     if (!gameboy) return;
 
@@ -98,31 +98,39 @@ export default function GameboyDisplay({
     let lastFpsUpdate = performance.now();
     framesProcessedRef.current = 0;
 
-    // Target frame time in milliseconds (16.67ms for 60fps)
     const BASE_FRAME_TIME = 1000 / 60;
-    const MAX_FRAME_ACCUMULATOR = BASE_FRAME_TIME * 2; // Only allow up to 2 frames of lag
-    
+    const MAX_FRAME_ACCUMULATOR = BASE_FRAME_TIME * 2;
+
     const renderFrame = (timestamp: number) => {
       if (!gameboy || !ctx || !imageDataRef.current) return;
+
+      const frameStartTime = performance.now();
 
       if (!lastFrameTimeRef.current) {
         lastFrameTimeRef.current = timestamp;
       }
 
-      // Calculate time since last frame
-      const deltaTime = Math.min(timestamp - lastFrameTimeRef.current, 50); // Cap max delta time to 50ms
+      const deltaTime = Math.min(timestamp - lastFrameTimeRef.current, 50);
       frameTimeAccumulatorRef.current = Math.min(
         frameTimeAccumulatorRef.current + deltaTime,
         MAX_FRAME_ACCUMULATOR
       );
-      
+
       const targetFrameTime = isDoubleSpeed ? BASE_FRAME_TIME / 2 : BASE_FRAME_TIME;
       let framesThisLoop = 0;
-      const maxFramesPerLoop = isDoubleSpeed ? 4 : 2; // Limit max frames per loop
-      
+      const maxFramesPerLoop = isDoubleSpeed ? 4 : 2;
+
       while (frameTimeAccumulatorRef.current >= targetFrameTime && 
              framesThisLoop < maxFramesPerLoop) {
+        const frameStart = performance.now();
         gameboy.run_frame();
+        const frameEnd = performance.now();
+        
+        frameTimesRef.current.push(frameEnd - frameStart);
+        if (frameTimesRef.current.length > 60) {
+          frameTimesRef.current.shift();
+        }
+
         framesProcessedRef.current++;
         framesThisLoop++;
 
@@ -133,19 +141,29 @@ export default function GameboyDisplay({
         frameTimeAccumulatorRef.current -= targetFrameTime;
       }
 
-      // Always render the latest frame
       const frameBuffer = gameboy.get_frame_buffer();
-      imageDataRef.current.data.set(frameBuffer);
+      const u8Buffer = new Uint8ClampedArray(frameBuffer.length * 4);
+      
+      for (let i = 0; i < frameBuffer.length; i++) {
+        const color = frameBuffer[i];
+        const offset = i * 4;
+        u8Buffer[offset] = (color >> 24) & 0xFF;     // R
+        u8Buffer[offset + 1] = (color >> 16) & 0xFF; // G
+        u8Buffer[offset + 2] = (color >> 8) & 0xFF;  // B
+        u8Buffer[offset + 3] = color & 0xFF;         // A
+      }
+      
+      imageDataRef.current.data.set(u8Buffer);
       ctx.putImageData(imageDataRef.current, 0, 0);
 
-      // Update FPS counter
       const now = performance.now();
       if (now - lastFpsUpdate >= 1000) {
         setFps(framesProcessedRef.current);
+
         framesProcessedRef.current = 0;
+        frameTimesRef.current = [];
         lastFpsUpdate = now;
       }
-
       lastFrameTimeRef.current = timestamp;
       animationFrameRef.current = requestAnimationFrame(renderFrame);
     };
@@ -199,8 +217,6 @@ export default function GameboyDisplay({
         let romData: Uint8Array;
         let saveStateData: Uint8Array | undefined;
 
-        // Load ROM
-
         setLoadingState("rom");
         if (currentGame.rom.type === "blob" && currentGame.rom.data) {
           romData = currentGame.rom.data;
@@ -211,7 +227,6 @@ export default function GameboyDisplay({
           romData = new Uint8Array(data);
         }
 
-        // Load save state
         setLoadingState("savestate");
         if (currentGame.saveState && user) {
           if (
@@ -259,7 +274,7 @@ export default function GameboyDisplay({
     >
       <canvas
         ref={canvasRef}
-        className="w-full h-full "
+        className="w-full h-full"
         style={{
           imageRendering: "pixelated",
           backgroundColor: "#000000",
@@ -267,6 +282,7 @@ export default function GameboyDisplay({
         }}
       />
       {loadingState && <LoadingScreen loadingState={loadingState} />}
+     
     </div>
   );
 }
@@ -290,7 +306,7 @@ const LoadingScreen = ({
   }, []);
 
   return (
-    <div className="absolute  inset-0 flex flex-col items-center justify-center bg-black">
+    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black">
       <div className="mb-8 flex space-x-2">
         {letters.map((letter, index) => (
           <span
@@ -327,4 +343,4 @@ const LoadingScreen = ({
       </div>
     </div>
   );
-};
+}

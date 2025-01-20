@@ -145,7 +145,7 @@ impl PixelFifo {
     ) -> u32 {
         let lcdc = memory.read_byte(IoRegister::Lcdc.address());
 
-        // If LCDC bit 0 is clear (master priority off), sprites show over white background
+        // If LCDC bit 0 is clear (master priority off), sprites show over black background
         if lcdc & 0x01 == 0 {
             if let Some(sprite) = sprite_pixel {
                 if sprite.color != 0 {
@@ -221,5 +221,5 @@ impl PixelFifo {
 #[derive(Clone, Copy, Debug)]
 pub enum ColorValue {
     Dmg(u8),
-    Cgb((u32)),
+    Cgb(u32),
 }
