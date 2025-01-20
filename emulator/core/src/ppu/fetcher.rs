@@ -8,12 +8,13 @@ pub struct Fetcher {
     pub tile_number: u8,
     tile_data_low: u8,
     tile_data_high: u8,
-    tile_attrs: u8, // Added for CGB attributes
     pub is_window_fetch: bool,
     pub x_pos_counter: u16,
     pub window_line_counter: u16,
     pub pause: bool,
     pub delay: usize,
+
+    tile_attrs: u8, // CGB only
 }
 
 impl Fetcher {
@@ -111,13 +112,15 @@ impl Fetcher {
                 self.tile_attrs = 0;
             }
             GameboyMode::CGB => {
-                // First read tile number from bank 0
+                // Tile number from bank 0
+                let original_bank = memory.read_byte(0xFF4F);
                 memory.write_byte(0xFF4F, 0);
                 self.tile_number = memory.read_byte(tile_address);
-                
-                // Then read attributes from bank 1
+
+                // Attributes from bank 1
                 memory.write_byte(0xFF4F, 1);
                 self.tile_attrs = memory.read_byte(tile_address);
+                memory.write_byte(0xFF4F, original_bank);
             }
         }
     }
@@ -132,11 +135,17 @@ impl Fetcher {
         let scy = memory.read_byte(IoRegister::Scy.address());
         let lcdc = memory.read_byte(IoRegister::Lcdc.address());
 
-        let y_offset = if self.is_window_fetch {
+        // Calculate y position within tile
+        let mut y_offset = if self.is_window_fetch {
             (self.window_line_counter % 8) * 2
         } else {
             ((ly as u16 + scy as u16) % 8) * 2
         };
+
+        // Apply vertical flip if needed in CGB mode
+        if memory.gb_mode() == GameboyMode::CGB && (self.tile_attrs & 0x40) != 0 {
+            y_offset = 14 - y_offset; // 14 = (8 - 1) * 2
+        }
 
         let base_address = if (lcdc & 0x10) != 0 {
             0x8000 + (tile_number as u16 * 16)
@@ -146,12 +155,25 @@ impl Fetcher {
 
         let address = base_address + y_offset + if is_high_byte { 1 } else { 0 };
 
-        // For CGB, consider VRAM bank selection from attributes
-        if memory.gb_mode() == GameboyMode::CGB && (self.tile_attrs & 0x08) != 0 {
-            memory.read_byte(address + 0x2000)
+        // Save current VRAM bank
+        let original_bank = if memory.gb_mode() == GameboyMode::CGB {
+            let curr = memory.read_byte(0xFF4F);
+            // Set bank from tile attributes
+            memory.write_byte(0xFF4F, (self.tile_attrs >> 3) & 1);
+            Some(curr)
         } else {
-            memory.read_byte(address)
+            None
+        };
+
+        // Read the data
+        let data = memory.read_byte(address);
+
+        // Restore original VRAM bank
+        if let Some(bank) = original_bank {
+            memory.write_byte(0xFF4F, bank);
         }
+
+        data
     }
 
     fn push_to_fifo<M: MemoryInterface>(&mut self, memory: &M, pixel_fifo: &mut PixelFifo) {
@@ -168,9 +190,14 @@ impl Fetcher {
             pixels.push(color);
         }
 
-        // If horizontal flip is enabled in CGB mode, reverse the pixels
+        // Apply horizontal flip if needed (CGB mode)
         if memory.gb_mode() == GameboyMode::CGB && (self.tile_attrs & 0x20) != 0 {
             pixels.reverse();
+        }
+
+        // Apply vertical flip if needed (CGB mode)
+        if memory.gb_mode() == GameboyMode::CGB && (self.tile_attrs & 0x40) != 0 {
+            // For vertical flip, we need to fetch the opposite row of the tile
         }
 
         // Push pixels to FIFO with appropriate attributes

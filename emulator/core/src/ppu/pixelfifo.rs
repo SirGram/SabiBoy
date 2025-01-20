@@ -9,38 +9,31 @@ use std::collections::VecDeque;
 #[derive(Clone, Debug, Serialize, Deserialize, Copy)]
 pub struct Pixel {
     pub color: u8,
-    pub sprite_priority: bool,
     pub bg_priority: bool,
-    pub palette: u8,     // For CGB: 0-7, For DMG: 0 = OBP0, 1 = OBP1
-    pub is_sprite: bool, // Added to track if pixel is from sprite or background
+    pub palette: u8, // For CGB: 0-7, For DMG: 0 = OBP0, 1 = OBP1
     pub cgb_attrs: Option<CgbAttributes>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Copy)]
 pub struct CgbAttributes {
-    pub vram_bank: u8,
+    pub sprite_priority: bool,
 }
 
 impl Pixel {
     pub fn new_bg<M: MemoryInterface>(memory: &M, color: u8, attrs: u8) -> Self {
-      
         match memory.gb_mode() {
             GameboyMode::DMG => Self {
                 color,
-                sprite_priority: false,
                 bg_priority: false,
                 palette: 0,
-                is_sprite: false,
                 cgb_attrs: None,
             },
             GameboyMode::CGB => Self {
                 color,
-                sprite_priority: false,
                 bg_priority: attrs & 0x80 != 0,
                 palette: attrs & 0x07,
-                is_sprite: false,
                 cgb_attrs: Some(CgbAttributes {
-                    vram_bank: (attrs >> 3) & 1,
+                    sprite_priority: false,
                 }),
             },
         }
@@ -50,20 +43,16 @@ impl Pixel {
         match memory.gb_mode() {
             GameboyMode::DMG => Self {
                 color,
-                sprite_priority: false,
                 bg_priority: attrs & 0x80 != 0,
                 palette: if (attrs & 0x10) != 0 { 1 } else { 0 },
-                is_sprite: true,
                 cgb_attrs: None,
             },
             GameboyMode::CGB => Self {
                 color,
-                sprite_priority: false,
                 bg_priority: attrs & 0x80 != 0,
                 palette: attrs & 0x07,
-                is_sprite: true,
                 cgb_attrs: Some(CgbAttributes {
-                    vram_bank: (attrs >> 3) & 1,
+                    sprite_priority: attrs & 0x80 != 0,
                 }),
             },
         }
@@ -100,13 +89,15 @@ impl PixelFifo {
         if self.bg_fifo.is_empty() {
             return None;
         }
-    
+
         self.apply_fine_scroll(memory.read_byte(IoRegister::Scx.address()), fetcher);
         let bg_pixel = self.bg_fifo.pop_front().unwrap();
         let sprite_pixel = self.sprite_fifo.pop_front();
-    
+
         match memory.gb_mode() {
-            GameboyMode::DMG => self.mix_dmg_pixels(memory, bg_pixel, sprite_pixel).map(ColorValue::Dmg),
+            GameboyMode::DMG => self
+                .mix_dmg_pixels(memory, bg_pixel, sprite_pixel)
+                .map(ColorValue::Dmg),
             GameboyMode::CGB => {
                 let rgb = self.mix_cgb_pixels(memory, bg_pixel, sprite_pixel);
                 Some(ColorValue::Cgb(rgb))
@@ -151,64 +142,54 @@ impl PixelFifo {
         memory: &M,
         bg_pixel: Pixel,
         sprite_pixel: Option<Pixel>,
-    ) -> (u8, u8, u8) {
-        
-        
-        
-                // In CGB mode, background is always rendered unless explicitly disabled
+    ) -> u32 {
         let lcdc = memory.read_byte(IoRegister::Lcdc.address());
+
+        // If LCDC bit 0 is clear (master priority off), sprites show over white background
         if lcdc & 0x01 == 0 {
-            return (255, 255, 255);
-        } 
-
-        let bg_color =  memory
-                .cgb()
-                .get_bg_color(bg_pixel.palette, bg_pixel.color);
-          
-       
-
-      /*   // If no sprite or sprites are disabled, return background color
-        if let Some(sprite) = &sprite_pixel {
-           
+            if let Some(sprite) = sprite_pixel {
+                if sprite.color != 0 {
+                    return memory.cgb().get_obj_color(sprite.palette, sprite.color);
+                }
+            }
         }
 
-        let sprite = match sprite_pixel {
-            None => return bg_color,
-            Some(s) if lcdc & 0x02 == 0 => {
-                return bg_color;
-            }
-            Some(s) => s,
-        };
+        // Get the background color first
+        let bg_color = memory.cgb().get_bg_color(bg_pixel.palette, bg_pixel.color);
 
-        // If sprite color is 0, it's transparent
+        // If sprites are disabled or no sprite pixel, return background
+        if lcdc & 0x02 == 0 || sprite_pixel.is_none() {
+            return bg_color;
+        }
+
+        let sprite = sprite_pixel.unwrap();
+
+        // Sprite color 0 is always transparent
         if sprite.color == 0 {
             return bg_color;
         }
 
-        // Get sprite color from CGB palette
-        let sprite_color = if let Some(cgb_attrs) = sprite.cgb_attrs {
-            let color = memory
-                .cgb()
-                .get_obj_color(cgb_attrs.palette_number, sprite.color);
-          
-            color
-        } else {
-            return bg_color;
-        };
+        let sprite_color = memory.cgb().get_obj_color(sprite.palette, sprite.color);
 
-        // Check sprite priority rules
-        let use_bg = (bg_pixel.bg_priority && bg_pixel.color != 0)
-            || (sprite.bg_priority && bg_pixel.color != 0);
+        // CGB Priority Rules:
+        // 1. If BG color is 0, sprite always shows
+        // 2. If BG priority (BG attribute bit 7) is set AND BG color isn't 0, BG shows
+        // 3. If OBJ priority (OAM bit 7) is set AND BG color isn't 0, BG shows
+        // 4. Otherwise sprite shows
 
-        let final_color = if use_bg {
+        if bg_pixel.color == 0 {
+            // BG color 0 is always "transparent" to sprites
+            sprite_color
+        } else if bg_pixel.bg_priority {
+            // BG priority bit set in tile attributes
+            bg_color
+        } else if sprite.bg_priority && bg_pixel.color != 0 {
+            // Sprite uses BG priority and BG isn't transparent
             bg_color
         } else {
+            // Default case - sprite shows on top
             sprite_color
-        };
-
-        final_color  */
-        bg_color
-
+        }
     }
     pub fn bg_pixel_count(&self) -> usize {
         self.bg_fifo.len()
@@ -240,5 +221,5 @@ impl PixelFifo {
 #[derive(Clone, Copy, Debug)]
 pub enum ColorValue {
     Dmg(u8),
-    Cgb((u8, u8, u8)),
+    Cgb((u32)),
 }

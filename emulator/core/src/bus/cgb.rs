@@ -25,8 +25,8 @@ impl Default for CgbRegisters {
             wram_bank: 1,
             bg_palette_index: 0,
             obj_palette_index: 0,
-            bg_palette_ram: [0; 64],
-            obj_palette_ram: [0; 64],
+            bg_palette_ram: [0xFF; 64],
+            obj_palette_ram: [0xFF; 64],
             speed_switch: 0,
             dma_source: 0,
             dma_dest: 0,
@@ -101,7 +101,7 @@ impl CgbRegisters {
     #[inline(always)]
     pub fn write_bg_palette(&mut self, value: u8) {
         let index = (self.bg_palette_index & 0x3F) as usize;
-       /*  println!(
+        /*  println!(
             "Writing BG palette: value={:02X}, index={}, auto_increment={}",
             value,
             index,
@@ -109,19 +109,6 @@ impl CgbRegisters {
         ); */
 
         self.bg_palette_ram[index] = value;
-
-        // If this completed a color (every 2 bytes), log the full color
-        if index % 2 == 1 {
-            let palette_num = (index / 8) as u8;
-            let color_num = ((index % 8) / 2) as u8;
-            let low = self.bg_palette_ram[index - 1];
-            let high = value;
-            let (r, g, b) = Self::convert_color(low, high);
-            println!(
-                "Set BG Palette {}, Color {}: bytes={:02X}{:02X} RGB({}, {}, {})",
-                palette_num, color_num, low, high, r, g, b
-            );
-        }
 
         // Auto-increment if enabled
         if self.bg_palette_index & 0x80 != 0 {
@@ -139,20 +126,6 @@ impl CgbRegisters {
         );
 
         self.obj_palette_ram[index] = value;
-
-        // If this completed a color (every 2 bytes), log the full color
-        if index % 2 == 1 {
-            let palette_num = (index / 8) as u8;
-            let color_num = ((index % 8) / 2) as u8;
-            let low = self.obj_palette_ram[index - 1];
-            let high = value;
-            let (r, g, b) = Self::convert_color(low, high);
-            println!(
-                "Set OBJ Palette {}, Color {}: bytes={:02X}{:02X} RGB({}, {}, {})",
-                palette_num, color_num, low, high, r, g, b
-            );
-        }
-
         // Auto-increment if enabled
         if self.obj_palette_index & 0x80 != 0 {
             self.obj_palette_index = 0x80 | ((self.obj_palette_index.wrapping_add(1)) & 0x3F);
@@ -195,8 +168,7 @@ impl CgbRegisters {
         self.wram_bank as usize
     }
 
-    pub fn get_bg_color(&self, palette: u8, color_id: u8) -> (u8, u8, u8) {
-        // Calculate the byte index into palette RAM
+    pub fn get_bg_color(&self, palette: u8, color_id: u8) -> (u32) {
         // Each palette has 8 bytes (4 colors × 2 bytes per color)
         let base_index = (palette & 0x07) * 8;
         // Each color takes 2 bytes
@@ -205,18 +177,18 @@ impl CgbRegisters {
 
         let low = self.bg_palette_ram[index];
         let high = self.bg_palette_ram[index + 1];
-        
-  /*println!("palette {} id {}", palette, color_id);
-       println!(
-            "Reading BG Color - Palette: {}, Color ID: {}, Index: {}, Bytes: {:02X}{:02X}",
-            palette, color_id, index, low, high
-        );  */
+
+        /*println!("palette {} id {}", palette, color_id);
+        println!(
+             "Reading BG Color - Palette: {}, Color ID: {}, Index: {}, Bytes: {:02X}{:02X}",
+             palette, color_id, index, low, high
+         );  */
 
         let color = Self::convert_color(low, high);
         color
     }
 
-    pub fn get_obj_color(&self, palette: u8, color_id: u8) -> (u8, u8, u8) {
+    pub fn get_obj_color(&self, palette: u8, color_id: u8) -> (u32) {
         // Same indexing scheme as BG colors
         let base_index = (palette & 0x07) * 8;
         let color_offset = (color_id & 0x03) * 2;
@@ -225,7 +197,7 @@ impl CgbRegisters {
         let low = self.obj_palette_ram[index];
         let high = self.obj_palette_ram[index + 1];
 
-   /*      println!(
+        /*      println!(
             "Reading OBJ Color - Palette: {}, Color ID: {}, Index: {}, Bytes: {:02X}{:02X}",
             palette, color_id, index, low, high
         ); */
@@ -233,20 +205,22 @@ impl CgbRegisters {
         Self::convert_color(low, high)
     }
 
-    fn convert_color(low: u8, high: u8) -> (u8, u8, u8) {
+    #[inline(always)]
+    fn convert_color(low: u8, high: u8) -> u32 {
+        // Combine bytes into 15-bit RGB value
         let color = ((high as u16) << 8) | (low as u16);
-        // Extract 5-bit color components (15-bit format: 0RRRRRGGGGGBBBBB)
-        let b = (color & 0x1F) as u8;           
-        let g = ((color >> 5) & 0x1F) as u8;   
-        let r = ((color >> 10) & 0x1F) as u8;  
-    
-        // Convert 5-bit to 8-bit color depth (e.g., 0b11111 -> 0xFF)
-        let r_8bit = (r << 3) | (r >> 2);     
-        let g_8bit = (g << 3) | (g >> 2);      
-        let b_8bit = (b << 3) | (b >> 2);     
-    
-        let color = (r_8bit, g_8bit, b_8bit);
-        color
+
+        // Extract 5-bit components
+        let r = (color & 0x1F) as u8;
+        let g = ((color >> 5) & 0x1F) as u8;
+        let b = ((color >> 10) & 0x1F) as u8;
+
+        // Convert 5-bit to 8-bit and combine into RGBA
+        let r8 = (r << 3) | (r >> 2);
+        let g8 = (g << 3) | (g >> 2);
+        let b8 = (b << 3) | (b >> 2);
+
+        // Return RGBA value directly
+        0xFF00_0000 | ((r8 as u32) << 16) | ((g8 as u32) << 8) | (b8 as u32)
     }
-    
 }

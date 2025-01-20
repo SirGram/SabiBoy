@@ -166,11 +166,10 @@ impl PPU {
         The condition WY = LY has been true at any point in the currently rendered frame.
         The current X-position of the shifter is greater than or equal to WX - 7
         */
-        if memory.gb_mode() == GameboyMode::DMG {
-            let lcdc = memory.read_byte(IoRegister::Lcdc.address());
-            if lcdc & 0b0010_0000 == 0 {
-                return false;
-            }
+
+        let lcdc = memory.read_byte(IoRegister::Lcdc.address());
+        if lcdc & 0b0010_0000 == 0 {
+            return false;
         }
         let wy = memory.read_byte(IoRegister::Wy.address());
         let wx = memory.read_byte(IoRegister::Wx.address());
@@ -332,12 +331,10 @@ impl PPU {
                     let buffer_index =
                         ly as usize * SCREEN_WIDTH as usize + self.x_render_counter as usize;
 
-                        let final_color = match color_value {
-                            ColorValue::Dmg(color_index) => self.palette[color_index as usize & 0x03],
-                            ColorValue::Cgb((r, g, b)) => {
-                                ((r as u32) << 16) | ((g as u32) << 8) | (b as u32) | (0xFF << 24)
-                            }
-                        };
+                    let final_color = match color_value {
+                        ColorValue::Dmg(color_index) => self.palette[color_index as usize & 0x03],
+                        ColorValue::Cgb(rgba) => rgba,
+                    };
 
                     self.buffer[buffer_index] = final_color;
                 }

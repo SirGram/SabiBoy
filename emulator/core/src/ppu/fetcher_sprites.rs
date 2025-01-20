@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 
 use super::{pixelfifo::PixelFifo, Sprite};
-use crate::bus::{self, io_address::IoRegister, MemoryInterface};
+use crate::{
+    bus::{self, io_address::IoRegister, GameboyMode, MemoryInterface},
+    gameboy::Gameboy,
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SpriteFetcher {
@@ -38,7 +41,7 @@ impl SpriteFetcher {
         // Start with tile number fetch
         self.fetch_tile_number(sprite);
     }
-    pub fn step<M: MemoryInterface>(&mut self, memory: &M, pixel_fifo: &mut PixelFifo) {
+    pub fn step<M: MemoryInterface>(&mut self, memory: &mut M, pixel_fifo: &mut PixelFifo) {
         match self.step {
             0 => {
                 self.tile_data_low = self.fetch_tile_data(memory, false);
@@ -50,7 +53,7 @@ impl SpriteFetcher {
             }
             2 => {
                 // Load sprite pixels while preserving existing sprite pixels in FIFO
-                self.push_to_fifo(memory,pixel_fifo);
+                self.push_to_fifo(memory, pixel_fifo);
 
                 self.scanline_reset();
             }
@@ -62,7 +65,7 @@ impl SpriteFetcher {
     fn fetch_tile_number(&mut self, sprite: &Sprite) {
         self.tile_number = sprite.tile_number;
     }
-    fn fetch_tile_data<M: MemoryInterface>(&mut self, memory: &M, is_high_byte: bool) -> u8 {
+    fn fetch_tile_data<M: MemoryInterface>(&mut self, memory: &mut M, is_high_byte: bool) -> u8 {
         let ly = memory.read_byte(IoRegister::Ly.address());
 
         let y_flip = self.sprite.flags & 0x40 != 0;
@@ -93,7 +96,20 @@ impl SpriteFetcher {
         let base_address = 0x8000 + (actual_tile as u16 * 16);
 
         // Get the correct byte of tile data
-        let mut data = memory.read_byte(base_address + y_offset + if is_high_byte { 1 } else { 0 });
+        let address = base_address + y_offset + if is_high_byte { 1 } else { 0 };
+        let mut data;
+        match memory.gb_mode() {
+            GameboyMode::DMG => {
+                data = memory.read_byte(address);
+            }
+            GameboyMode::CGB => {
+                let original_bank = memory.read_byte(0xFF4F);
+                let selected_bank = self.sprite.flags > 3 & 1;
+                memory.write_byte(0xFF4F, selected_bank as u8);
+                data = memory.read_byte(address);
+                memory.write_byte(0xFF4F, original_bank as u8);
+            }
+        }
 
         if x_flip {
             data = data.reverse_bits();
@@ -105,30 +121,29 @@ impl SpriteFetcher {
             let low_bit = (self.tile_data_low >> (7 - bit)) & 0x1;
             let high_bit = (self.tile_data_high >> (7 - bit)) & 0x1;
             let color = (high_bit << 1) | low_bit;
-            
+
             // Ensure we have space in the sprite FIFO
             while pixel_fifo.sprite_fifo.len() <= bit {
-                pixel_fifo.sprite_fifo.push_back(super::pixelfifo::Pixel::new_sprite(
-                    memory,
-                    0,  // Transparent pixel
-                    0,  // No flags
-                ));
+                pixel_fifo
+                    .sprite_fifo
+                    .push_back(super::pixelfifo::Pixel::new_sprite(
+                        memory, 0, // Transparent pixel
+                        0, // No flags
+                    ));
             }
-            
+
             // Only override existing pixels if the new pixel is not transparent
             if color != 0 {
                 if let Some(existing_pixel) = pixel_fifo.sprite_fifo.get_mut(bit) {
                     let new_pixel = match memory.gb_mode() {
-                        bus::GameboyMode::DMG => super::pixelfifo::Pixel::new_sprite(
-                            memory,
-                            color,
-                            self.sprite.flags,
-                        ),
+                        bus::GameboyMode::DMG => {
+                            super::pixelfifo::Pixel::new_sprite(memory, color, self.sprite.flags)
+                        }
                         bus::GameboyMode::CGB => {
                             super::pixelfifo::Pixel::new_sprite(memory, color, self.sprite.flags)
                         }
                     };
-                    
+
                     // Replace the pixel only if:
                     // 1. The existing pixel is transparent (color == 0), or
                     // 2. The new sprite has priority (based on x position)
