@@ -10,7 +10,10 @@ export type TGame = {
   language:string
   coverPath?: string;
   coverURL?: string;
+  console: ConsoleType;
+
 };
+export type ConsoleType = 'DMG' | 'CGB';
 
 export type TRomSource = {
   type: 'url' | 'blob';
@@ -32,7 +35,8 @@ export type TGameDetails = TGame & {
   rating?: number;
   releaseDate?: string;
   developers?: string[];
-  genres?: string[];
+  genres?: string[];  
+  console: ConsoleType;
 };
 export type TGameDetailsWithSaveState = TGameDetails & {
   saveState?: TSaveStateSource;

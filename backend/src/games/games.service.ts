@@ -19,12 +19,17 @@ export interface GameListItem {
   name: string;
   language: string;
   coverPath?: string;
+  console: ConsoleType;
 }
+type ConsoleType = 'DMG' | 'CGB';
+
+
 export interface GameDetails extends Game {
   coverPath?: string;
   screenshotPaths?: string[];
   rom: TRomSource;
-  saveState?: TSaveStateSource;
+  saveState?: TSaveStateSource;  
+  console: ConsoleType;
 }
 interface TRomSource {
   type: 'url';
@@ -82,7 +87,7 @@ export class GamesService {
       for (const file of files) {
 
         // Check if the file is a ROM or screenshot
-        if (file.originalname.endsWith('.gb')) {
+        if (file.originalname.endsWith('.gb') || file.originalname.endsWith('.gbc')) {
           hasRomFile = true;
           // Save ROM at the root of the game folder
           const romPath = path.join(gameFolderPath, file.originalname);
@@ -191,38 +196,44 @@ export class GamesService {
         .sort(sortOptions)
         .skip((page - 1) * sanitizedLimit)
         .limit(sanitizedLimit);
-
-      const listedGames: GameListItem[] = [];
-      for (const game of games) {
-        try {
-          const gameFolderPath = path.join(this.gamesPath, game.slug);
-          const files = await fs.readdir(gameFolderPath);
-
-          // Find cover
-          const coverFile = files.find((file) =>
-            file.match(/^cover\.(png|jpg|jpeg|webp)$/i),
-          );
-          const coverPath = coverFile
-            ? `api/games/${game.slug}/${coverFile}`
-            : undefined;
-
-          listedGames.push({
-            slug: game.slug,
-            name: game.name,
-            coverPath,
-            language: game.language,
-          });
-        } catch (folderErr) {
-          // If folder doesn't exist, add game without cover
-          listedGames.push({
-            slug: game.slug,
-            name: game.name,
-            language: game.language,
-          });
-          this.logger.warn(`Folder not found for game: ${game.slug}`);
-        }
-      }
-
+  
+      const listedGames: GameListItem[] = await Promise.all(
+        games.map(async (game) => {
+          // First determine the console type from ROM file
+          let console: ConsoleType;
+          try {
+            const gameFolderPath = path.join(this.gamesPath, game.slug);
+            const files = await fs.readdir(gameFolderPath);
+            
+            console = files.some(file => file.endsWith('.gbc')) ? 'CGB' : 'DMG';
+            
+            // Find cover if it exists
+            const coverFile = files.find((file) =>
+              file.match(/^cover\.(png|jpg|jpeg|webp)$/i),
+            );
+            const coverPath = coverFile
+              ? `api/games/${game.slug}/${coverFile}`
+              : undefined;
+  
+            return {
+              slug: game.slug,
+              name: game.name,
+              coverPath,
+              language: game.language,
+              console,
+            };
+          } catch (folderErr) {
+            this.logger.warn(`Folder not found for game ${game.slug}: ${folderErr.message}`);
+            return {
+              slug: game.slug,
+              name: game.name,
+              language: game.language,
+              console,
+            };
+          }
+        })
+      );
+  
       return {
         games: listedGames,
         total: totalGames,
@@ -239,7 +250,6 @@ export class GamesService {
       };
     }
   }
-
   async getGameDetails(slug: string): Promise<GameDetails> {
     try {
       const game = await this.gameModel.findOne({ slug });
@@ -258,8 +268,19 @@ export class GamesService {
         ? `api/games/${slug}/${coverFile}`
         : undefined;
 
-      // Find ROM
-      const romFile = files.find((file) => file.endsWith('.gb'));
+      // Find ROM and consoleType
+      let romFile: string | undefined;
+      let consoleType: ConsoleType;
+      romFile = files.find((file) => {
+        if (file.endsWith('.gb')) {
+          consoleType = 'DMG';
+          return true;
+        } else if (file.endsWith('.gbc')) {
+          consoleType = 'CGB';
+          return true;
+        }
+        return false;
+      });
       if (!romFile) {
         throw new NotFoundException(`ROM file not found for game ${slug}`);
       }
@@ -276,10 +297,13 @@ export class GamesService {
         this.logger.warn(`No screenshots found for game ${slug}`);
       }
 
+      const console: ConsoleType = romFile.endsWith('.gbc') ? 'CGB' : 'DMG';
+
       // Transform to frontend type
       const gameDetails: GameDetails = {
         slug: game.slug,
         name: game.name,
+        console,
         language: game.language,
         coverPath,
         rom: {
@@ -330,12 +354,16 @@ export class GamesService {
           const coverPath = coverFile
             ? `api/games/${game.slug}/${coverFile}`
             : undefined;
+            const consoleType: ConsoleType = files.some(file => file.endsWith('.gbc')) 
+            ? 'CGB' 
+            : 'DMG';
 
           const gameDetails: GameListItem = {
             name: game.name,
             slug: game.slug,
             language: game.language,
             coverPath: coverPath || '',
+            console: consoleType,
           };
 
           processedGames.push(gameDetails);

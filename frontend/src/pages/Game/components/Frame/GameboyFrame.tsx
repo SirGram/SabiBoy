@@ -42,7 +42,7 @@ export function GameboyFrame({
 
         <div className="label">
           <div className="title mr-2">SABIBOY</div>
-          <div className="subtitle">
+          <div className="subtitle"> {/* TODO: show only on CGB */}
             <span className="c">C</span>
             <span className="o1">O</span>
             <span className="l">L</span>

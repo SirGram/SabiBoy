@@ -5,7 +5,7 @@ import topLevelAwait from "vite-plugin-top-level-await";
 
 export default defineConfig({
   plugins: [react(), wasm(), topLevelAwait()],
-  assetsInclude: ["**/*.gb"],
+  assetsInclude: ["**/*.gb/*.gbc"],
   server: {
     host: "0.0.0.0",
     port: 5173,

@@ -154,7 +154,7 @@ export default function Options() {
         </div>
       </CollapsibleList>
 
-      <CollapsibleList title="Color Palette">
+      <CollapsibleList title="DMG Color Palette">
         <div className="w-full">
           <PaletteEditor
             currentPalette={options.palette}

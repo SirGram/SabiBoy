@@ -42,9 +42,13 @@ export default function GameCard({ game, onClick }: GameCardProps) {
           </span>
         </div>
 
+        <div className="absolute top-1 left-1 flex gap-1  ">
+        {/* Console badge */}
+          <span className="text-xs font-medium text-white bg-black/80 px-2 py-1  rounded-md" title="Console">
+            {game.console}
+          </span>
         {/* Language badge */}
-        <div className="absolute top-2 left-2 flex gap-1 bg-black/70 backdrop-blur-sm rounded-md px-2 py-1">
-          <span className="text-xs font-medium text-white" title={lang}>
+          <span className="text-xs font-medium text-white bg-black/80 px-2 py-1  rounded-md" title="Language">
             {lang}
           </span>
         </div>

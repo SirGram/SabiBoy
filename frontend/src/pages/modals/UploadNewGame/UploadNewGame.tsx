@@ -1,9 +1,5 @@
 import axios from "axios";
-import React, {
-  useState,
-  ChangeEvent,
-  FormEvent,
-} from "react";
+import React, { useState, ChangeEvent, FormEvent } from "react";
 import api from "../../../api/client";
 import { useModal } from "../../../context/ModalContext";
 
@@ -43,7 +39,6 @@ interface CreateGamePayload {
   genres?: string[];
 }
 
-
 const UploadNewGame: React.FC = () => {
   const [formData, setFormData] = useState<GameFormData>({
     name: "",
@@ -65,7 +60,7 @@ const UploadNewGame: React.FC = () => {
     let hasRom = false;
 
     for (const item of Array.from(items)) {
-      if (item.name.endsWith(".gb")) {
+      if (item.name.endsWith(".gb") || item.name.endsWith(".gbc")) {
         hasRom = true;
         break;
       }
@@ -74,7 +69,7 @@ const UploadNewGame: React.FC = () => {
     return {
       isValid: hasRom,
       errors: {
-        rom: !hasRom ? "Missing .gb ROM file" : undefined,
+        rom: !hasRom ? "Missing ROM file" : undefined,
       },
     };
   };
@@ -285,6 +280,30 @@ const UploadNewGame: React.FC = () => {
           {errors.folder?.rom && (
             <div className="text-red-500 text-sm mt-1">{errors.folder.rom}</div>
           )}
+        </div>
+
+        <div>
+          <label className="block mb-2">
+            Console Type
+            <input
+              type="text"
+              className="mt-1 block w-full border rounded p-2 bg-base-background"
+              value={
+                folder
+                  ? Array.from(folder).some((file) =>
+                      file.name.endsWith(".gbc")
+                    )
+                    ? "CGB"
+                    : Array.from(folder).some((file) =>
+                        file.name.endsWith(".gb")
+                      )
+                    ? "DMG"
+                    : "No ROM detected"
+                  : ""
+              }
+              disabled
+            />
+          </label>
         </div>
 
         <div>

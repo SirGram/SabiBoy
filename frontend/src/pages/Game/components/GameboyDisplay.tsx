@@ -104,7 +104,6 @@ export default function GameboyDisplay({
     const renderFrame = (timestamp: number) => {
       if (!gameboy || !ctx || !imageDataRef.current) return;
 
-      const frameStartTime = performance.now();
 
       if (!lastFrameTimeRef.current) {
         lastFrameTimeRef.current = timestamp;
@@ -147,10 +146,10 @@ export default function GameboyDisplay({
       for (let i = 0; i < frameBuffer.length; i++) {
         const color = frameBuffer[i];
         const offset = i * 4;
-        u8Buffer[offset] = (color >> 24) & 0xFF;     // R
-        u8Buffer[offset + 1] = (color >> 16) & 0xFF; // G
-        u8Buffer[offset + 2] = (color >> 8) & 0xFF;  // B
-        u8Buffer[offset + 3] = color & 0xFF;         // A
+        u8Buffer[offset] = (color >> 16) & 0xFF; // R
+        u8Buffer[offset + 1] = (color >> 8) & 0xFF;  // G
+        u8Buffer[offset + 2] = color & 0xFF;        // B
+        u8Buffer[offset + 3] = 255;                // A (Full alpha)
       }
       
       imageDataRef.current.data.set(u8Buffer);
