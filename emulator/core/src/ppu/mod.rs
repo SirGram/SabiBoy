@@ -50,6 +50,7 @@ pub struct PPU {
     window_line_counter_incremented_this_scanline: bool,
     new_frame: bool,
     debug_config: DebugConfig,
+    enabled: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -115,6 +116,7 @@ impl PPU {
             window_line_counter_incremented_this_scanline: false,
             new_frame: false,
             debug_config: debug_config,
+            enabled: true,
         }
     }
     pub fn save_state(&self) -> PPUState {
@@ -208,13 +210,13 @@ impl PPU {
         self.set_io_register(memory, IoRegister::Ly, 0);
     }
 
+
     pub fn tick<M: MemoryInterface>(&mut self, memory: &mut M) {
         // Check if LCD is enabled
-        if memory.gb_mode() == GameboyMode::DMG {
-            let lcdc = self.get_io_register(memory, IoRegister::Lcdc);
-            if (lcdc & 0x80) == 0 {
-                return;
-            }
+        let lcdc = self.get_io_register(memory, IoRegister::Lcdc);
+        if (lcdc & 0x80) == 0 {
+            self.set_io_register(memory, IoRegister::Ly, 0);
+        return;
         }
 
         let ly = self.get_io_register(memory, IoRegister::Ly);
@@ -411,6 +413,7 @@ impl PPU {
         // Update the coincidence flag
         let ly = self.get_io_register(memory, IoRegister::Ly);
         let lyc = self.get_io_register(memory, IoRegister::Lyc);
+        let lcdc = self.get_io_register(memory, IoRegister::Lcdc);
         let coincidence_flag = if ly == lyc { 1 } else { 0 };
         stat &= 0b11111011; // Clear the coincidence flag bit
         stat |= coincidence_flag << 2; // Set the current coincidence flag bit

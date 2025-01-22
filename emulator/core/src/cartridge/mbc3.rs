@@ -32,7 +32,7 @@ impl Mbc3 {
     TODO: battery save external ram
      */
     pub fn new(rom: &[u8], ram_size: usize, has_rtc: bool) -> Self {
-        let rom_bank_count = rom.len() / 0x4000; 
+        let rom_bank_count = rom.len() / 0x4000;
         Self {
             current_rom_bank: 1,
             current_ram_bank: 0,
@@ -98,7 +98,7 @@ impl Mbc3 {
             0x2000..=0x3FFF => {
                 // ROM bank switching
                 let new_number = if value & 0x7F == 0 { 1 } else { value & 0x7F }; // 127 mask
-            
+
                 self.current_rom_bank = new_number;
             }
             0x4000..=0x5FFF => {
