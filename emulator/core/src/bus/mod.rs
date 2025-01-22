@@ -263,6 +263,7 @@ impl Bus {
             _ => 0x2000,
         };
         println!("ram_size: {} bytes", ram_size);
+        println!("rom_size: {} bytes", rom.len());
         println!("mbctype: {:04X}", rom[0x147]);
         println!("gb_mode: {:?}", self.gb_mode);
         if self.gb_mode != GameboyMode::DMG {

@@ -10,6 +10,7 @@ pub struct Mbc3 {
     previous_latch_value: u8,
     pub rtc: Option<Rtc>,
     current_rtc_register: Option<u8>,
+    rom_bank_count: usize,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -21,6 +22,7 @@ pub struct Mbc3State {
     previous_latch_value: u8,
     pub rtc: Option<Rtc>,
     current_rtc_register: Option<u8>,
+    rom_bank_count: usize,
 }
 
 impl Mbc3 {
@@ -30,6 +32,7 @@ impl Mbc3 {
     TODO: battery save external ram
      */
     pub fn new(rom: &[u8], ram_size: usize, has_rtc: bool) -> Self {
+        let rom_bank_count = rom.len() / 0x4000; 
         Self {
             current_rom_bank: 1,
             current_ram_bank: 0,
@@ -39,6 +42,7 @@ impl Mbc3 {
             previous_latch_value: 0xFF,
             rtc: if has_rtc { Some(Rtc::new()) } else { None },
             current_rtc_register: None,
+            rom_bank_count,
         }
     }
     pub fn save_state(&self) -> Mbc3State {
@@ -50,6 +54,7 @@ impl Mbc3 {
             previous_latch_value: self.previous_latch_value,
             rtc: self.rtc.clone(),
             current_rtc_register: self.current_rtc_register,
+            rom_bank_count: self.rom_bank_count,
         }
     }
     pub fn load_state(&mut self, state: Mbc3State) {
@@ -65,7 +70,9 @@ impl Mbc3 {
         match address {
             0x0000..=0x3FFF => self.rom[address as usize],
             0x4000..=0x7FFF => {
-                self.rom[self.current_rom_bank as usize * 0x4000 + (address - 0x4000) as usize]
+                let bank = (self.current_rom_bank as usize % self.rom_bank_count).max(1);
+                let offset = bank * 0x4000 + (address as usize - 0x4000);
+                self.rom[offset]
             }
             0xA000..=0xBFFF => {
                 // rtc 1st then ram if no rtc
@@ -90,10 +97,8 @@ impl Mbc3 {
             }
             0x2000..=0x3FFF => {
                 // ROM bank switching
-                let mut new_number = value & 0x7F; // 0-127 mask
-                if new_number == 0 {
-                    new_number = 1;
-                }
+                let new_number = if value & 0x7F == 0 { 1 } else { value & 0x7F }; // 127 mask
+            
                 self.current_rom_bank = new_number;
             }
             0x4000..=0x5FFF => {
