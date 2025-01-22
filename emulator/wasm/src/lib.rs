@@ -30,7 +30,6 @@ impl GameboyWasm {
     }
 
     pub fn init(&mut self, rom: &[u8], state: Option<Vec<u8>>) -> Result<(), String> {
-       
         self.gameboy.load_rom(rom);
 
         if let Some(state) = state {

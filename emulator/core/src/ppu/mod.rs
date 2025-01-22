@@ -219,25 +219,6 @@ impl PPU {
 
         let ly = self.get_io_register(memory, IoRegister::Ly);
 
-        /*  if ly ==50 && self.mode_cycles < 200 && self.mode_cycles >80 {
-
-          println!(
-            "ly {} cycles {} window {} wcoun {} xpos {} xposren {} scx {} bg_fifo_len {} sprite_fifo_len {} current_sprite_x {} sprftch_act {}",
-
-            ly,
-            self.mode_cycles,
-            self.fetcher.is_window_fetch,
-            self.fetcher.window_line_counter,
-            self.fetcher.x_pos_counter,
-            self.x_render_counter,
-            self.get_io_register(IoRegister::Scx) & 7,
-            self.pixel_fifo.bg_fifo.len(),
-            self.pixel_fifo.sprite_fifo.len(),
-            self.sprite_fetcher.sprite.x_pos,
-            self.sprite_fetcher.active
-            );
-        }  */
-
         match self.mode {
             PPUMode::OAM_SCAN => self.handle_oam(memory),
             PPUMode::DRAWING => self.handle_drawing(memory),
@@ -348,14 +329,11 @@ impl PPU {
 
         // Check sprites
         if !self.sprite_fetcher.active && self.debug_config.sprite_debug_enabled {
-            /*  println!("sprite fetch "); */
-
             if let Some(sprite) =
                 should_fetch_sprite(self.x_render_counter, &mut self.sprite_buffer)
             {
                 // Now start sprite fetch
                 self.sprite_fetcher.start_fetch(&sprite);
-                /* println!("sprite found x {}", sprite.x_pos); */
             }
         }
         /* if a bg fetch is in progress and you run into the start of a sprite;

@@ -55,7 +55,7 @@
   | **sm83**       | ✅         |
   | **Blargg CPU** | ✅         |
   | **DMG-ACID2**  | ✅         |
-  | **CGB-ACID2**  | ❌         |
+  | **CGB-ACID2**  | ✅         |
   | **Mooneye**    | ❌         |
 
 ## 🛠 Setting Up

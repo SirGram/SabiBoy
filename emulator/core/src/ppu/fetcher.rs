@@ -15,6 +15,16 @@ pub struct Fetcher {
     pub delay: usize,
 
     tile_attrs: u8, // CGB only
+
+    saved_state: Option<FetcherState>, //  save state when pausing
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct FetcherState {
+    step: u8,
+    tile_number: u8,
+    tile_data_low: u8,
+    tile_data_high: u8,
+    tile_attrs: u8,
 }
 
 impl Fetcher {
@@ -30,6 +40,8 @@ impl Fetcher {
             window_line_counter: 0,
             pause: false,
             delay: 0,
+
+            saved_state: None,
         }
     }
 
@@ -44,7 +56,7 @@ impl Fetcher {
         self.step = 0;
         self.is_window_fetch = true;
         self.x_pos_counter = 7;
-        pixel_fifo.bg_fifo.clear();
+        pixel_fifo.reset();
     }
 
     pub fn step<M: MemoryInterface>(&mut self, memory: &mut M, pixel_fifo: &mut PixelFifo) {
@@ -181,7 +193,6 @@ impl Fetcher {
             pixels.reverse();
         }
 
-
         // Push pixels to FIFO with appropriate attributes
         for color in pixels {
             let pixel = super::pixelfifo::Pixel::new_bg(memory, color, self.tile_attrs);
@@ -192,10 +203,28 @@ impl Fetcher {
     }
 
     pub fn pause(&mut self) {
-        self.pause = true;
+        if !self.pause {
+            self.saved_state = Some(FetcherState {
+                step: self.step,
+                tile_number: self.tile_number,
+                tile_data_low: self.tile_data_low,
+                tile_data_high: self.tile_data_high,
+                tile_attrs: self.tile_attrs,
+            });
+            self.pause = true;
+        }
     }
 
     pub fn unpause(&mut self) {
-        self.pause = false;
+        if self.pause {
+            if let Some(saved) = self.saved_state.take() {
+                self.step = saved.step;
+                self.tile_number = saved.tile_number;
+                self.tile_data_low = saved.tile_data_low;
+                self.tile_data_high = saved.tile_data_high;
+                self.tile_attrs = saved.tile_attrs;
+            }
+            self.pause = false;
+        }
     }
 }

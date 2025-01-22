@@ -270,5 +270,4 @@ impl Gameboy {
         self.bus.cgb.dma_active = false;
         self.bus.cgb.hdma_active = false;
     }
-
 }

@@ -52,7 +52,7 @@ impl SpriteFetcher {
                 self.step += 1;
             }
             2 => {
-                 self.push_to_fifo(memory, pixel_fifo);
+                self.push_to_fifo(memory, pixel_fifo);
                 self.scanline_reset();
             }
             _ => {
@@ -111,6 +111,7 @@ impl SpriteFetcher {
         }
         data
     }
+
     fn push_to_fifo<M: MemoryInterface>(&self, memory: &M, pixel_fifo: &mut PixelFifo) {
         for bit in 0..8 {
             let low_bit = (self.tile_data_low >> (7 - bit)) & 0x1;
@@ -130,7 +131,8 @@ impl SpriteFetcher {
             // Only override existing pixels if the new pixel is not transparent
             if color != 0 {
                 if let Some(existing_pixel) = pixel_fifo.sprite_fifo.get_mut(bit) {
-                    let new_pixel = super::pixelfifo::Pixel::new_sprite(memory, color, self.sprite.flags);
+                    let new_pixel =
+                        super::pixelfifo::Pixel::new_sprite(memory, color, self.sprite.flags);
 
                     match memory.gb_mode() {
                         bus::GameboyMode::DMG => {
@@ -139,10 +141,9 @@ impl SpriteFetcher {
                             }
                         }
                         bus::GameboyMode::CGB => {
-                                *existing_pixel = new_pixel;
+                            *existing_pixel = new_pixel;
                         }
                     }
-                  
                 }
             }
         }

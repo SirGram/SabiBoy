@@ -203,8 +203,14 @@ impl PixelFifo {
         self.bg_fifo.len() == 0 || sprite_fetcher_active || fetcher_active
     }
 
-    pub fn apply_fine_scroll(&mut self, scx: u8, fetcher: &mut Fetcher) {
+    fn apply_fine_scroll(&mut self, scx: u8, fetcher: &mut Fetcher) {
         if !self.fine_scroll_applied {
+            // Do not apply fine scroll for window tiles
+            if fetcher.is_window_fetch {
+                self.fine_scroll_applied = true;
+                return;
+            }
+
             let fine_scroll_offset = (scx & 0x07) as usize;
 
             for _ in 0..fine_scroll_offset {
