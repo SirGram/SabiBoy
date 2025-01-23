@@ -152,7 +152,7 @@ impl CgbRegisters {
         self.wram_bank as usize
     }
 
-    pub fn get_bg_color(&self, palette: u8, color_id: u8) -> (u32) {
+    pub fn get_bg_color(&self, palette: u8, color_id: u8) -> u32 {
         // Each palette has 8 bytes (4 colors × 2 bytes per color)
         let base_index = (palette & 0x07) * 8;
         // Each color takes 2 bytes
@@ -172,7 +172,7 @@ impl CgbRegisters {
         color
     }
 
-    pub fn get_obj_color(&self, palette: u8, color_id: u8) -> (u32) {
+    pub fn get_obj_color(&self, palette: u8, color_id: u8) -> u32 {
         // Same indexing scheme as BG colors
         let base_index = (palette & 0x07) * 8;
         let color_offset = (color_id & 0x03) * 2;

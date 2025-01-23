@@ -81,7 +81,7 @@ impl GameboyWasm {
     }
 
     pub fn get_frame_buffer(&self) -> Vec<u32> {
-        self.gameboy.ppu.get_frame_buffer().to_vec()
+        self.gameboy.bus.ppu.get_frame_buffer().to_vec()
     }
     pub fn handle_keys(&mut self, keys: u8) {
         self.gameboy.bus.joypad.update_keys(keys);
@@ -146,7 +146,6 @@ impl GameboyWasm {
             io_registers: bus_state.io_registers,
             hram: bus_state.hram,
             ie_register: bus_state.ie_register,
-            vram_data: bus_state.vram_data,
             wram_data: bus_state.wram_data,
             current_wram_bank: bus_state.current_wram_bank,
             debug: bus_state.debug,
@@ -154,7 +153,7 @@ impl GameboyWasm {
         }
     }
     pub fn get_ppu_state(&self) -> WasmPpuState {
-        let ppu_state = self.gameboy.ppu.save_state();
+        let ppu_state = self.gameboy.bus.ppu.save_state();
         WasmPpuState {
             mode: match ppu_state.mode {
                 PPUMode::HBLANK => WasmPPUMode::HBLANK,
@@ -198,10 +197,10 @@ impl GameboyWasm {
     }
 
     pub fn toggle_sprite_debug_mode(&mut self, enabled: bool) {
-        self.gameboy.ppu.toggle_sprite_debug_mode(enabled);
+        self.gameboy.bus.ppu.toggle_sprite_debug_mode(enabled);
     }
     pub fn toggle_window_debug_mode(&mut self, enabled: bool) {
-        self.gameboy.ppu.toggle_window_debug_mode(enabled);
+        self.gameboy.bus.ppu.toggle_window_debug_mode(enabled);
     }
     pub fn get_cartridge_info(&self) -> CartridgeHeaderState {
         let cartridge_data = self.gameboy.bus.read_cartridge_header();
@@ -312,7 +311,6 @@ pub struct WasmBusState {
     io_registers: [u8; 0x7F],
     hram: [u8; 0x7F],
     pub ie_register: u8,
-    vram_data: Vec<u8>,
     wram_data: Vec<u8>,
     current_wram_bank: usize,
     debug: [u8; 0x100],
@@ -331,10 +329,7 @@ impl WasmBusState {
         self.hram.to_vec()
     }
 
-    #[wasm_bindgen(getter)]
-    pub fn vram(&self) -> Vec<u8> {
-        self.vram_data.to_vec()
-    }
+
 }
 
 #[wasm_bindgen]

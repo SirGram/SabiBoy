@@ -4,7 +4,6 @@ use gameboy_core::{self};
 use minifb::{Key, Window, WindowOptions};
 use std::sync::{Arc, Mutex};
 use std::{
-    env::Args,
     time::{Duration, Instant},
 };
 
@@ -30,7 +29,7 @@ fn main() {
     }
 
     gameboy.load_rom(include_bytes!(
-        "../../../games/dr-mario/rom.gb" /*   "../../../games/tennis--1/rom.gb" */
+        "../../../test/dmg_acid2/dmg-acid2.gb" /*   "../../../games/tennis--1/rom.gb" */
     ));
 
     /*  if let Ok(save_state) = std::fs::read("./rom.gb.state") {
@@ -106,7 +105,7 @@ fn run(
         }
 
         // Get the frame buffer from PPU and convert colors
-        let gb_buffer = gameboy.ppu.get_frame_buffer();
+        let gb_buffer = gameboy.bus.ppu.get_frame_buffer();
         buffer.copy_from_slice(gb_buffer);
 
         // Update the window with the new frame
@@ -143,7 +142,7 @@ fn run(
 
         // Update debug window
         if let Some(debug_window) = debug_window {
-            debug_window.update(&gameboy.cpu, &gameboy.bus, &gameboy.ppu, current_fps);
+            debug_window.update(&gameboy.cpu, &gameboy.bus, &gameboy.bus.ppu, current_fps);
             debug_window.render();
         }
 

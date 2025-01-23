@@ -3,17 +3,14 @@ pub mod fetcher_sprites;
 mod helper;
 pub mod pixelfifo;
 
-use crate::bus::{io_address::IoRegister, Bus, GameboyMode, MemoryInterface};
+use crate::{bus::{io_address::IoRegister, Bus, GameboyMode}, gameboy::Interrupt};
 use fetcher::Fetcher;
 use fetcher_sprites::SpriteFetcher;
 use helper::{should_add_sprite, should_fetch_sprite};
 use pixelfifo::{ColorValue, PixelFifo};
 use serde::{Deserialize, Serialize};
 use std::{
-    cell::{Ref, RefCell},
-    cmp::Ordering,
-    rc::Rc,
-    vec,
+    cmp::Ordering, vec
 };
 
 const SCREEN_WIDTH: u8 = 160;
@@ -50,7 +47,27 @@ pub struct PPU {
     window_line_counter_incremented_this_scanline: bool,
     new_frame: bool,
     debug_config: DebugConfig,
-    enabled: bool,
+
+    pub rgs: PPURegisters,
+    vram_banks: Vec<[u8; 0x2000]>,
+    oam: [u8; 0xA0],
+    gb_mode: GameboyMode,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PPURegisters {
+    pub lcdc: u8,
+    pub stat: u8,
+    pub scy: u8,
+    pub scx: u8,
+    pub ly: u8,
+    pub lyc: u8,
+    pub dma: u8,
+    pub bgp: u8,
+    pub obp0: u8,
+    pub obp1: u8,
+    pub wy: u8,
+    pub wx: u8,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -96,10 +113,29 @@ impl Sprite {
 impl PPU {
     /* https://hacktix.github.io/GBEDG/ppu/
      */
-    pub fn new(palette: [u32; 4]) -> Self {
+    pub fn new(palette: [u32; 4], gb_mode: GameboyMode) -> Self {
         let debug_config = DebugConfig {
             sprite_debug_enabled: true,
             window_debug_enabled: true,
+        };
+
+        let rgs = PPURegisters {
+            lcdc: 0,
+            stat: 0,
+            scy: 0,
+            scx: 0,
+            ly: 0,
+            lyc: 0,
+            dma: 0,
+            bgp: 0,
+            obp0: 0,
+            obp1: 0,
+            wy: 0,
+            wx: 0,
+        };
+        let vram_size = match gb_mode {
+            GameboyMode::CGB => 2,
+            GameboyMode::DMG => 1,
         };
         Self {
             palette: palette,
@@ -116,9 +152,27 @@ impl PPU {
             window_line_counter_incremented_this_scanline: false,
             new_frame: false,
             debug_config: debug_config,
-            enabled: true,
+            rgs: rgs,
+            vram_banks: vec![[0; 0x2000]; vram_size],
+            oam: [0; 0xA0],
+            gb_mode: gb_mode,
         }
     }
+    pub fn read_vram(&self, addr: u16, bank: usize) -> u8 {
+        self.vram_banks[bank][(addr - 0x8000) as usize]
+    }
+
+    pub fn write_vram(&mut self, addr: u16, value: u8, bank: usize) {
+        self.vram_banks[bank][(addr - 0x8000) as usize] = value;
+    }
+    pub fn read_oam(&self, addr: u16) -> u8 {
+        self.oam[(addr - 0xFE00) as usize]
+    }
+
+    pub fn write_oam(&mut self, addr: u16, value: u8) {
+        self.oam[(addr - 0xFE00) as usize] = value;
+    }
+
     pub fn save_state(&self) -> PPUState {
         PPUState {
             mode: self.mode,
@@ -159,7 +213,7 @@ impl PPU {
         self.debug_config.window_debug_enabled = enabled;
     }
 
-    fn check_window<M: MemoryInterface>(&mut self, memory: &mut M) -> bool {
+    fn check_window(&mut self) -> bool {
         if !self.debug_config.window_debug_enabled {
             return false;
         }
@@ -169,21 +223,18 @@ impl PPU {
         The current X-position of the shifter is greater than or equal to WX - 7
         */
 
-        let lcdc = memory.read_byte(IoRegister::Lcdc.address());
-        if lcdc & 0b0010_0000 == 0 {
+
+        if self.rgs.lcdc & 0b0010_0000 == 0 {
             return false;
         }
-        let wy = memory.read_byte(IoRegister::Wy.address());
-        let wx = memory.read_byte(IoRegister::Wx.address());
-        let ly = memory.read_byte(IoRegister::Ly.address());
 
-        if ly == wy {
+        if self.rgs.ly == self.rgs.wy {
             if !self.window_triggered_this_frame {
                 self.window_triggered_this_frame = true;
             }
         }
         self.window_triggered_this_frame
-            && self.x_render_counter as i16 >= (wx.wrapping_sub(7)) as i16
+            && self.x_render_counter as i16 >= (self.rgs.wx.wrapping_sub(7)) as i16
     }
 
     pub fn get_frame_buffer(&self) -> &[u32] {
@@ -201,31 +252,34 @@ impl PPU {
         }
         self.window_line_counter_incremented_this_scanline = false;
     }
-    fn reset_frame<M: MemoryInterface>(&mut self, memory: &mut M) {
+    fn reset_frame(&mut self) {
         self.new_frame = false;
         self.reset_scanline();
         self.mode = PPUMode::OAM_SCAN;
         self.window_triggered_this_frame = false;
         self.fetcher.window_line_counter = 0;
-        self.set_io_register(memory, IoRegister::Ly, 0);
+        self.rgs.ly = 0;
     }
 
-
-    pub fn tick<M: MemoryInterface>(&mut self, memory: &mut M) {
+    pub fn tick(&mut self)-> Vec<Interrupt> {
+        let mut interrupts = Vec::new();
         // Check if LCD is enabled
-        let lcdc = self.get_io_register(memory, IoRegister::Lcdc);
-        if (lcdc & 0x80) == 0 {
-            self.set_io_register(memory, IoRegister::Ly, 0);
-        return;
-        }
+        
+      /*   if (self.rgs.lcdc & 0x80) == 0 {
+            self.rgs.ly = 0;
+            return interrupts;
+        } */
 
-        let ly = self.get_io_register(memory, IoRegister::Ly);
+        let ly = self.rgs.ly;
+      /*   // print every register
+        println!("lcdc: {:02X} ly: {:02X} lyc: {:02X} dma: {:02X} bgp: {:02X} obp0: {:02X} obp1: {:02X} wy: {:02X} wx: {:02X}", self.rgs.lcdc, self.rgs.ly, self.rgs.lyc, self.rgs.dma, self.rgs.bgp, self.rgs.obp0, self.rgs.obp1, self.rgs.wy, self.rgs.wx);
+ */
 
         match self.mode {
-            PPUMode::OAM_SCAN => self.handle_oam(memory),
-            PPUMode::DRAWING => self.handle_drawing(memory),
+            PPUMode::OAM_SCAN => self.handle_oam(),
+            PPUMode::DRAWING => self.handle_drawing(),
             PPUMode::HBLANK => self.handle_hblank(),
-            PPUMode::VBLANK => {}
+            PPUMode::VBLANK => self.handle_vblank( &mut interrupts),
         }
 
         if self.mode_cycles >= CYCLES_PER_SCANLINE {
@@ -233,42 +287,45 @@ impl PPU {
             self.reset_scanline();
             // Increment LY and handle PPUMode transitions
             if ly < VBLANK_START_SCANLINE {
-                self.set_io_register(memory, IoRegister::Ly, ly + 1);
+                self.rgs.ly += 1;
                 self.mode = PPUMode::OAM_SCAN;
             } else if ly == VBLANK_START_SCANLINE {
                 // vblank start
                 self.mode = PPUMode::VBLANK;
-                self.handle_vblank(memory);
-                self.set_io_register(memory, IoRegister::Ly, ly + 1);
+                self.handle_vblank( &mut interrupts);
+                self.rgs.ly += 1;
             } else if ly >= SCANLINE_Y_COUNTER_MAX {
-                self.reset_frame(memory);
+                self.reset_frame();
             } else {
-                self.set_io_register(memory, IoRegister::Ly, ly + 1);
+                self.rgs.ly += 1;
             }
         }
 
-        self.update_stat(memory);
+        self.update_stat(&mut interrupts);
         self.mode_cycles += 1;
+        
+        interrupts
     }
 
-    fn read_sprite<M: MemoryInterface>(&self, memory: &mut M, address: u16) -> Sprite {
+    fn read_sprite(&self, address: u16) -> Sprite {
+        let oam_index = (address - 0xFE00) as usize;
         Sprite {
-            y_pos: memory.read_byte(address),
-            x_pos: memory.read_byte(address + 1),
-            tile_number: memory.read_byte(address + 2),
-            flags: memory.read_byte(address + 3),
+            y_pos: self.oam[oam_index],
+            x_pos: self.oam[oam_index + 1],
+            tile_number: self.oam[oam_index + 2],
+            flags: self.oam[oam_index + 3],
         }
     }
 
-    fn handle_oam<M: MemoryInterface>(&mut self, memory: &mut M) {
+    fn handle_oam(&mut self) {
         if self.mode_cycles % 2 != 0 {
             let current_entry = self.mode_cycles / 2;
-            let sprite = self.read_sprite(memory, 0xFE00 + (current_entry as u16 * 4));
+            let sprite = self.read_sprite( 0xFE00 + (current_entry as u16 * 4));
 
             if should_add_sprite(
                 &sprite,
-                self.get_io_register(memory, IoRegister::Ly),
-                self.get_io_register(memory, IoRegister::Lcdc),
+                self.rgs.ly,
+                self.rgs.lcdc,
                 self.sprite_buffer.len(),
             ) {
                 self.sprite_buffer.push(sprite);
@@ -276,7 +333,7 @@ impl PPU {
         }
         if self.mode_cycles >= 80 {
             self.mode = PPUMode::DRAWING;
-            if memory.gb_mode() == GameboyMode::DMG {
+            if self.gb_mode == GameboyMode::DMG {
                 self.sprite_buffer
                     .sort_by(|a, b| match a.x_pos.cmp(&b.x_pos) {
                         Ordering::Equal => b.flags.cmp(&a.flags),
@@ -286,7 +343,7 @@ impl PPU {
         }
     }
 
-    fn handle_drawing<M: MemoryInterface>(&mut self, memory: &mut M) {
+    fn handle_drawing(&mut self) {
         // Exit if we've drawn all pixels for this line
         if self.x_render_counter >= X_POSITION_COUNTER_MAX as i16 {
             self.mode = PPUMode::HBLANK;
@@ -298,8 +355,8 @@ impl PPU {
             .pixel_fifo
             .is_paused(self.sprite_fetcher.active, self.fetcher.pause)
         {
-            if let Some(color_value) = self.pixel_fifo.pop_pixel(memory, &mut self.fetcher) {
-                let ly = self.get_io_register(memory, IoRegister::Ly);
+            if let Some(color_value) = self.pixel_fifo.pop_pixel( &mut self.fetcher , self.rgs.scx, self.gb_mode , self.rgs.lcdc, self.rgs.bgp, self.rgs.obp0, self.rgs.obp1) {
+                let ly = self.rgs.ly;
 
                 if self.x_render_counter >= 0
                     && self.x_render_counter < SCREEN_WIDTH as i16
@@ -321,7 +378,7 @@ impl PPU {
         }
         // Window check
         if !self.fetcher.is_window_fetch {
-            if self.check_window(memory) {
+            if self.check_window() {
                 self.fetcher.window_trigger(&mut self.pixel_fifo);
                 if !self.window_line_counter_incremented_this_scanline {
                     self.window_line_counter_incremented_this_scanline = true;
@@ -347,10 +404,10 @@ impl PPU {
 
         // Every 2 dots, run fetcher steps
         if self.mode_cycles % 2 == 0 {
-            self.fetcher.step(memory, &mut self.pixel_fifo);
+            self.fetcher.step( self.rgs.lcdc, self.rgs.scy, self.rgs.scx,self.rgs.ly, self.rgs.wx, self.rgs.bgp, self.gb_mode, &self.vram_banks,  &mut self.pixel_fifo);
             if self.sprite_fetcher.active {
                 self.fetcher.pause();
-                self.sprite_fetcher.step(memory, &mut self.pixel_fifo);
+                self.sprite_fetcher.step( &mut self.pixel_fifo, self.rgs.ly, self.rgs.lcdc, self.gb_mode, &self.vram_banks);
             } else {
                 self.fetcher.unpause();
             }
@@ -361,22 +418,12 @@ impl PPU {
         // pads till 456 cycles
     }
 
-    fn handle_vblank<M: MemoryInterface>(&mut self, memory: &mut M) {
-        // pads 10 vertical scanlinesf
-
-        //request vblank interrupt
-        let if_register = self.get_io_register(memory, IoRegister::If);
-        self.set_io_register(memory, IoRegister::If, if_register | 0b0000_0001);
-        // update window per frame
+    fn handle_vblank(&mut self, interrupts: &mut Vec<Interrupt>) {
+        interrupts.push(Interrupt::VBlank);
         self.new_frame = true;
     }
-    fn get_io_register<M: MemoryInterface>(&self, memory: &mut M, register: IoRegister) -> u8 {
-        memory.read_byte(register.address())
-    }
-    fn set_io_register<M: MemoryInterface>(&self, memory: &mut M, register: IoRegister, value: u8) {
-        memory.write_byte(register.address(), value);
-    }
-    fn update_stat<M: MemoryInterface>(&mut self, memory: &mut M) {
+  
+    fn update_stat(&mut self, interrupts: &mut Vec<Interrupt>) {
         /*
         Bit 7   Unused (Always 1)
         Bit 6   LYC=LY STAT Interrupt Enable
@@ -396,7 +443,7 @@ impl PPU {
                   * 2 : OAM Scan
                   * 3 : Drawing
         */
-        let mut stat = self.get_io_register(memory, IoRegister::Stat);
+        let mut stat = self.rgs.stat;
 
         // Determine the current PPU mode
         let ppu_mode = match self.mode {
@@ -411,10 +458,7 @@ impl PPU {
         stat |= ppu_mode; // Set the current mode bits
 
         // Update the coincidence flag
-        let ly = self.get_io_register(memory, IoRegister::Ly);
-        let lyc = self.get_io_register(memory, IoRegister::Lyc);
-        let lcdc = self.get_io_register(memory, IoRegister::Lcdc);
-        let coincidence_flag = if ly == lyc { 1 } else { 0 };
+        let coincidence_flag = if self.rgs.ly == self.rgs.lyc { 1 } else { 0 };
         stat &= 0b11111011; // Clear the coincidence flag bit
         stat |= coincidence_flag << 2; // Set the current coincidence flag bit
 
@@ -436,8 +480,7 @@ impl PPU {
 
         // Trigger STAT interrupt only if conditions are met and were not previously met
         if current_conditions != 0 && self.previous_stat_conditions == 0 {
-            let if_reg = self.get_io_register(memory, IoRegister::If);
-            self.set_io_register(memory, IoRegister::If, if_reg | 0b0000_0010);
+            interrupts.push(Interrupt::LCDStat);
         }
 
         // Store current conditions for next comparison
@@ -445,6 +488,6 @@ impl PPU {
 
         // Ensure bit 7 is always set
         stat |= 0b1000_0000;
-        self.set_io_register(memory, IoRegister::Stat, stat);
+        self.rgs.stat = stat;
     }
 }

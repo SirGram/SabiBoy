@@ -2,7 +2,7 @@ use super::{
     fetcher::{self, Fetcher},
     Sprite,
 };
-use crate::bus::{io_address::IoRegister, Bus, GameboyMode, MemoryInterface};
+use crate::bus::{io_address::IoRegister, Bus, GameboyMode};
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 
@@ -20,8 +20,8 @@ pub struct CgbAttributes {
 }
 
 impl Pixel {
-    pub fn new_bg<M: MemoryInterface>(memory: &M, color: u8, attrs: u8) -> Self {
-        match memory.gb_mode() {
+    pub fn new_bg( color: u8, attrs: u8, gb_mode: GameboyMode) -> Self {
+        match gb_mode {
             GameboyMode::DMG => Self {
                 color,
                 bg_priority: false,
@@ -39,8 +39,8 @@ impl Pixel {
         }
     }
 
-    pub fn new_sprite<M: MemoryInterface>(memory: &M, color: u8, attrs: u8) -> Self {
-        match memory.gb_mode() {
+    pub fn new_sprite( color: u8, attrs: u8 , gb_mode: GameboyMode) -> Self {
+        match gb_mode {
             GameboyMode::DMG => Self {
                 color,
                 bg_priority: attrs & 0x80 != 0,
@@ -81,53 +81,63 @@ impl PixelFifo {
         self.fine_scroll_applied = false;
     }
 
-    pub fn pop_pixel<M: MemoryInterface>(
+    pub fn pop_pixel(
         &mut self,
-        memory: &M,
+        
         fetcher: &mut Fetcher,
+        scx: u8,
+        gb_mode: GameboyMode,
+        lcdc: u8,
+        bgp: u8,
+        obp0: u8,
+        obp1: u8,
+
+
     ) -> Option<ColorValue> {
         if self.bg_fifo.is_empty() {
             return None;
         }
 
-        self.apply_fine_scroll(memory.read_byte(IoRegister::Scx.address()), fetcher);
+        self.apply_fine_scroll(scx, fetcher);
         let bg_pixel = self.bg_fifo.pop_front().unwrap();
         let sprite_pixel = self.sprite_fifo.pop_front();
 
-        match memory.gb_mode() {
+        match gb_mode {
             GameboyMode::DMG => self
-                .mix_dmg_pixels(memory, bg_pixel, sprite_pixel)
+                .mix_dmg_pixels( bg_pixel, sprite_pixel , lcdc, bgp, obp0, obp1)
                 .map(ColorValue::Dmg),
             GameboyMode::CGB => {
-                let rgb = self.mix_cgb_pixels(memory, bg_pixel, sprite_pixel);
+                let rgb = 0;
                 Some(ColorValue::Cgb(rgb))
             }
         }
     }
 
-    fn mix_dmg_pixels<M: MemoryInterface>(
+    fn mix_dmg_pixels(
         &self,
-        memory: &M,
+        
         bg_pixel: Pixel,
         sprite_pixel: Option<Pixel>,
+        lcdc: u8,
+        bgp: u8,
+        obp0: u8,
+        obp1: u8,
     ) -> Option<u8> {
-        let lcdc = memory.read_byte(IoRegister::Lcdc.address());
         let mut final_color = bg_pixel.color;
 
         if lcdc & 0x01 == 0 {
             final_color = 0;
         }
 
-        let bgp = memory.read_byte(IoRegister::Bgp.address());
         final_color = (bgp >> (final_color * 2)) & 0x03;
 
         if let Some(sprite) = sprite_pixel {
             if lcdc & 0x02 != 0 && sprite.color != 0 {
                 if !sprite.bg_priority || final_color == 0 {
                     let obp = if sprite.palette > 0 {
-                        memory.read_byte(IoRegister::Obp1.address())
+                        obp1
                     } else {
-                        memory.read_byte(IoRegister::Obp0.address())
+                        obp0
                     };
                     final_color = (obp >> (sprite.color * 2)) & 0x03;
                 }
@@ -137,60 +147,7 @@ impl PixelFifo {
         Some(final_color)
     }
 
-    fn mix_cgb_pixels<M: MemoryInterface>(
-        &self,
-        memory: &M,
-        bg_pixel: Pixel,
-        sprite_pixel: Option<Pixel>,
-    ) -> u32 {
-        let lcdc = memory.read_byte(IoRegister::Lcdc.address());
 
-        // If LCDC bit 0 is clear (master priority off), sprites show over black background
-        if lcdc & 0x01 == 0 {
-            if let Some(sprite) = sprite_pixel {
-                if sprite.color != 0 {
-                    return memory.cgb().get_obj_color(sprite.palette, sprite.color);
-                }
-            }
-        }
-
-        // Get the background color first
-        let bg_color = memory.cgb().get_bg_color(bg_pixel.palette, bg_pixel.color);
-
-        // If sprites are disabled or no sprite pixel, return background
-        if lcdc & 0x02 == 0 || sprite_pixel.is_none() {
-            return bg_color;
-        }
-
-        let sprite = sprite_pixel.unwrap();
-
-        // Sprite color 0 is always transparent
-        if sprite.color == 0 {
-            return bg_color;
-        }
-
-        let sprite_color = memory.cgb().get_obj_color(sprite.palette, sprite.color);
-
-        // CGB Priority Rules:
-        // 1. If BG color is 0, sprite always shows
-        // 2. If BG priority (BG attribute bit 7) is set AND BG color isn't 0, BG shows
-        // 3. If OBJ priority (OAM bit 7) is set AND BG color isn't 0, BG shows
-        // 4. Otherwise sprite shows
-
-        if bg_pixel.color == 0 {
-            // BG color 0 is always "transparent" to sprites
-            sprite_color
-        } else if bg_pixel.bg_priority {
-            // BG priority bit set in tile attributes
-            bg_color
-        } else if sprite.bg_priority && bg_pixel.color != 0 {
-            // Sprite uses BG priority and BG isn't transparent
-            bg_color
-        } else {
-            // Default case - sprite shows on top
-            sprite_color
-        }
-    }
     pub fn bg_pixel_count(&self) -> usize {
         self.bg_fifo.len()
     }

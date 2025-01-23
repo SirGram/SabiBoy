@@ -17,31 +17,36 @@ use std::{
 struct SerializableGameboy {
     cpu_state: CPUState,
     timer_state: TimerState,
-    ppu_state: PPUState,
     bus_data: BusState,
 }
 #[derive(Clone, Debug)]
 pub struct Gameboy {
     pub cpu: CPU,
     pub timer: Timer,
-    pub ppu: PPU,
     pub bus: Bus,
     pub apu: APU,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Interrupt {
+    VBlank,
+    LCDStat,
+    Timer,
+    Serial,
+    Joypad,
+}
+
 impl Gameboy {
     pub fn new(palette: [u32; 4]) -> Self {
-        let bus = Bus::new();
+        let bus = Bus::new( palette, GameboyMode::DMG);
         let timer = Timer::new();
         let cpu = CPU::new();
-        let ppu = PPU::new(palette);
         let apu = APU::new();
 
         Self {
             cpu,
             timer,
             bus,
-            ppu,
             apu,
         }
     }
@@ -49,7 +54,6 @@ impl Gameboy {
         let serializable_state = SerializableGameboy {
             cpu_state: self.cpu.save_state(),
             timer_state: self.timer.save_state(),
-            ppu_state: self.ppu.save_state(),
             bus_data: self.bus.save_state(),
         };
 
@@ -66,7 +70,6 @@ impl Gameboy {
         self.bus.load_state(serializable_state.bus_data);
         self.cpu.load_state(serializable_state.cpu_state);
         self.timer.load_state(serializable_state.timer_state);
-        self.ppu.load_state(serializable_state.ppu_state);
 
         Ok(())
     }
@@ -77,10 +80,23 @@ impl Gameboy {
     pub fn tick(&mut self) {
         self.cpu.tick(&mut self.bus);
         for _ in 0..self.cpu.cycles {
+            let mut interrupts = Vec::new();
+
+            interrupts.extend(self.bus.tick());
             self.timer.tick(&mut self.bus);
-            self.ppu.tick(&mut self.bus);
-            self.bus.mbc.tick();
             self.apu.tick(&mut self.bus);
+
+            let mut if_reg = self.bus.read_byte(IoRegister::If.address());
+            for interrupt in interrupts {
+                match interrupt {
+                    Interrupt::VBlank => if_reg |= 0b0000_0001,
+                    Interrupt::LCDStat => if_reg |= 0b0000_0010,
+                    Interrupt::Timer => if_reg |= 0b0000_0100,
+                    Interrupt::Serial => if_reg |= 0b0000_1000,
+                    Interrupt::Joypad => if_reg |= 0b0001_0000,
+                }
+            }
+            self.bus.write_byte(IoRegister::If.address(), if_reg);
         }
     }
     pub fn run_frame(&mut self) {

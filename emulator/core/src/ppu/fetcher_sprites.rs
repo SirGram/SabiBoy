@@ -2,8 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{pixelfifo::PixelFifo, Sprite};
 use crate::{
-    bus::{self, io_address::IoRegister, GameboyMode, MemoryInterface},
-    gameboy::Gameboy,
+    bus::{self, io_address::IoRegister, GameboyMode, MemoryInterface}, gameboy,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -41,18 +40,18 @@ impl SpriteFetcher {
         // Start with tile number fetch
         self.fetch_tile_number(sprite);
     }
-    pub fn step<M: MemoryInterface>(&mut self, memory: &mut M, pixel_fifo: &mut PixelFifo) {
+    pub fn step(&mut self, pixel_fifo: &mut PixelFifo, ly: u8, lcdc: u8, gb_mode: GameboyMode, vram_banks: &[[u8; 0x2000]]) {
         match self.step {
             0 => {
-                self.tile_data_low = self.fetch_tile_data(memory, false);
+                self.tile_data_low = self.fetch_tile_data( false , ly, lcdc, gb_mode, vram_banks);
                 self.step += 1;
             }
             1 => {
-                self.tile_data_high = self.fetch_tile_data(memory, true);
+                self.tile_data_high = self.fetch_tile_data( true , ly, lcdc, gb_mode, vram_banks);
                 self.step += 1;
             }
             2 => {
-                self.push_to_fifo(memory, pixel_fifo);
+                self.push_to_fifo( pixel_fifo  , gb_mode);
                 self.scanline_reset();
             }
             _ => {
@@ -63,12 +62,11 @@ impl SpriteFetcher {
     fn fetch_tile_number(&mut self, sprite: &Sprite) {
         self.tile_number = sprite.tile_number;
     }
-    fn fetch_tile_data<M: MemoryInterface>(&mut self, memory: &mut M, is_high_byte: bool) -> u8 {
-        let ly = memory.read_byte(IoRegister::Ly.address());
+    fn fetch_tile_data(&mut self, is_high_byte: bool, ly: u8, lcdc: u8, gb_mode: GameboyMode, vram_banks: &[[u8; 0x2000]]) -> u8 {
 
         let y_flip = self.sprite.flags & 0x40 != 0;
         let x_flip = self.sprite.flags & 0x20 != 0;
-        let sprite_size = if memory.read_byte(IoRegister::Lcdc.address()) & 0x04 != 0 {
+        let sprite_size = if lcdc & 0x04 != 0 {
             16
         } else {
             8
@@ -96,13 +94,13 @@ impl SpriteFetcher {
         // Get the correct byte of tile data
         let address = base_address + y_offset + if is_high_byte { 1 } else { 0 };
         let mut data;
-        match memory.gb_mode() {
+        match gb_mode {
             GameboyMode::DMG => {
-                data = memory.read_byte(address);
+                data = vram_banks[0][(address - 0x8000) as usize];
             }
             GameboyMode::CGB => {
                 let selected_bank = self.sprite.flags >> 3 & 0b1;
-                data = memory.read_byte_vram_bank(address, selected_bank as usize);
+                data = vram_banks[selected_bank as usize][(address - 0x8000) as usize];
             }
         }
 
@@ -112,7 +110,7 @@ impl SpriteFetcher {
         data
     }
 
-    fn push_to_fifo<M: MemoryInterface>(&self, memory: &M, pixel_fifo: &mut PixelFifo) {
+    fn push_to_fifo(&self,  pixel_fifo: &mut PixelFifo , gb_mode: GameboyMode) {
         for bit in 0..8 {
             let low_bit = (self.tile_data_low >> (7 - bit)) & 0x1;
             let high_bit = (self.tile_data_high >> (7 - bit)) & 0x1;
@@ -123,18 +121,18 @@ impl SpriteFetcher {
                 pixel_fifo
                     .sprite_fifo
                     .push_back(super::pixelfifo::Pixel::new_sprite(
-                        memory, 0, // Transparent pixel
+                         0, // Transparent pixel
                         0, // No flags
-                    ));
+                        gb_mode));
             }
 
             // Only override existing pixels if the new pixel is not transparent
             if color != 0 {
                 if let Some(existing_pixel) = pixel_fifo.sprite_fifo.get_mut(bit) {
                     let new_pixel =
-                        super::pixelfifo::Pixel::new_sprite(memory, color, self.sprite.flags);
+                        super::pixelfifo::Pixel::new_sprite( color, self.sprite.flags , gb_mode);
 
-                    match memory.gb_mode() {
+                    match gb_mode {
                         bus::GameboyMode::DMG => {
                             if existing_pixel.color == 0 {
                                 *existing_pixel = new_pixel;
