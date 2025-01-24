@@ -20,7 +20,7 @@ pub struct CgbAttributes {
 }
 
 impl Pixel {
-    pub fn new_bg( color: u8, attrs: u8, gb_mode: GameboyMode) -> Self {
+    pub fn new_bg(color: u8, attrs: u8, gb_mode: GameboyMode) -> Self {
         match gb_mode {
             GameboyMode::DMG => Self {
                 color,
@@ -39,7 +39,7 @@ impl Pixel {
         }
     }
 
-    pub fn new_sprite( color: u8, attrs: u8 , gb_mode: GameboyMode) -> Self {
+    pub fn new_sprite(color: u8, attrs: u8, gb_mode: GameboyMode) -> Self {
         match gb_mode {
             GameboyMode::DMG => Self {
                 color,
@@ -83,7 +83,7 @@ impl PixelFifo {
 
     pub fn pop_pixel(
         &mut self,
-        
+
         fetcher: &mut Fetcher,
         scx: u8,
         gb_mode: GameboyMode,
@@ -91,8 +91,6 @@ impl PixelFifo {
         bgp: u8,
         obp0: u8,
         obp1: u8,
-
-
     ) -> Option<ColorValue> {
         if self.bg_fifo.is_empty() {
             return None;
@@ -104,7 +102,7 @@ impl PixelFifo {
 
         match gb_mode {
             GameboyMode::DMG => self
-                .mix_dmg_pixels( bg_pixel, sprite_pixel , lcdc, bgp, obp0, obp1)
+                .mix_dmg_pixels(bg_pixel, sprite_pixel, lcdc, bgp, obp0, obp1)
                 .map(ColorValue::Dmg),
             GameboyMode::CGB => {
                 let rgb = 0;
@@ -115,7 +113,7 @@ impl PixelFifo {
 
     fn mix_dmg_pixels(
         &self,
-        
+
         bg_pixel: Pixel,
         sprite_pixel: Option<Pixel>,
         lcdc: u8,
@@ -134,11 +132,7 @@ impl PixelFifo {
         if let Some(sprite) = sprite_pixel {
             if lcdc & 0x02 != 0 && sprite.color != 0 {
                 if !sprite.bg_priority || final_color == 0 {
-                    let obp = if sprite.palette > 0 {
-                        obp1
-                    } else {
-                        obp0
-                    };
+                    let obp = if sprite.palette > 0 { obp1 } else { obp0 };
                     final_color = (obp >> (sprite.color * 2)) & 0x03;
                 }
             }
@@ -146,7 +140,6 @@ impl PixelFifo {
 
         Some(final_color)
     }
-
 
     pub fn bg_pixel_count(&self) -> usize {
         self.bg_fifo.len()

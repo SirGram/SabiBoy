@@ -3,9 +3,7 @@ use cpal::{Device, SampleRate, StreamConfig};
 use gameboy_core::{self};
 use minifb::{Key, Window, WindowOptions};
 use std::sync::{Arc, Mutex};
-use std::{
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 mod debug_window;
 fn main() {
@@ -29,7 +27,7 @@ fn main() {
     }
 
     gameboy.load_rom(include_bytes!(
-        "../../../test/dmg_acid2/dmg-acid2.gb" /*   "../../../games/tennis--1/rom.gb" */
+        "../../../games/dmg-acid/rom.gb" /*   "../../../games/tennis--1/rom.gb" */
     ));
 
     /*  if let Ok(save_state) = std::fs::read("./rom.gb.state") {

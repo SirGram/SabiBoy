@@ -1,5 +1,3 @@
-use crate::bus::{self, io_address::IoRegister, Bus, MemoryInterface};
-
 #[derive(Debug, Clone)]
 pub struct Channel4 {
     length_timer: u8,
@@ -26,35 +24,32 @@ impl Channel4 {
         }
     }
 
-    pub fn tick<M: MemoryInterface>(&mut self, memory: &mut M) {
-        let is_triggered =
-            memory.read_byte(bus::io_address::IoRegister::Nr44.address()) & 0b10000000 != 0;
+    pub fn tick(&mut self, nr42: u8, nr43: u8, nr44: u8) {
+        let is_triggered = nr44 & 0b10000000 != 0;
         if is_triggered {
-            self.trigger(memory);
+            self.trigger(nr42);
         }
         self.period_timer -= 1;
         if self.period_timer == 0 {
-            self.period_timer = self.calculate_period(memory);
+            self.period_timer = self.calculate_period(nr43);
             let lfsr_bit = (self.lfsr ^ (self.lfsr >> 1)) & 1;
             self.lfsr = (self.lfsr >> 1) | (lfsr_bit << 14);
-            if memory.read_byte(bus::io_address::IoRegister::Nr43.address()) & 0b00001000 != 0 {
+            if nr43 & 0b00001000 != 0 {
                 self.lfsr = (self.lfsr & 0xFFBF) | (lfsr_bit << 6);
             }
         }
     }
 
-    pub fn trigger<M: MemoryInterface>(&mut self, memory: &mut M) {
-        self.current_volume =
-            (memory.read_byte(bus::io_address::IoRegister::Nr42.address()) & 0b11110000) >> 4;
-        self.period_timer =
-            memory.read_byte(bus::io_address::IoRegister::Nr42.address()) & 0b00000111;
+    pub fn trigger(&mut self, nr42: u8) {
+        self.current_volume = (nr42 & 0b11110000) >> 4;
+        self.period_timer = nr42 & 0b00000111;
         if self.length_timer == 0 {
             self.length_timer = 64;
         }
         self.disabled = false;
     }
 
-    pub fn sample<M: MemoryInterface>(&self, memory: &mut M) -> f32 {
+    pub fn sample(&self) -> f32 {
         if self.disabled {
             return 0.0;
         }
@@ -64,10 +59,9 @@ impl Channel4 {
         dac_output
     }
 
-    pub fn update_envelope<M: MemoryInterface>(&mut self, memory: &mut M) {
-        let period = memory.read_byte(bus::io_address::IoRegister::Nr42.address()) & 0b00000111;
-        let is_upwards =
-            memory.read_byte(bus::io_address::IoRegister::Nr42.address()) & 0b00001000 == 1;
+    pub fn update_envelope(&mut self, nr42: u8) {
+        let period = nr42 & 0b00000111;
+        let is_upwards = nr42 & 0b00001000 == 1;
         if period != 0 {
             if self.period_timer > 0 {
                 self.period_timer -= 1
@@ -89,10 +83,10 @@ impl Channel4 {
         }
     }
 
-    pub fn update_length<M: MemoryInterface>(&mut self, memory: &M) {
-        self.length_timer = 64 - self.get_length(memory);
+    pub fn update_length(&mut self, nr41: u8) {
+        self.length_timer = 64 - self.get_length(nr41);
         // Whenever a length clock is provided by the frame sequencer AND bit 6 of NR44 register is set, the length timer is decremented by one.
-        if memory.read_byte(bus::io_address::IoRegister::Nr41.address()) & 0b01000000 == 1 {
+        if nr41 & 0b01000000 == 1 {
             self.length_timer -= 1;
             if self.length_timer == 0 {
                 self.disabled = true;
@@ -100,16 +94,15 @@ impl Channel4 {
         }
     }
 
-    pub fn update_sweep<M: MemoryInterface>(&mut self, memory: &mut M) {}
+    pub fn update_sweep(&mut self) {}
 
-    fn get_length<M: MemoryInterface>(&self, memory: &M) -> u8 {
-        memory.read_byte(bus::io_address::IoRegister::Nr41.address()) & 0b00111111
+    fn get_length(&self, nr41: u8) -> u8 {
+        nr41 & 0b00111111
     }
 
-    fn calculate_period<M: MemoryInterface>(&self, memory: &mut M) -> u8 {
-        let shift = memory.read_byte(bus::io_address::IoRegister::Nr43.address()) >> 4;
-        let divisor_code =
-            memory.read_byte(bus::io_address::IoRegister::Nr43.address()) & 0b00000111;
+    fn calculate_period(&self, nr43: u8) -> u8 {
+        let shift = nr43 >> 4;
+        let divisor_code = nr43 & 0b00000111;
         let divisor = match divisor_code {
             0 => 8,
             1 => 16,

@@ -3,7 +3,11 @@ use io_address::IoRegister;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    cartridge::{mbc0::Mbc0, mbc1::Mbc1, mbc3::Mbc3, mbc5::Mbc5, MbcType, MbcTypeState}, gameboy::Interrupt, joyp::Joypad, ppu::PPU
+    apu::APU,
+    cartridge::{mbc0::Mbc0, mbc1::Mbc1, mbc3::Mbc3, mbc5::Mbc5, MbcType, MbcTypeState},
+    gameboy::Interrupt,
+    joyp::Joypad,
+    ppu::PPU,
 };
 
 pub mod cgb;
@@ -28,13 +32,9 @@ pub trait MemoryInterface {
         self.write_byte(addr.wrapping_add(1), high);
     }
 
-    #[inline(always)]
-    fn read_wave_ram(&self) -> [u8; 16];
-
     fn gb_mode(&self) -> GameboyMode;
     #[inline(always)]
     fn cgb(&self) -> &cgb::CgbRegisters;
-
 }
 
 #[derive(Clone, Debug)]
@@ -49,7 +49,9 @@ pub struct Bus {
     pub mbc: MbcType,
     pub gb_mode: GameboyMode,
     pub cgb: cgb::CgbRegisters,
+
     pub ppu: PPU,
+    pub apu: APU,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Copy)]
@@ -63,10 +65,14 @@ impl MemoryInterface for Bus {
     fn read_byte(&self, address: u16) -> u8 {
         match address {
             0x0000..=0x7FFF | 0xA000..=0xBFFF => self.mbc.read_byte(address),
-            0x8000..=0x9FFF => self.ppu.read_vram(
-                address,
-                self.cgb.get_vram_bank()
-            ),
+            0x8000..=0x9FFF => {
+                let bank = if self.gb_mode == GameboyMode::CGB {
+                    self.cgb.get_vram_bank()
+                } else {
+                    0
+                };
+                self.ppu.read_vram(address, bank)
+            }
             0xC000..=0xCFFF => self.wram_banks[0][(address - 0xC000) as usize],
             0xD000..=0xDFFF => {
                 let bank = if self.gb_mode == GameboyMode::CGB {
@@ -77,10 +83,12 @@ impl MemoryInterface for Bus {
                 self.wram_banks[bank][(address - 0xD000) as usize]
             }
             0xE000..=0xFDFF => self.read_byte(address - 0x2000), // Echo RAM
-        
+
             0xFE00..=0xFE9F => self.ppu.read_oam(address),
             0xFEA0..=0xFEFF => self.debug[(address - 0xFEA0) as usize],
             0xFF00 => self.joypad.read(),
+            0xFF10..=0xFF26 => self.apu.read_register(address),
+            0xFF30..=0xFF3F => self.apu.read_wave_ram(address - 0xFF30),
             0xFF4D | 0xFF4F | 0xFF55 | 0xFF68 | 0xFF69 | 0xFF6A | 0xFF6B | 0xFF70
                 if self.gb_mode == GameboyMode::CGB =>
             {
@@ -98,11 +106,14 @@ impl MemoryInterface for Bus {
     fn write_byte(&mut self, address: u16, value: u8) {
         match address {
             0x0000..=0x7FFF | 0xA000..=0xBFFF => self.mbc.write_byte(address, value),
-            0x8000..=0x9FFF => self.ppu.write_vram(
-                address,
-                value,
-                self.cgb.get_vram_bank()
-            ),
+            0x8000..=0x9FFF => {
+                let bank = if self.gb_mode == GameboyMode::CGB {
+                    self.cgb.get_vram_bank()
+                } else {
+                    0
+                };
+                self.ppu.write_vram(address, value, bank);
+            }
             0xC000..=0xCFFF => self.wram_banks[0][(address - 0xC000) as usize] = value,
             0xD000..=0xDFFF => {
                 let bank = if self.gb_mode == GameboyMode::CGB {
@@ -116,28 +127,22 @@ impl MemoryInterface for Bus {
             0xFE00..=0xFE9F => self.ppu.write_oam(address, value),
             0xFEA0..=0xFEFF => self.debug[(address - 0xFEA0) as usize] = value,
             0xFF00 => self.joypad.write(value),
+            0xFF10..=0xFF26 => self.apu.write_register(address, value),
+            0xFF30..=0xFF3F => self.apu.write_wave_ram(address - 0xFF30, value),
             0xFF4D | 0xFF4F | 0xFF51..=0xFF55 | 0xFF68 | 0xFF69 | 0xFF6A | 0xFF6B | 0xFF70
                 if self.gb_mode == GameboyMode::CGB =>
             {
                 self.cgb.write_register(address, value)
             }
-            0xFF40..=0xFF48 => self.write_ppu_register(address, value),
-            0xFF01..=0xFF45 => self.io_registers[(address - 0xFF01) as usize] = value,
             0xFF46 => self.dma_oam_transfer(value),
+
+            0xFF40..=0xFF48 => self.write_ppu_register(address, value),
+
+            0xFF01..=0xFF45 => self.io_registers[(address - 0xFF01) as usize] = value,
             0xFF47..=0xFF7F => self.io_registers[(address - 0xFF01) as usize] = value,
             0xFF80..=0xFFFE => self.hram[(address - 0xFF80) as usize] = value,
             0xFFFF => self.ie_register = value,
         }
-    }
-
-    #[inline(always)]
-    fn read_wave_ram(&self) -> [u8; 16] {
-        let mut wave_ram = [0; 16];
-        let start_address = IoRegister::WaveRamStart.address();
-        for i in 0..16 {
-            wave_ram[i] = self.read_byte(start_address + i as u16);
-        }
-        wave_ram
     }
 
     fn gb_mode(&self) -> GameboyMode {
@@ -150,8 +155,7 @@ impl MemoryInterface for Bus {
 
 impl Bus {
     #[inline(always)]
-    pub fn new( palette: [u32; 4], gb_mode: GameboyMode) -> Self {
-
+    pub fn new(palette: [u32; 4], gb_mode: GameboyMode) -> Self {
         Self {
             wram_banks: vec![[0; 0x1000], [0; 0x1000]],
             current_wram_bank: 1,
@@ -164,7 +168,7 @@ impl Bus {
             gb_mode: GameboyMode::DMG,
             cgb: cgb::CgbRegisters::default(),
             ppu: PPU::new(palette, gb_mode),
-
+            apu: APU::new(),
         }
     }
     pub fn read_ppu_register(&self, address: u16) -> u8 {
@@ -190,7 +194,7 @@ impl Bus {
             0xFF41 => self.ppu.rgs.stat = (value & 0x78) | 0x80, // Bit 7 always set
             0xFF42 => self.ppu.rgs.scy = value,
             0xFF43 => self.ppu.rgs.scx = value,
-            0xFF44 => self.ppu.rgs.ly = 0,            // LY is read-only; reset on write
+            0xFF44 => self.ppu.rgs.ly = 0, // LY is read-only; reset on write
             0xFF45 => self.ppu.rgs.lyc = value,
             0xFF47 => self.ppu.rgs.bgp = value,
             0xFF48 => self.ppu.rgs.obp0 = value,
@@ -202,16 +206,14 @@ impl Bus {
     }
 
     pub fn tick(&mut self) -> Vec<Interrupt> {
-        
         self.mbc.tick();
         let ppu_interrupts = self.ppu.tick();
+        let apu_interrupts = self.apu.tick();
         ppu_interrupts
     }
 
     #[inline]
     pub fn save_state(&self) -> BusState {
-      
-
         let mut wram_data = Vec::with_capacity(self.wram_banks.len() * 0x1000);
         for bank in &self.wram_banks {
             wram_data.extend_from_slice(bank);
@@ -236,7 +238,6 @@ impl Bus {
         self.io_registers = state.io_registers;
         self.hram = state.hram;
         self.ie_register = state.ie_register;
-
 
         // Reconstruct WRAM banks
         let wram_banks_count = state.wram_data.len() / 0x1000;
@@ -323,7 +324,7 @@ pub struct BusState {
     pub hram: [u8; 0x7F],
     pub ie_register: u8,
     // Use serialized arrays for VRAM/WRAM data
-    pub wram_data: Vec<u8>, 
+    pub wram_data: Vec<u8>,
     pub current_wram_bank: usize,
     #[serde(with = "serde_arrays")]
     pub debug: [u8; 0x100],

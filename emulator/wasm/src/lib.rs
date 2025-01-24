@@ -328,8 +328,6 @@ impl WasmBusState {
     pub fn hram(&self) -> Vec<u8> {
         self.hram.to_vec()
     }
-
-
 }
 
 #[wasm_bindgen]

@@ -6,15 +6,15 @@ use serde::{Deserialize, Serialize};
 pub struct Fetcher {
     pub step: u8,
     pub tile_number: u8,
-    tile_data_low: u8,
-    tile_data_high: u8,
+    pub tile_data_low: u8,
+    pub tile_data_high: u8,
     pub is_window_fetch: bool,
     pub x_pos_counter: u16,
     pub window_line_counter: u16,
     pub pause: bool,
     pub delay: usize,
 
-    tile_attrs: u8, // CGB only
+    pub tile_attrs: u8, // CGB only
 
     saved_state: Option<FetcherState>, //  save state when pausing
 }
@@ -59,7 +59,6 @@ impl Fetcher {
         pixel_fifo.reset();
     }
 
-  
     pub fn step(
         &mut self,
         lcdc: u8,
@@ -67,7 +66,6 @@ impl Fetcher {
         scx: u8,
         ly: u8,
         wx: u8,
-        bgp: u8,
         gb_mode: GameboyMode,
         vram_banks: &[[u8; 0x2000]],
         pixel_fifo: &mut PixelFifo,
@@ -77,19 +75,20 @@ impl Fetcher {
         }
 
         match self.step {
-            0 => {self.fetch_tile_number(lcdc, scy, scx, ly, gb_mode, vram_banks);
-                self.step += 1;
-            },
+            0 => {
+                self.fetch_tile_number(lcdc, scy, scx, ly, gb_mode, vram_banks);
+            }
             1 => {
-                self.tile_data_low = self.fetch_tile_data(lcdc, ly, scy, gb_mode, vram_banks, false);
-                self.step += 1;
+                self.tile_data_low =
+                    self.fetch_tile_data(lcdc, ly, scy, gb_mode, vram_banks, false);
             }
             2 => {
-                self.tile_data_high = self.fetch_tile_data(lcdc, ly, scy, gb_mode, vram_banks, true);
-                self.step += 1;
+                self.tile_data_high =
+                    self.fetch_tile_data(lcdc, ly, scy, gb_mode, vram_banks, true);
             }
-            3 => {self.push_to_fifo(gb_mode, pixel_fifo);
-                self.step += 1;},
+            3 => {
+                self.push_to_fifo(gb_mode, pixel_fifo);
+            }
             _ => self.step = 0,
         }
 
@@ -121,23 +120,24 @@ impl Fetcher {
         gb_mode: GameboyMode,
         vram_banks: &[[u8; 0x2000]],
     ) {
-        let tile_map_base = self.get_tile_map_base(lcdc);
-        let (tile_y, tile_x) = if self.is_window_fetch {
-            let tile_y = self.window_line_counter / 8;
-            let tile_x = self.x_pos_counter / 8;
-            (tile_y, tile_x)
+        let tile_y = if self.is_window_fetch {
+            (self.window_line_counter / 8) & 0x1F
         } else {
-            let y_pos = ly.wrapping_add(scy) as u16;
-            let tile_y = y_pos / 8;
-            let x_pos = (scx as u16) + self.x_pos_counter;
-            let tile_x = x_pos / 8;
-            (tile_y, tile_x)
+            ((ly.wrapping_add(scy)) / 8) as u16 & 0x1F
         };
 
+        let tile_x = if self.is_window_fetch {
+            self.x_pos_counter / 8
+        } else {
+            ((scx as u16 / 8) + (self.x_pos_counter) / 8) & 0x1F
+        };
+
+        let tile_map_base = self.get_tile_map_base(lcdc);
         let tile_address = tile_map_base + (tile_y * 32) + tile_x;
         let vram_addr = (tile_address - 0x8000) as usize;
 
         self.tile_number = vram_banks[0][vram_addr];
+
         if gb_mode == GameboyMode::CGB {
             self.tile_attrs = vram_banks[1][vram_addr];
         } else {
@@ -203,7 +203,7 @@ impl Fetcher {
 
         // Push pixels to FIFO with appropriate attributes
         for color in pixels {
-            let pixel = super::pixelfifo::Pixel::new_bg(color, self.tile_attrs , gb_mode);
+            let pixel = super::pixelfifo::Pixel::new_bg(color, self.tile_attrs, gb_mode);
             pixel_fifo.bg_fifo.push_back(pixel);
         }
 

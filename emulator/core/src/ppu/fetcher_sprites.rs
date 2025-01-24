@@ -2,7 +2,8 @@ use serde::{Deserialize, Serialize};
 
 use super::{pixelfifo::PixelFifo, Sprite};
 use crate::{
-    bus::{self, io_address::IoRegister, GameboyMode, MemoryInterface}, gameboy,
+    bus::{self, io_address::IoRegister, GameboyMode, MemoryInterface},
+    gameboy,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -40,18 +41,25 @@ impl SpriteFetcher {
         // Start with tile number fetch
         self.fetch_tile_number(sprite);
     }
-    pub fn step(&mut self, pixel_fifo: &mut PixelFifo, ly: u8, lcdc: u8, gb_mode: GameboyMode, vram_banks: &[[u8; 0x2000]]) {
+    pub fn step(
+        &mut self,
+        pixel_fifo: &mut PixelFifo,
+        ly: u8,
+        lcdc: u8,
+        gb_mode: GameboyMode,
+        vram_banks: &[[u8; 0x2000]],
+    ) {
         match self.step {
             0 => {
-                self.tile_data_low = self.fetch_tile_data( false , ly, lcdc, gb_mode, vram_banks);
+                self.tile_data_low = self.fetch_tile_data(false, ly, lcdc, gb_mode, vram_banks);
                 self.step += 1;
             }
             1 => {
-                self.tile_data_high = self.fetch_tile_data( true , ly, lcdc, gb_mode, vram_banks);
+                self.tile_data_high = self.fetch_tile_data(true, ly, lcdc, gb_mode, vram_banks);
                 self.step += 1;
             }
             2 => {
-                self.push_to_fifo( pixel_fifo  , gb_mode);
+                self.push_to_fifo(pixel_fifo, gb_mode);
                 self.scanline_reset();
             }
             _ => {
@@ -62,15 +70,17 @@ impl SpriteFetcher {
     fn fetch_tile_number(&mut self, sprite: &Sprite) {
         self.tile_number = sprite.tile_number;
     }
-    fn fetch_tile_data(&mut self, is_high_byte: bool, ly: u8, lcdc: u8, gb_mode: GameboyMode, vram_banks: &[[u8; 0x2000]]) -> u8 {
-
+    fn fetch_tile_data(
+        &mut self,
+        is_high_byte: bool,
+        ly: u8,
+        lcdc: u8,
+        gb_mode: GameboyMode,
+        vram_banks: &[[u8; 0x2000]],
+    ) -> u8 {
         let y_flip = self.sprite.flags & 0x40 != 0;
         let x_flip = self.sprite.flags & 0x20 != 0;
-        let sprite_size = if lcdc & 0x04 != 0 {
-            16
-        } else {
-            8
-        };
+        let sprite_size = if lcdc & 0x04 != 0 { 16 } else { 8 };
 
         // Calculate the actual Y line within the tile, handling Y-flip
         let relative_y = ly.wrapping_sub(self.sprite.y_pos);
@@ -110,7 +120,7 @@ impl SpriteFetcher {
         data
     }
 
-    fn push_to_fifo(&self,  pixel_fifo: &mut PixelFifo , gb_mode: GameboyMode) {
+    fn push_to_fifo(&self, pixel_fifo: &mut PixelFifo, gb_mode: GameboyMode) {
         for bit in 0..8 {
             let low_bit = (self.tile_data_low >> (7 - bit)) & 0x1;
             let high_bit = (self.tile_data_high >> (7 - bit)) & 0x1;
@@ -121,16 +131,17 @@ impl SpriteFetcher {
                 pixel_fifo
                     .sprite_fifo
                     .push_back(super::pixelfifo::Pixel::new_sprite(
-                         0, // Transparent pixel
+                        0, // Transparent pixel
                         0, // No flags
-                        gb_mode));
+                        gb_mode,
+                    ));
             }
 
             // Only override existing pixels if the new pixel is not transparent
             if color != 0 {
                 if let Some(existing_pixel) = pixel_fifo.sprite_fifo.get_mut(bit) {
                     let new_pixel =
-                        super::pixelfifo::Pixel::new_sprite( color, self.sprite.flags , gb_mode);
+                        super::pixelfifo::Pixel::new_sprite(color, self.sprite.flags, gb_mode);
 
                     match gb_mode {
                         bus::GameboyMode::DMG => {

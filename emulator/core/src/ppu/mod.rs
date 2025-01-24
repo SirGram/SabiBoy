@@ -3,15 +3,16 @@ pub mod fetcher_sprites;
 mod helper;
 pub mod pixelfifo;
 
-use crate::{bus::{io_address::IoRegister, Bus, GameboyMode}, gameboy::Interrupt};
+use crate::{
+    bus::{io_address::IoRegister, Bus, GameboyMode},
+    gameboy::Interrupt,
+};
 use fetcher::Fetcher;
 use fetcher_sprites::SpriteFetcher;
 use helper::{should_add_sprite, should_fetch_sprite};
 use pixelfifo::{ColorValue, PixelFifo};
 use serde::{Deserialize, Serialize};
-use std::{
-    cmp::Ordering, vec
-};
+use std::{cmp::Ordering, vec};
 
 const SCREEN_WIDTH: u8 = 160;
 const SCREEN_HEIGHT: u8 = 144;
@@ -223,7 +224,6 @@ impl PPU {
         The current X-position of the shifter is greater than or equal to WX - 7
         */
 
-
         if self.rgs.lcdc & 0b0010_0000 == 0 {
             return false;
         }
@@ -261,25 +261,22 @@ impl PPU {
         self.rgs.ly = 0;
     }
 
-    pub fn tick(&mut self)-> Vec<Interrupt> {
+    pub fn tick(&mut self) -> Vec<Interrupt> {
         let mut interrupts = Vec::new();
         // Check if LCD is enabled
-        
-      /*   if (self.rgs.lcdc & 0x80) == 0 {
+
+        /*   if (self.rgs.lcdc & 0x80) == 0 {
             self.rgs.ly = 0;
             return interrupts;
         } */
 
         let ly = self.rgs.ly;
-      /*   // print every register
-        println!("lcdc: {:02X} ly: {:02X} lyc: {:02X} dma: {:02X} bgp: {:02X} obp0: {:02X} obp1: {:02X} wy: {:02X} wx: {:02X}", self.rgs.lcdc, self.rgs.ly, self.rgs.lyc, self.rgs.dma, self.rgs.bgp, self.rgs.obp0, self.rgs.obp1, self.rgs.wy, self.rgs.wx);
- */
 
         match self.mode {
             PPUMode::OAM_SCAN => self.handle_oam(),
             PPUMode::DRAWING => self.handle_drawing(),
             PPUMode::HBLANK => self.handle_hblank(),
-            PPUMode::VBLANK => self.handle_vblank( &mut interrupts),
+            PPUMode::VBLANK => self.handle_vblank(&mut interrupts),
         }
 
         if self.mode_cycles >= CYCLES_PER_SCANLINE {
@@ -292,7 +289,7 @@ impl PPU {
             } else if ly == VBLANK_START_SCANLINE {
                 // vblank start
                 self.mode = PPUMode::VBLANK;
-                self.handle_vblank( &mut interrupts);
+                self.handle_vblank(&mut interrupts);
                 self.rgs.ly += 1;
             } else if ly >= SCANLINE_Y_COUNTER_MAX {
                 self.reset_frame();
@@ -303,7 +300,7 @@ impl PPU {
 
         self.update_stat(&mut interrupts);
         self.mode_cycles += 1;
-        
+
         interrupts
     }
 
@@ -320,7 +317,7 @@ impl PPU {
     fn handle_oam(&mut self) {
         if self.mode_cycles % 2 != 0 {
             let current_entry = self.mode_cycles / 2;
-            let sprite = self.read_sprite( 0xFE00 + (current_entry as u16 * 4));
+            let sprite = self.read_sprite(0xFE00 + (current_entry as u16 * 4));
 
             if should_add_sprite(
                 &sprite,
@@ -355,7 +352,15 @@ impl PPU {
             .pixel_fifo
             .is_paused(self.sprite_fetcher.active, self.fetcher.pause)
         {
-            if let Some(color_value) = self.pixel_fifo.pop_pixel( &mut self.fetcher , self.rgs.scx, self.gb_mode , self.rgs.lcdc, self.rgs.bgp, self.rgs.obp0, self.rgs.obp1) {
+            if let Some(color_value) = self.pixel_fifo.pop_pixel(
+                &mut self.fetcher,
+                self.rgs.scx,
+                self.gb_mode,
+                self.rgs.lcdc,
+                self.rgs.bgp,
+                self.rgs.obp0,
+                self.rgs.obp1,
+            ) {
                 let ly = self.rgs.ly;
 
                 if self.x_render_counter >= 0
@@ -404,10 +409,25 @@ impl PPU {
 
         // Every 2 dots, run fetcher steps
         if self.mode_cycles % 2 == 0 {
-            self.fetcher.step( self.rgs.lcdc, self.rgs.scy, self.rgs.scx,self.rgs.ly, self.rgs.wx, self.rgs.bgp, self.gb_mode, &self.vram_banks,  &mut self.pixel_fifo);
+            self.fetcher.step(
+                self.rgs.lcdc,
+                self.rgs.scy,
+                self.rgs.scx,
+                self.rgs.ly,
+                self.rgs.wx,
+                self.gb_mode,
+                &self.vram_banks,
+                &mut self.pixel_fifo,
+            );
             if self.sprite_fetcher.active {
                 self.fetcher.pause();
-                self.sprite_fetcher.step( &mut self.pixel_fifo, self.rgs.ly, self.rgs.lcdc, self.gb_mode, &self.vram_banks);
+                self.sprite_fetcher.step(
+                    &mut self.pixel_fifo,
+                    self.rgs.ly,
+                    self.rgs.lcdc,
+                    self.gb_mode,
+                    &self.vram_banks,
+                );
             } else {
                 self.fetcher.unpause();
             }
@@ -422,7 +442,7 @@ impl PPU {
         interrupts.push(Interrupt::VBlank);
         self.new_frame = true;
     }
-  
+
     fn update_stat(&mut self, interrupts: &mut Vec<Interrupt>) {
         /*
         Bit 7   Unused (Always 1)

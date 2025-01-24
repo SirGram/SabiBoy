@@ -38,7 +38,7 @@ pub enum Interrupt {
 
 impl Gameboy {
     pub fn new(palette: [u32; 4]) -> Self {
-        let bus = Bus::new( palette, GameboyMode::DMG);
+        let bus = Bus::new(palette, GameboyMode::DMG);
         let timer = Timer::new();
         let cpu = CPU::new();
         let apu = APU::new();
@@ -84,7 +84,7 @@ impl Gameboy {
 
             interrupts.extend(self.bus.tick());
             self.timer.tick(&mut self.bus);
-            self.apu.tick(&mut self.bus);
+            self.apu.tick();
 
             let mut if_reg = self.bus.read_byte(IoRegister::If.address());
             for interrupt in interrupts {

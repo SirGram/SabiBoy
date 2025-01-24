@@ -1,4 +1,3 @@
-use crate::bus::{self, io_address::IoRegister, Bus, MemoryInterface};
 #[derive(Debug, Clone)]
 pub struct Channel3 {
     frequency_timer: usize,
@@ -26,31 +25,27 @@ impl Channel3 {
             current_volume: 0,
         }
     }
-    pub fn tick<M: MemoryInterface>(&mut self, memory: &mut M) {
-        let is_triggered =
-            memory.read_byte(bus::io_address::IoRegister::Nr34.address()) & 0b10000000 != 0;
+    pub fn tick(&mut self, nr32: u8, nr33: u8, nr34: u8) {
+        let is_triggered = nr34 & 0b10000000 != 0;
         if is_triggered {
-            self.trigger(memory);
+            self.trigger(nr32);
         }
         self.frequency_timer -= 1;
         if self.frequency_timer == 0 {
-            self.frequency_timer = (2048 - self.calculate_frequency(memory)) * 4;
+            self.frequency_timer = (2048 - self.calculate_frequency(nr33, nr34)) * 4;
             self.wave_position = (self.wave_position + 1) % 8;
         }
     }
-    pub fn trigger<M: MemoryInterface>(&mut self, memory: &mut M) {
-        self.current_volume =
-            (memory.read_byte(bus::io_address::IoRegister::Nr32.address()) & 0b11110000) >> 4;
-        self.period_timer =
-            memory.read_byte(bus::io_address::IoRegister::Nr32.address()) & 0b00000111;
+    pub fn trigger(&mut self, nr32: u8) {
+        self.current_volume = (nr32 & 0b11110000) >> 4;
+        self.period_timer = nr32 & 0b00000111;
         if self.length_timer == 0 {
             self.length_timer = 64;
         }
         self.disabled = false;
     }
-    fn get_sample<M: MemoryInterface>(&self, memory: &mut M) -> u8 {
+    fn get_sample(&self, wave_ram: &[u8; 16]) -> u8 {
         // 1 byte -> 2 samples
-        let wave_ram = memory.read_wave_ram();
         let index = self.wave_position as usize / 2;
         let byte = wave_ram[index];
         if self.wave_position % 2 == 0 {
@@ -59,21 +54,21 @@ impl Channel3 {
             byte & 0xF
         }
     }
-    pub fn sample<M: MemoryInterface>(&self, memory: &mut M) -> f32 {
+    pub fn sample(&self, nr50: u8, wave_ram: &[u8; 16]) -> f32 {
         if self.disabled {
             return 0.0;
         }
-        let raw_samle = self.get_sample(memory);
-        let volume_shift = self.get_volume_shift(memory);
+        let raw_samle = self.get_sample(wave_ram);
+        let volume_shift = self.get_volume_shift(nr50);
         let dac_input = raw_samle >> volume_shift;
 
         let dac_output = (dac_input as f32 / 7.5) - 1.0;
 
         dac_output
     }
-    pub fn update_length<M: MemoryInterface>(&mut self, memory: &M) {
-        self.length_timer = 256 - self.get_length(memory) as u16;
-        if memory.read_byte(bus::io_address::IoRegister::Nr31.address()) & 0b01000000 == 1 {
+    pub fn update_length(&mut self, nr31: u8) {
+        self.length_timer = 256 - self.get_length(nr31) as u16;
+        if nr31 & 0b01000000 == 1 {
             self.length_timer -= 1;
             if self.length_timer == 0 {
                 self.disabled = true;
@@ -81,17 +76,16 @@ impl Channel3 {
         }
     }
 
-    fn get_length<M: MemoryInterface>(&self, memory: &M) -> u8 {
-        memory.read_byte(bus::io_address::IoRegister::Nr31.address()) & 0b11111111
+    fn get_length(&self, nr31: u8) -> u8 {
+        nr31 & 0b11111111
     }
-    fn calculate_frequency<M: MemoryInterface>(&self, memory: &mut M) -> usize {
-        let low_frequency = memory.read_byte(bus::io_address::IoRegister::Nr33.address()) as usize;
-        let high_frequency = memory.read_byte(bus::io_address::IoRegister::Nr34.address()) as usize;
+    fn calculate_frequency(&self, nr33: u8, nr34: u8) -> usize {
+        let low_frequency = nr33 as usize;
+        let high_frequency = nr34 as usize;
         ((high_frequency & 7) << 8) | low_frequency
     }
-    fn get_volume_shift<M: MemoryInterface>(&self, memory: &M) -> u8 {
-        let volume_bits =
-            (memory.read_byte(bus::io_address::IoRegister::Nr50.address()) & 0b01100000) >> 5;
+    fn get_volume_shift(&self, nr50: u8) -> u8 {
+        let volume_bits = (nr50 & 0b01100000) >> 5;
         match volume_bits {
             0 => 4,
             1 => 0,
