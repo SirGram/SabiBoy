@@ -80,22 +80,12 @@ impl Gameboy {
     pub fn tick(&mut self) {
         self.cpu.tick(&mut self.bus);
         for _ in 0..self.cpu.cycles {
-            let mut interrupts = Vec::new();
+            let mut interrupts = 0;
 
-            interrupts.extend(self.bus.tick());
-            self.timer.tick(&mut self.bus);
-            self.apu.tick();
+            interrupts |= self.bus.tick();
 
             let mut if_reg = self.bus.read_byte(IoRegister::If.address());
-            for interrupt in interrupts {
-                match interrupt {
-                    Interrupt::VBlank => if_reg |= 0b0000_0001,
-                    Interrupt::LCDStat => if_reg |= 0b0000_0010,
-                    Interrupt::Timer => if_reg |= 0b0000_0100,
-                    Interrupt::Serial => if_reg |= 0b0000_1000,
-                    Interrupt::Joypad => if_reg |= 0b0001_0000,
-                }
-            }
+            if_reg |= interrupts;
             self.bus.write_byte(IoRegister::If.address(), if_reg);
         }
     }

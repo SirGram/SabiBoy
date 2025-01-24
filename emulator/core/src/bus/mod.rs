@@ -8,6 +8,7 @@ use crate::{
     gameboy::Interrupt,
     joyp::Joypad,
     ppu::PPU,
+    timer::Timer,
 };
 
 pub mod cgb;
@@ -52,6 +53,7 @@ pub struct Bus {
 
     pub ppu: PPU,
     pub apu: APU,
+    pub timer: Timer,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Copy)]
@@ -87,6 +89,7 @@ impl MemoryInterface for Bus {
             0xFE00..=0xFE9F => self.ppu.read_oam(address),
             0xFEA0..=0xFEFF => self.debug[(address - 0xFEA0) as usize],
             0xFF00 => self.joypad.read(),
+            0xFF04..=0xFF07 => self.timer.read_timer_register(address),
             0xFF10..=0xFF26 => self.apu.read_register(address),
             0xFF30..=0xFF3F => self.apu.read_wave_ram(address - 0xFF30),
             0xFF4D | 0xFF4F | 0xFF55 | 0xFF68 | 0xFF69 | 0xFF6A | 0xFF6B | 0xFF70
@@ -127,6 +130,7 @@ impl MemoryInterface for Bus {
             0xFE00..=0xFE9F => self.ppu.write_oam(address, value),
             0xFEA0..=0xFEFF => self.debug[(address - 0xFEA0) as usize] = value,
             0xFF00 => self.joypad.write(value),
+            0xFF04..=0xFF07 => self.timer.write_timer_register(address, value),
             0xFF10..=0xFF26 => self.apu.write_register(address, value),
             0xFF30..=0xFF3F => self.apu.write_wave_ram(address - 0xFF30, value),
             0xFF4D | 0xFF4F | 0xFF51..=0xFF55 | 0xFF68 | 0xFF69 | 0xFF6A | 0xFF6B | 0xFF70
@@ -169,6 +173,7 @@ impl Bus {
             cgb: cgb::CgbRegisters::default(),
             ppu: PPU::new(palette, gb_mode),
             apu: APU::new(),
+            timer: Timer::new(),
         }
     }
     pub fn read_ppu_register(&self, address: u16) -> u8 {
@@ -205,11 +210,13 @@ impl Bus {
         }
     }
 
-    pub fn tick(&mut self) -> Vec<Interrupt> {
+    pub fn tick(&mut self) -> u8 {
         self.mbc.tick();
-        let ppu_interrupts = self.ppu.tick();
-        let apu_interrupts = self.apu.tick();
-        ppu_interrupts
+        self.apu.tick();
+        let mut interrupts = 0;
+        interrupts |= self.timer.tick();
+        interrupts |= self.ppu.tick();
+        interrupts
     }
 
     #[inline]

@@ -21,7 +21,7 @@ const X_POSITION_COUNTER_MAX: u16 = 160;
 const SCANLINE_Y_COUNTER_MAX: u8 = 153;
 const VBLANK_START_SCANLINE: u8 = 144;
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
 pub enum PPUMode {
     HBLANK = 0,
     VBLANK = 1,
@@ -261,8 +261,8 @@ impl PPU {
         self.rgs.ly = 0;
     }
 
-    pub fn tick(&mut self) -> Vec<Interrupt> {
-        let mut interrupts = Vec::new();
+    pub fn tick(&mut self) -> u8 {
+        let mut interrupts = 0;
         // Check if LCD is enabled
 
         /*   if (self.rgs.lcdc & 0x80) == 0 {
@@ -276,7 +276,7 @@ impl PPU {
             PPUMode::OAM_SCAN => self.handle_oam(),
             PPUMode::DRAWING => self.handle_drawing(),
             PPUMode::HBLANK => self.handle_hblank(),
-            PPUMode::VBLANK => self.handle_vblank(&mut interrupts),
+            PPUMode::VBLANK => self.handle_vblank(),
         }
 
         if self.mode_cycles >= CYCLES_PER_SCANLINE {
@@ -289,7 +289,7 @@ impl PPU {
             } else if ly == VBLANK_START_SCANLINE {
                 // vblank start
                 self.mode = PPUMode::VBLANK;
-                self.handle_vblank(&mut interrupts);
+                self.handle_vblank();
                 self.rgs.ly += 1;
             } else if ly >= SCANLINE_Y_COUNTER_MAX {
                 self.reset_frame();
@@ -297,8 +297,10 @@ impl PPU {
                 self.rgs.ly += 1;
             }
         }
-
-        self.update_stat(&mut interrupts);
+        if self.mode == PPUMode::VBLANK {
+            interrupts |= 0b0000_0001;
+        }
+        interrupts |= self.update_stat();
         self.mode_cycles += 1;
 
         interrupts
@@ -438,12 +440,11 @@ impl PPU {
         // pads till 456 cycles
     }
 
-    fn handle_vblank(&mut self, interrupts: &mut Vec<Interrupt>) {
-        interrupts.push(Interrupt::VBlank);
+    fn handle_vblank(&mut self) {
         self.new_frame = true;
     }
 
-    fn update_stat(&mut self, interrupts: &mut Vec<Interrupt>) {
+    fn update_stat(&mut self) -> u8 {
         /*
         Bit 7   Unused (Always 1)
         Bit 6   LYC=LY STAT Interrupt Enable
@@ -498,16 +499,17 @@ impl PPU {
             _ => {}
         }
 
-        // Trigger STAT interrupt only if conditions are met and were not previously met
-        if current_conditions != 0 && self.previous_stat_conditions == 0 {
-            interrupts.push(Interrupt::LCDStat);
-        }
-
         // Store current conditions for next comparison
         self.previous_stat_conditions = current_conditions;
 
         // Ensure bit 7 is always set
         stat |= 0b1000_0000;
         self.rgs.stat = stat;
+        // Trigger STAT interrupt only if conditions are met and were not previously met
+        if current_conditions != 0 && self.previous_stat_conditions == 0 {
+            0b0000_0010 // Return STAT interrupt flag
+        } else {
+            0
+        }
     }
 }

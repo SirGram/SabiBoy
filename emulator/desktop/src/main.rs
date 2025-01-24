@@ -27,7 +27,7 @@ fn main() {
     }
 
     gameboy.load_rom(include_bytes!(
-        "../../../games/dmg-acid/rom.gb" /*   "../../../games/tennis--1/rom.gb" */
+        "../../../games/pokemon-red-jap/rom.gb" /*   "../../../games/tennis--1/rom.gb" */
     ));
 
     /*  if let Ok(save_state) = std::fs::read("./rom.gb.state") {
