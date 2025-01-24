@@ -71,6 +71,7 @@ fn set_up_window(turbo_mode: bool) -> Window {
     }
     window
 }
+
 fn run(
     window: &mut Window,
     gameboy: &mut gameboy_core::gameboy::Gameboy,
@@ -78,74 +79,52 @@ fn run(
     audio_output: Option<&AudioOutput>,
     turbo_mode: bool,
 ) {
-    let target_frame_time = if turbo_mode {
-        Duration::from_micros(0)
-    } else {
-        Duration::from_micros(16_667)
-    };
-
     let mut last_fps_check = Instant::now();
     let mut frames = 0;
     let mut current_fps = 0;
     let mut buffer = vec![0u32; 160 * 144];
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
-        let frame_start_time = Instant::now();
+        let frame_start = Instant::now();
 
-        // In turbo mode, run multiple frames per iteration
-        if turbo_mode {
-            for _ in 0..4 {
-                // Run 4 frames at once for higher speed
-                gameboy.run_frame();
-            }
-        } else {
-            gameboy.run_frame();
-        }
+        // Always run exactly 1 frame per iteration
+        gameboy.run_frame();
+        frames += 1;
 
-        // Get the frame buffer from PPU and convert colors
+        // Update display
         let gb_buffer = gameboy.bus.ppu.get_frame_buffer();
         buffer.copy_from_slice(gb_buffer);
+        window.update_with_buffer(&buffer, 160, 144).unwrap();
 
-        // Update the window with the new frame
-        window
-            .update_with_buffer(&buffer, 160, 144)
-            .expect("Failed to update window");
-
-        // FPS calculation and window title update
-        frames += 1;
+        // FPS calculation
         if last_fps_check.elapsed() > Duration::from_secs(1) {
             current_fps = frames;
             frames = 0;
             last_fps_check = Instant::now();
-
-            // Update window title with FPS
-            let title = if turbo_mode {
-                format!("SabiBoy - {} FPS (Turbo)", current_fps)
-            } else {
-                format!("SabiBoy - {} FPS", current_fps)
-            };
-            window.set_title(&title);
+            window.set_title(&format!("SabiBoy - {} FPS{}", 
+                current_fps,
+                if turbo_mode { " (Turbo)" } else { "" }
+            ));
         }
 
-        // Frame timing (only if not in turbo mode)
+        // Only limit FPS in non-turbo mode
         if !turbo_mode {
-            let frame_time = frame_start_time.elapsed();
-            if frame_time < target_frame_time {
-                std::thread::sleep(target_frame_time - frame_time);
+            let frame_time = frame_start.elapsed();
+            if frame_time < Duration::from_micros(16_667) {
+                std::thread::sleep(Duration::from_micros(16_667) - frame_time);
             }
         }
 
-        // Update key input
+        // Rest of the code remains the same...
         handle_input(window, gameboy);
-
-        // Update debug window
+        
         if let Some(debug_window) = debug_window {
             debug_window.update(&gameboy.cpu, &gameboy.bus, &gameboy.bus.ppu, current_fps);
             debug_window.render();
         }
 
-        let samples = gameboy.apu.get_samples();
         if let Some(audio) = audio_output {
+            let samples = gameboy.apu.get_samples();
             audio.add_samples(&samples);
         }
     }
