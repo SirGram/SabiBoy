@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import Layout from "../../components/Layout/MainLayout";
 import { useGameboy } from "../../context/GameboyContext";
 import Emulator from "../Game/Emulator";
-import { TGameDetailsWithSaveState } from "../../types";
+import { ConsoleType, TGameDetailsWithSaveState } from "../../types";
 
 export default function OfflineEmulator() {
   const { currentGame, setCurrentGame } = useGameboy();
@@ -26,17 +26,18 @@ export default function OfflineEmulator() {
 
           setRomFileName(file.name);
           setGameToLoad((prev) => ({
-            slug: file.name.toLowerCase().replace(/\s+/g, "-"),
-            name: file.name,
-            language: "EN",
-            rom: {
-              type: "blob",
-              path: blobUrl,
-              data: romData,
-            },
-            screenshotPaths: [],
-            ...(prev || {}),
-          }));
+                      slug: file.name.toLowerCase().replace(/\s+/g, "-"),
+                      name: file.name,
+                      language: "EN",
+                      console: "GameBoy" as ConsoleType, 
+                      rom: {
+                        type: "blob",
+                        path: blobUrl,
+                        data: romData,
+                      },
+                      screenshotPaths: [],
+                      ...(prev || {}),
+                    }));
           console.log(`ROM loaded: ${file.name}`);
         } catch (error) {
           console.error("Failed to load ROM:", error);

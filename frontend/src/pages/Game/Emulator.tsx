@@ -1200,9 +1200,9 @@ const BusInfo = ({ isGameboyPaused }: { isGameboyPaused: boolean }) => {
           io_registers: Array.from(wasmState.io_registers),
           hram: Array.from(wasmState.hram),
           ie_register: wasmState.ie_register,
-          vram: Array.from(wasmState.vram),
-          ram_bank_0: Array.from(wasmState.ram_bank_0),
-          ram_bank_n: Array.from(wasmState.ram_bank_n),
+          vram: [],
+          ram_bank_0: [],
+          ram_bank_n: [],
         };
         setBusState(newState);
       } catch (error) {

@@ -1,30 +1,30 @@
 # Build Stage
-FROM node:20-alpine as frontend-builder
+FROM node:20-alpine as builder
 
-# Set working directory
 WORKDIR /frontend
 
-# Copy frontend package files
+# Copy package files and install dependencies
 COPY frontend/package*.json ./
 RUN npm install
 
-# Copy frontend source files
+# Copy source files and build the app
 COPY frontend/ ./
 RUN npm run build
 
-# Production Stage (No NGINX, directly serve with Node.js)
-FROM node:20-alpine
+# Production Stage with Nginx
+FROM nginx:stable-alpine
 
-WORKDIR /frontend
+# Remove default Nginx static assets
+RUN rm -rf /usr/share/nginx/html/*
 
-# Copy the built files from the frontend builder stage
-COPY --from=frontend-builder /frontend/dist ./dist
+# Copy the built app from the builder stage into Nginx's public folder
+COPY --from=builder /frontend/dist /usr/share/nginx/html
 
-# Install a simple HTTP server (e.g., serve)
-RUN npm install -g serve
+# Optionally, copy your custom Nginx configuration file
+COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 
-# Expose the default HTTP port
-EXPOSE 8080
+# Expose port 80 (Nginx default)
+EXPOSE 80
 
-# Start the server
-CMD ["serve", "-s", "dist", "-l", "8080"]
+# Start Nginx in the foreground
+CMD ["nginx", "-g", "daemon off;"]
