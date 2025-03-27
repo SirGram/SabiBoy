@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: ./frontend/Dockerfile
     ports:
-      - "8002:80"
+      - "8003:80"
     environment:
       - NODE_ENV=production
     restart: unless-stopped
@@ -18,7 +18,7 @@ services:
     volumes:
       - ./backend:/app
       - /app/node_modules
-      - ./games:/games
+      - ./games:/app/games
     environment:
       - NODE_ENV=production
       - PORT=3000
