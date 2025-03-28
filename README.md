@@ -75,21 +75,9 @@ wasm-pack build
 cp ./pkg ../frontend/src/wasm
 # 5. Launch the app
 ```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## 📋 License
-
-SabiBoy uses the **Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)** license. This means:
-
-- You can use and modify the project for personal or educational purposes.
-- You must credit the original creator.
-- Commercial use is not allowed without permission.
+Or just run 
+```
+docker compose up -d
+```
 
 **Note**: Always respect copyright laws when using ROMs.
